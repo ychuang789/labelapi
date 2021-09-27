@@ -3,7 +3,7 @@ import logging
 import time
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from definition import LOGS_DIR
 
@@ -68,3 +68,21 @@ def get_logger(logger_name, verbose=False, write_to_file=True):
             )
         )
     return logger
+
+def split_batch(docs: Iterable[str], batch=100) -> Iterable[str]:
+    """
+    照文章數量分割請求
+    Args:
+        docs: 所有文章
+        batch: 每份數量
+
+    Returns: 分割後文章
+
+    """
+    _docs = []
+    for doc in docs:
+        _docs.append(doc)
+        if len(_docs) == batch:
+            yield _docs
+            _docs.clear()
+    yield _docs

@@ -1,0 +1,16 @@
+source_name:
+  input:
+    type: "local_file"
+    settings:
+      files:
+        - "scrap_file/data_1000_20210927103107.csv"
+  output:
+    type: "database"
+    settings:
+      host: "172.18.20.190"
+      port: 3306
+      user: "rd2"
+      pwd: "eland4321"
+      db_type: "mariadb"
+      schema: "audience_sample"
+      table: "author_result"
