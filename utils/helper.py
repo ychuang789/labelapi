@@ -3,7 +3,7 @@ import logging
 import time
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from definition import ROOT_LOG_DIR
 
