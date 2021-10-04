@@ -38,13 +38,11 @@ class RuleModel(AudienceModel):
                  name: str = None,
                  model_type: ModelType = ModelType.RULE_MODEL,
                  target: PredictTarget = PredictTarget.CONTENT,
-                 na_label=None,
                  verbose: bool = False):
         super().__init__(name=name if name is not None else "RuleModel", model_type=model_type, target=target,
                          logger_name="RuleModel", verbose=verbose)
         self.logger.debug("model Init")
         self.label_patterns = None
-        self.na_label = na_label
         self.labels = []
         if model_data is not None:
             self.load(model_data)
@@ -79,9 +77,7 @@ class RuleModel(AudienceModel):
             if len(_matched_labels) > 0:
                 matched_labels.append(tuple(_matched_labels))
                 match_count_list.append(_match_count_list)
-            else:
-                matched_labels.append(tuple([self.na_label]))
-                match_count_list.append([(self.na_label, 1)])
+
         self.logger.debug(f"Matched labels size: {len(matched_labels)}")
         self.logger.debug(f"Matched count list size: {len(match_count_list)}")
         if len(matched_labels) > 0:
@@ -98,7 +94,6 @@ class KeywordModel(AudienceModel):
                  model_type: ModelType = ModelType.RULE_MODEL,
                  case_sensitive: bool = False,
                  target=PredictTarget.CONTENT,
-                 na_label=None,
                  verbose: bool = False):
         super().__init__(name=name if name is not None else "KeywordModel", model_type=model_type,
                          case_sensitive=case_sensitive, target=target, logger_name="KeywordModel", verbose=verbose)
@@ -108,7 +103,6 @@ class KeywordModel(AudienceModel):
         self.label_match_end = defaultdict(list)
         self.label_match_full = defaultdict(list)
         self.labels = []
-        self.na_label = na_label
         if label_keywords is not None:
             self.load(label_keywords)
 
@@ -175,9 +169,7 @@ class KeywordModel(AudienceModel):
             if len(_matched_labels) > 0:
                 matched_labels.append(tuple(_matched_labels))
                 match_count_list.append(_match_count_list)
-            else:
-                matched_labels.append(tuple([self.na_label]))
-                match_count_list.append([(self.na_label, 1)])
+
         self.logger.debug(f"Matched labels size: {len(matched_labels)}")
         self.logger.debug(f"Matched count list size: {len(match_count_list)}")
         if len(matched_labels) > 0:
