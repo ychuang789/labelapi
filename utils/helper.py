@@ -5,10 +5,10 @@ from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import Any, Iterable
 
-from definition import ROOT_LOG_DIR
+from definition import LOGS_DIR
 
 def get_error_file_handler(logger_name) -> Any:
-    log_dir = os.path.join(ROOT_LOG_DIR, logger_name)
+    log_dir = os.path.join(LOGS_DIR, logger_name)
     Path(log_dir).mkdir(exist_ok=True)
     filepath = os.path.join(
         log_dir,
@@ -27,7 +27,7 @@ def get_error_file_handler(logger_name) -> Any:
     return file_handler
 
 def get_normal_file_handler(logger_name, log_level, formatter) -> Any:
-    log_dir = os.path.join(ROOT_LOG_DIR, logger_name)
+    log_dir = os.path.join(LOGS_DIR, logger_name)
     Path(log_dir).mkdir(exist_ok=True)
     filepath = os.path.join(
         log_dir,

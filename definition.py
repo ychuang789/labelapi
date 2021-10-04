@@ -1,8 +1,11 @@
 from pathlib import Path, PurePath
 
 ROOT_DIR = PurePath(__file__).parent
-ROOT_LOG_DIR = Path(ROOT_DIR / "logs")
+LOGS_DIR = Path(ROOT_DIR / "logs")
+Path(LOGS_DIR).mkdir(exist_ok=True)
 
+SCRAP_FOLDER = Path(ROOT_DIR / "scrap_file")
+Path(SCRAP_FOLDER).mkdir(exist_ok=True)
 
 DEEPNLP_POS_API = "http://127.0.0.1/segment"
 DEEPNLP_POS_API_TOKEN = ""
