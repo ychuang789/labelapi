@@ -4,7 +4,8 @@ from typing import Iterable, List, Dict
 
 from utils.helper import get_logger
 from utils.input_example import InputExample
-from settings import ModelType, PredictTarget, Errors
+
+from utils.selections import ModelType, PredictTarget, Errors
 
 
 class AudienceModel(ABC):
