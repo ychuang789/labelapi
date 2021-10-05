@@ -1,3 +1,4 @@
+
 from abc import ABC, abstractmethod
 from typing import Iterable
 
@@ -25,8 +26,6 @@ class AudienceModel(ABC):
     @abstractmethod
     def predict(self, input_examples: Iterable[InputExample]):
         pass
-
-
 
 
 
