@@ -5,17 +5,18 @@ import pymysql
 import pandas as pd
 
 from definition import SCRAP_FOLDER
-from settings import QueryStatements, DatabaseInfo
+from utils.selections import QueryStatements
+from settings import DatabaseInfo
 
 
-def connect_database(schema = DatabaseInfo.rule_schemas):
+def connect_database(schema = DatabaseInfo.input_schema):
         try:
             config = {
-                'host': DatabaseInfo.host.value,
-                'port': DatabaseInfo.port.value,
-                'user': DatabaseInfo.user.value,
-                'password': DatabaseInfo.password.value,
-                'db': schema.value,
+                'host': DatabaseInfo.host,
+                'port': DatabaseInfo.port,
+                'user': DatabaseInfo.user,
+                'password': DatabaseInfo.password,
+                'db': schema,
                 'charset': 'utf8mb4',
                 'cursorclass': pymysql.cursors.DictCursor,
             }
@@ -49,7 +50,7 @@ def scrap_data_to_csv(logger):
                 func().close()
 
         except:
-            logger.error(f'fail to scrap data from {DatabaseInfo.schema.name}')
+            logger.error(f'fail to scrap data')
             return
 
     return file_list
@@ -66,5 +67,5 @@ def scrap_data_to_df(logger):
                 return result
 
         except:
-            logger.error(f'fail to scrap data from {DatabaseInfo.schema.name}')
+            logger.error(f'fail to scrap data ')
             return

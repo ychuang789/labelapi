@@ -1,9 +1,5 @@
 import os
-from enum import  Enum
-
 from dotenv import load_dotenv
-
-INPUT_COLUMNS = "source_author, applied_content, created_at"
 
 SYSTEM_CONFIG = {'settings':
                      {'database':
@@ -30,25 +26,6 @@ SYSTEM_CONFIG = {'settings':
                  }
 
 
-class ModelType(Enum):
-    RULE_MODEL = "rule_model"
-    KEYWORD_MODEL = "keyword_model"
-
-class PredictTarget(Enum):
-    CONTENT = "content"
-    AUTHOR_NAME = "author_name"
-    S_AREA_ID = "s_area_id"
-
-class KeywordMatchType(Enum):
-    PARTIALLY = "partially"
-    ABSOLUTELY = "absolutely"
-    START = "start"
-    END = "end"
-
-class Errors(Enum):
-    UNKNOWN_DB_TYPE = "Unknown database type."
-    UNKNOWN_PREDICT_TARGET_TYPE = "Unknown predict target type."
-
 class CeleryConfig:
     name = 'celery_worker'
     backend='redis://localhost/0'
@@ -57,7 +34,7 @@ class CeleryConfig:
     enable_utc = False
     result_expires = None
 
-class DatabaseInfo(Enum):
+class DatabaseInfo:
     load_dotenv()
     host = os.getenv('HOST')
     port = int(os.getenv('PORT'))
@@ -68,8 +45,4 @@ class DatabaseInfo(Enum):
     rule_schemas = os.getenv('RULE_SHEMAS')
     engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
 
-class QueryStatements(Enum):
-    # QUERY_FEMALE = f'SELECT {INPUT_COLUMNS} FROM predicting_jobs_predictingresult WHERE label_name LIKE "女%" AND applied_feature="author"'
-    # QUERY_MALE = f'SELECT {INPUT_COLUMNS} FROM predicting_jobs_predictingresult WHERE label_name LIKE "男%" AND applied_feature="author"'
-    MALE_RULE = f'SELECT * FROM male_author_name_rules'
-    FEMALE_RULE = f'SELECT * FROM female_author_name_rules'
+

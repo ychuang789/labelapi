@@ -7,7 +7,7 @@ from ahocorapy.keywordtree import KeywordTree
 
 from utils.helper import get_logger
 from utils.input_example import InputExample
-from settings import ModelType, PredictTarget, Errors, KeywordMatchType
+from utils.selections import ModelType, PredictTarget, Errors, KeywordMatchType
 
 
 class AudienceModel(ABC):
