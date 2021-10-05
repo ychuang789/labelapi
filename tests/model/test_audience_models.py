@@ -1,7 +1,8 @@
 from datetime import datetime
 from unittest import TestCase
 
-from models.audience_models import RuleModel, KeywordModel
+from models.rule_model import RuleModel
+from models.keyword_model import KeywordModel
 from utils.selections import PredictTarget, KeywordMatchType
 from utils.input_example import InputExample
 
