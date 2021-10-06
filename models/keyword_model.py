@@ -92,7 +92,7 @@ class KeywordModel(AudienceModel):
 
         self.logger.debug(f"Matched labels size: {len(matched_labels)}")
         self.logger.debug(f"Matched count list size: {len(match_count_list)}")
-        if len(matched_labels) > 0:
+        if matched_labels:
             return matched_labels, match_count_list
         else:
             return None, None
