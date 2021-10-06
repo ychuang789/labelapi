@@ -25,6 +25,39 @@ SYSTEM_CONFIG = {'settings':
                       }
                  }
 
+DATA_CONFIG = {'source_name_1':
+                   {'input':
+                         {'host': '172.18.20.190',
+                          'port': 3306,
+                          'user': 'rd2',
+                          'pwd': 'eland4321',
+                          'schema': 'audience-toolkit-django',
+                          'table': 'predicting_jobs_predictingresult'
+                          }
+                         },
+                    'output':
+                        {'host': '172.18.20.190',
+                         'port': 3306,
+                         'user': 'rd2',
+                         'pwd': 'eland4321',
+                         'schema': 'audience_result'
+                         }
+                }
+
+MODEL_CONFIG = {'gender_model_1':
+                    {'model_type': 'keyword_model',
+                     'model_settings':
+                         {'case_sensitive': False,
+                          'target': 'author_name'
+                          },
+                     'model_data':
+                         {'files': ['rules/author_name_keyword.pkl']
+                          }
+                     }
+                }
+
+
+
 
 class CeleryConfig:
     name = 'celery_worker'
