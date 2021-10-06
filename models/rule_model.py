@@ -1,5 +1,7 @@
 import re
-from typing import Iterable, List, Dict
+from typing import Iterable, Dict, List
+
+
 from models.audience_models import AudienceModel
 from utils.input_example import InputExample
 

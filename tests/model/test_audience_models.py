@@ -1,8 +1,11 @@
 from datetime import datetime
 from unittest import TestCase
 
-from models.audience_models import RuleModel
-from utils.selections import PredictTarget
+
+from models.rule_model import RuleModel
+from models.keyword_model import KeywordModel
+from utils.selections import PredictTarget, KeywordMatchType
+
 from utils.input_example import InputExample
 
 post_male = "小弟我沒女友，在八卦版混了很久了在八卦版混，時常會有的福利就是偶爾會有人貼清涼養眼圖上班上久了，心情煩悶，看這些圖多多少少會有解鬱消悶的效果感謝八卦版大的貢獻所以在八卦版上，只要看到巨乳等關鍵字，我都是會直覺地點閱進入觀賞，以調劑身心。"
@@ -42,6 +45,20 @@ class TestRuleBaseModel(TestCase):
         label = "female"
         rs, prob = self.name_rule_base_model.predict([input_young], target=PredictTarget.AUTHOR_NAME)
         self.assertTrue(label in rs[0])
+
+    def test_predict_source(self):
+        """
+        預測作者來源規則
+        """
+        label = "female"
+        rs, prob = self.source_rule_base_model.predict([input_female], target=PredictTarget.S_AREA_ID)
+        self.assertTrue(label in rs[0])
+
+class TestKeyWordBaseModel(TestCase):
+    source_rules = {"female": [("woman_talk", KeywordMatchType.END), ("_talk", KeywordMatchType.PARTIALLY)]}
+
+    def setUp(self) -> None:
+        self.source_rule_base_model = KeywordModel(self.source_rules)
 
     def test_predict_source(self):
         """
