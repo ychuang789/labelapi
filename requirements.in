@@ -1,6 +1,10 @@
 ahocorapy
 celery
+fastapi
 pandas
 python-dotenv
 pymysql
 redis
+sqlalchemy
+tqdm
+uvicorn[standard]
