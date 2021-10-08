@@ -1,20 +1,24 @@
+from enum import Enum
+from pathlib import Path
 
-from enum import  Enum
+from definition import RULE_FOLDER
+
 
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
 
 class ModelType(Enum):
-    RULE_MODEL = "rule_model"
     KEYWORD_MODEL = "keyword_model"
+    RULE_MODEL = "rule_model"
 
-
-class PredictTarget:
-    CONTENT = "content"
+class PredictTarget(Enum):
     AUTHOR_NAME = "author_name"
+    CONTENT = "content"
     S_AREA_ID = "s_area_id"
 
+class RulesTarget:
+    AUTHOR_NAME_KEYWORD = Path(RULE_FOLDER / "author_name.pkl")
 
 class KeywordMatchType:
     PARTIALLY = "partially"
