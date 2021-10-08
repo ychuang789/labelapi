@@ -2,19 +2,13 @@
 
 ###### created by Weber Huang at 2021-10-07
 
-[Description](#description)
-
-[Built With](#built-with)
-
-[Quick Start](#quick-start)
-
-​	[Set up docker](#set-up-docker)
-
-​	[Set up environment](#set-up-environment)
-
-​	[Set up database information](#set-up-database-information)
-
-​	[Initialize the worker](#initialize-the-worker)
++ [Description](#description)
++ [Built With](#built-with)
++ [Quick Start](#quick-start)
+  + [Set up docker](#set-up-docker)
+  + [Set up environment](#set-up-environment)
+  + [Set up database information](#set-up-database-information)
+  + [Initialize the worker](#initialize-the-worker)
 
 ## Description
 
