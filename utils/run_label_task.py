@@ -98,7 +98,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
 
     else:
         logger.error('wrong model name input')
-        return
+        raise ValueError('wrong model name input, please check the input')
 
 
     # df = df[['id', 'task_id', 'source_author', 'created_at', 'panel']]
@@ -159,7 +159,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
             return f'writing table test into db cost {difference.total_seconds()} second'
         except:
             logger.error(f'write dataframe to test failed!')
-            return
+            raise ConnectionError(f'failed to write output into database... '
+                                  f'probable wrong query or connection issue')
 
 
     else:
