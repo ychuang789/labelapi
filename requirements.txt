@@ -50,7 +50,9 @@ pandas==1.3.3
 prompt-toolkit==3.0.20
     # via click-repl
 pydantic==1.8.2
-    # via fastapi
+    # via
+    #   fastapi
+    #   sqlmodel
 pymysql==1.0.2
     # via -r requirements.in
 python-dateutil==2.8.2
@@ -72,13 +74,19 @@ six==1.16.0
     #   click-repl
     #   python-dateutil
 sqlalchemy==1.4.25
+    # via sqlmodel
+sqlalchemy2-stubs==0.0.2a17
+    # via sqlmodel
+sqlmodel==0.0.4
     # via -r requirements.in
 starlette==0.14.2
     # via fastapi
 tqdm==4.62.3
     # via -r requirements.in
 typing-extensions==3.10.0.2
-    # via pydantic
+    # via
+    #   pydantic
+    #   sqlalchemy2-stubs
 uvicorn[standard]==0.15.0
     # via -r requirements.in
 vine==5.0.0

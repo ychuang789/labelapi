@@ -1,7 +1,8 @@
+import os
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable
+from typing import Dict, Iterable, Optional, Union, Tuple, List
 
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -10,11 +11,32 @@ import pandas as pd
 from definition import SAVE_FOLDER
 from models.rule_model import RuleModel
 from models.keyword_model import  KeywordModel
+
+from definition import RULE_FOLDER
 from settings import DatabaseInfo
 from utils.database_core import scrap_data_to_df, connect_database
 from utils.helper import get_logger
-from utils.selections import ModelType, PredictTarget
+from utils.selections import ModelType, PredictTarget, KeywordMatchType
 from utils.input_example import InputExample
+
+
+def read_key_word_pattern(file_path: Optional[Union[str, Path]], _key: str) -> Dict[str, List[Tuple[str, KeywordMatchType]]]:
+    with open(file_path, 'r') as f:
+        lines = f.read().splitlines()
+        values = [(line.split("\t")[0],line.split("\t")[1]) for line in lines]
+        output_dict = {_key: values}
+        return output_dict
+
+def read_from_dir(model_type: Union[ModelType, str],
+                  predict_type: Union[PredictTarget, str])-> Dict[str, List[Tuple[str, KeywordMatchType]]]:
+    _dict = {}
+    for gender in os.listdir(f'{RULE_FOLDER}/{model_type}'):
+        for file in os.listdir(f'{RULE_FOLDER}/{model_type}/{gender}'):
+            if file.endswith(".txt"):
+                file_path = Path(RULE_FOLDER / model_type / gender / f'{predict_type}.txt')
+                _dict.update(read_key_word_pattern(file_path, gender))
+
+    return _dict
 
 
 def run_prediction(input_examples: Iterable[InputExample], pattern: Dict,

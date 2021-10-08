@@ -1,18 +1,14 @@
-import json
-import os
 import uuid
-from pathlib import Path
 from typing import List
 
 import uvicorn
-import pandas as pd
-from fastapi import FastAPI, Query, status, Form
+from fastapi import FastAPI, Query, status
 from fastapi.responses import JSONResponse
 
 from celery.result import AsyncResult
-from definition import RULE_FOLDER
 from utils.database_core import scrap_data_to_df
 from utils.helper import get_logger
+from utils.run_label_task import read_from_dir
 from utils.selections import ModelType, PredictTarget
 
 from celery_worker import label_data
@@ -55,16 +51,13 @@ async def create(model_type: str = Query(..., enum=model_list),
                "date_range": f"{start_year}/{start_month} - {end_year}/{end_month}",
                "target_table": target_table}
 
-    pattern_path = Path(RULE_FOLDER / model_type / f'{predict_type}.pkl')
 
     _logger.info('Preparing data...')
-    if os.path.exists(pattern_path):
-        pass
-    else:
+    try:
+        pattern = read_from_dir(model_type, predict_type)
+    except:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
                             content=f'rule file is not found.')
-
-    pattern = pd.read_pickle(pattern_path)
 
     query = f"SELECT * FROM {target_table} " \
             f"WHERE applied_feature='author' " \
@@ -82,19 +75,19 @@ async def create(model_type: str = Query(..., enum=model_list),
 
 @app.post('/task_list/')
 async def task_list(tasks: List[str] = Query(None)):
-    # try:
-    status_dict = {}
-    for i in range(len(tasks)):
-        _result = AsyncResult(tasks[i].split(';')[1], app=label_data)
-        temp = {
-            tasks[i]: _result.status
-        }
-        status_dict.update(temp)
+    try:
+        status_dict = {}
+        for i in range(len(tasks)):
+            _result = AsyncResult(tasks[i].split(';')[1], app=label_data)
+            temp = {
+                tasks[i]: _result.status
+            }
+            status_dict.update(temp)
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=status_dict)
-    # except:
-    #     err_msg = f'invalid task list, plz retry.'
-    #     return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=err_msg)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=status_dict)
+    except:
+        err_msg = f'invalid task list, plz retry.'
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=err_msg)
 
 @app.post('/check_status/')
 async def check_status(_id: str = Query(...)):
@@ -117,13 +110,13 @@ async def sample_result(_id: str = Query(...),
             f"LIMIT {number}"
 
     schema = 'audience_result'
-    # try:
-    result = scrap_data_to_df(_logger, query, schema=schema)
+    try:
+        result = scrap_data_to_df(_logger, query, schema=schema)
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=result.to_json())
-    # except:
-    #     err_msg = f'invalid sql query, plz re-check it.'
-    #     return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=err_msg)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=result.to_json())
+    except:
+        err_msg = f'invalid sql query, plz re-check it.'
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=err_msg)
 
 
 
