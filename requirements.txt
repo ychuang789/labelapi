@@ -8,8 +8,6 @@ ahocorapy==1.6.1
     # via -r requirements.in
 amqp==5.0.6
     # via kombu
-anyio==3.3.2
-    # via starlette
 asgiref==3.4.1
     # via uvicorn
 billiard==3.6.4.0
@@ -33,7 +31,7 @@ colorama==0.4.4
     # via
     #   tqdm
     #   uvicorn
-fastapi==0.70.0
+fastapi==0.68.1
     # via -r requirements.in
 future==0.18.2
     # via ahocorapy
@@ -43,8 +41,6 @@ h11==0.12.0
     # via uvicorn
 httptools==0.2.0
     # via uvicorn
-idna==3.2
-    # via anyio
 kombu==5.1.0
     # via celery
 numpy==1.21.2
@@ -75,11 +71,9 @@ six==1.16.0
     # via
     #   click-repl
     #   python-dateutil
-sniffio==1.2.0
-    # via anyio
 sqlalchemy==1.4.25
     # via -r requirements.in
-starlette==0.16.0
+starlette==0.14.2
     # via fastapi
 tqdm==4.62.3
     # via -r requirements.in
