@@ -2,7 +2,6 @@ import os
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import pymysql
 import pandas as pd
@@ -186,3 +185,32 @@ def result_to_db(save_dir: SAVE_FOLDER, file_name: str, logger: get_logger):
             logger.info(f'writing table {SOURCE.get(k)} into db cost {difference.seconds} second')
 
     return f'Output file {file_name} is write into {DatabaseInfo.output_schema}'
+
+def get_create_task_query(target_table, predict_type, start_time, end_time):
+
+    q = f"SELECT * FROM {target_table} " \
+        f"WHERE {predict_type} IS NOT NULL " \
+        f"AND post_time >= '{start_time}'" \
+        f"AND post_time <= '{end_time}'"
+
+    return q
+
+def get_count_query():
+    return 'SELECT COUNT(task_id) FROM celery_taskmeta'
+
+def get_tasks_query(table, order_column, offset, number):
+    q = f'SELECT task_id, status FROM {table} ' \
+        f'WHERE id >= (SELECT id FROM {table} ' \
+        f'ORDER BY {order_column} ' \
+        f'LIMIT {offset}, 1) ' \
+        f'LIMIT {number}'
+
+    return q
+
+def get_sample_query(_id, string, order_column, offset, number):
+    q = f"SELECT * FROM {string}WHERE task_id = '{_id.split(';')[0]}' " \
+        f"AND id >= (SELECT id FROM {string}ORDER BY {order_column} " \
+        f"LIMIT {offset},1) " \
+        f"LIMIT {number}"
+
+    return q
