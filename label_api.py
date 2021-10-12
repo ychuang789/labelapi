@@ -18,7 +18,7 @@ _logger = get_logger('label_API')
 app = FastAPI(title="Labeling Task API",
               description="For helping AS department to labeling the data")
 
-@app.post('/api/tasks/create_tasks/')
+@app.post('/api/tasks/')
 async def create(create_request_body: CreateTaskRequestBody):
     if create_request_body.start_time < create_request_body.end_time:
         pass
@@ -38,21 +38,21 @@ async def create(create_request_body: CreateTaskRequestBody):
     _logger.info('Preparing data...')
     try:
         pattern = read_from_dir(create_request_body.model_type.value, create_request_body.predict_type.value)
-    except:
+    except Exception as e:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                            content=f'rule file is not found.')
+                            content=f'rule file is not found.\n addition :{e}')
 
     if create_request_body.predict_type.value == 'author_name':
 
         query = f"SELECT * FROM {create_request_body.target_table} " \
-                f"WHERE  author IS NOT NULL " \
-                f"AND created_at >= '{create_request_body.start_time}'" \
-                f"AND created_at <= '{create_request_body.end_time}'"
+                f"WHERE author IS NOT NULL " \
+                f"AND post_time >= '{create_request_body.start_time}'" \
+                f"AND post_time <= '{create_request_body.end_time}'"
     else:
         query = f"SELECT * FROM {create_request_body.target_table} " \
-                f"WHERE applied_feature='author' " \
-                f"AND created_at >= '{create_request_body.start_time}'" \
-                f"AND created_at <= '{create_request_body.end_time}'"
+                f"WHERE {create_request_body.predict_type.value} IS NOT NULL " \
+                f"AND post_time >= '{create_request_body.start_time}'" \
+                f"AND post_time <= '{create_request_body.end_time}'"
 
     _logger.info('start the labeling worker ...')
     result = label_data.apply_async((task_id, create_request_body.target_schema,
@@ -65,7 +65,7 @@ async def create(create_request_body: CreateTaskRequestBody):
     return JSONResponse(status_code=status.HTTP_200_OK, content=setting)
 
 
-@app.get('/api/tasks/task_list/')
+@app.get('/api/tasks/')
 async def task_list(tasks: List[str] = Query(None)):
     try:
         status_dict = {}
@@ -77,18 +77,18 @@ async def task_list(tasks: List[str] = Query(None)):
             status_dict.update(temp)
 
         return JSONResponse(status_code=status.HTTP_200_OK, content=status_dict)
-    except:
+    except Exception as e:
         err_msg = f'invalid task list, plz retry.'
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=err_msg)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg}\naddition :{e}')
 
 @app.get('/api/tasks/check_status/')
 async def check_status(_id: str = Query(...)):
     try:
         _result = AsyncResult(_id.split(';')[1], app=label_data)
         return JSONResponse(status_code=status.HTTP_200_OK, content=_result.status)
-    except:
+    except Exception as e:
         err_msg = f'task id is not exist, plz re-check the task id.'
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=err_msg)
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg}\naddition :{e}')
 
 @app.get('/api/tasks/sample/sample_result/')
 async def sample_result(sample_request_body: SampleResultRequestBody, _id: str = Query(...)):
@@ -104,9 +104,9 @@ async def sample_result(sample_request_body: SampleResultRequestBody, _id: str =
         result = scrap_data_to_df(_logger, query, schema=sample_request_body.sql_schema)
 
         return JSONResponse(status_code=status.HTTP_200_OK, content=result.to_json())
-    except:
+    except Exception as e:
         err_msg = f'invalid sql query, plz re-check it.'
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=err_msg)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg}\naddition :{e}')
 
 
 if __name__ == '__main__':
