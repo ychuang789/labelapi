@@ -48,6 +48,7 @@ class CreateTaskRequestBody(BaseModel):
     predict_type: PredictTarget = PredictTarget.AUTHOR_NAME.value
     start_time: datetime = "2021-01-01 00:00:00"
     end_time: datetime = "2021-12-31 23:59:59"
+    target_schema: str = "forum_data"
     target_table: str = "ts_page_content"
 
 class SampleResultRequestBody(BaseModel):

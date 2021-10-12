@@ -48,7 +48,9 @@ async def create(create_request_body: CreateTaskRequestBody):
             f"AND created_at <= '{create_request_body.end_time}'"
 
     _logger.info('start the labeling worker ...')
-    result = label_data.apply_async((task_id, query, pattern, create_request_body.model_type.value, create_request_body.predict_type.value))
+    result = label_data.apply_async((task_id, create_request_body.target_schema,
+                                     query, pattern, create_request_body.model_type.value,
+                                     create_request_body.predict_type.value))
 
     setting.update({'task_id': f'{task_id};{result.id}'})
     _logger.info(f'API configuration: {setting}')
