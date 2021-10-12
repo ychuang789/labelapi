@@ -1,7 +1,6 @@
 from datetime import datetime
 from unittest import TestCase
 
-
 from models.rule_model import RuleModel
 from models.keyword_model import KeywordModel
 from utils.selections import PredictTarget, KeywordMatchType

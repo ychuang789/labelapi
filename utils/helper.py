@@ -3,12 +3,14 @@ import logging
 import time
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Any, Iterable
+from tqdm import tqdm
+from typing import Any, Iterable, Dict, List, Tuple
 
-from definition import ROOT_LOG_DIR
+import pandas as pd
+from definition import LOGS_DIR
 
 def get_error_file_handler(logger_name) -> Any:
-    log_dir = os.path.join(ROOT_LOG_DIR, logger_name)
+    log_dir = os.path.join(LOGS_DIR, logger_name)
     Path(log_dir).mkdir(exist_ok=True)
     filepath = os.path.join(
         log_dir,
@@ -27,7 +29,7 @@ def get_error_file_handler(logger_name) -> Any:
     return file_handler
 
 def get_normal_file_handler(logger_name, log_level, formatter) -> Any:
-    log_dir = os.path.join(ROOT_LOG_DIR, logger_name)
+    log_dir = os.path.join(LOGS_DIR, logger_name)
     Path(log_dir).mkdir(exist_ok=True)
     filepath = os.path.join(
         log_dir,
@@ -69,3 +71,14 @@ def get_logger(logger_name, verbose=False, write_to_file=True):
         )
     return logger
 
+def create_keyword_dict(df: pd.DataFrame, label: str, keyword: Dict = None) -> Dict[str, List[Tuple[str, str]]]:
+    keyword_patterns = keyword if keyword else {}
+    pattern_list = []
+    for idx, row in tqdm(df.iterrows()):
+        pattern_list.append((row.rule_content, row.match_type))
+
+    temp = {label: pattern_list}
+
+    keyword_patterns.update(temp)
+
+    return keyword_patterns
