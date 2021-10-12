@@ -55,6 +55,6 @@ class SampleResultRequestBody(BaseModel):
     order_column: str = "create_time"
     number: int = 10
     offset: int = 1000
-    schema: str = 'audience_result'
+    sql_schema: str = 'audience_result'
     table: List[str] = 'test'
 

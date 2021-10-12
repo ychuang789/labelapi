@@ -42,10 +42,17 @@ async def create(create_request_body: CreateTaskRequestBody):
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
                             content=f'rule file is not found.')
 
-    query = f"SELECT * FROM {create_request_body.target_table} " \
-            f"WHERE applied_feature='author' " \
-            f"AND created_at >= '{create_request_body.start_time}'" \
-            f"AND created_at <= '{create_request_body.end_time}'"
+    if create_request_body.predict_type.value == 'author_name':
+
+        query = f"SELECT * FROM {create_request_body.target_table} " \
+                f"WHERE  author IS NOT NULL " \
+                f"AND created_at >= '{create_request_body.start_time}'" \
+                f"AND created_at <= '{create_request_body.end_time}'"
+    else:
+        query = f"SELECT * FROM {create_request_body.target_table} " \
+                f"WHERE applied_feature='author' " \
+                f"AND created_at >= '{create_request_body.start_time}'" \
+                f"AND created_at <= '{create_request_body.end_time}'"
 
     _logger.info('start the labeling worker ...')
     result = label_data.apply_async((task_id, create_request_body.target_schema,
@@ -94,7 +101,7 @@ async def sample_result(sample_request_body: SampleResultRequestBody, _id: str =
             f"LIMIT {sample_request_body.number}"
 
     try:
-        result = scrap_data_to_df(_logger, query, schema=sample_request_body.schema)
+        result = scrap_data_to_df(_logger, query, schema=sample_request_body.sql_schema)
 
         return JSONResponse(status_code=status.HTTP_200_OK, content=result.to_json())
     except:
