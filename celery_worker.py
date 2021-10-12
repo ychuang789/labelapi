@@ -1,6 +1,6 @@
 from celery import Celery
 
-from settings import CeleryConfig
+from settings import CeleryConfig, DatabaseInfo
 from utils.database_core import scrap_data_to_df, create_db
 from utils.helper import get_logger
 from utils.run_label_task import labeling
@@ -20,7 +20,7 @@ celery_app.conf.update(task_track_started=True)
 @celery_app.task(name=f'{name}.label_data', track_started=True)
 def label_data(task_id, query, pattern, model_type, predict_type):
     _logger = get_logger('label_data')
-    df = scrap_data_to_df(_logger, query)
+    df = scrap_data_to_df(_logger, query, schema=DatabaseInfo.input_schema)
     if isinstance(df, str):
         raise TypeError(f'expect dataframe but get sting\n additional message: {df}')
     if df.empty:
