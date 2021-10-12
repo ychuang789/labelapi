@@ -98,7 +98,7 @@ async def check_status(_id):
         return JSONResponse(status_code=status.HTTP_200_OK, content=_result.status)
     except Exception as e:
         err_msg = f'task id is not exist, plz re-check the task id.'
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg} addition :{e}')
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg} Addition :{e}')
 
 @app.get('/api/tasks/<_id>/sample/', description='input a 69 digit of id which generate from create task api')
 async def sample_result(_id: str):
@@ -117,7 +117,7 @@ async def sample_result(_id: str):
         return JSONResponse(status_code=status.HTTP_200_OK, content=result.to_json())
     except Exception as e:
         err_msg = f'invalid sql query, plz re-check it.'
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg} addition :{e}')
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg} Addition :{e}')
 
 
 if __name__ == '__main__':
