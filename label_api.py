@@ -93,9 +93,8 @@ async def task_list():
     except Exception as e:
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=e)
 
-
-@app.get('/api/tasks/check_status/')
-async def check_status(_id: str = Query(...)):
+@app.get('/api/tasks/<_id>', description='input a 69 digit of id which generate from create task api')
+async def check_status(_id):
     try:
         _result = AsyncResult(_id.split(';')[1], app=label_data)
         return JSONResponse(status_code=status.HTTP_200_OK, content=_result.status)
@@ -103,23 +102,24 @@ async def check_status(_id: str = Query(...)):
         err_msg = f'task id is not exist, plz re-check the task id.'
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg}\naddition :{e}')
 
-@app.get('/api/tasks/sample/sample_result/')
-async def sample_result(sample_request_body: SampleResultRequestBody, _id: str = Query(...)):
+@app.get('/api/tasks/<_id>/sample/', description='input a 69 digit of id which generate from create task api')
+async def sample_result(_id: str):
     string = ''
-    for i in range(len(sample_request_body.table)):
-        string += f'{sample_request_body.table[i]} '
+    for i in range(len(SampleResultRequestBody.table)):
+        string += f'{SampleResultRequestBody.table[i]} '
 
     query = f"SELECT * FROM {string}WHERE task_id = '{_id.split(';')[0]}' " \
-            f"AND id >= (SELECT id FROM {string}ORDER BY {sample_request_body.order_column} LIMIT {sample_request_body.offset},1) " \
-            f"LIMIT {sample_request_body.number}"
+            f"AND id >= (SELECT id FROM {string}ORDER BY {SampleResultRequestBody.order_column} " \
+            f"LIMIT {SampleResultRequestBody.offset},1) " \
+            f"LIMIT {SampleResultRequestBody.number}"
 
     try:
-        result = scrap_data_to_df(_logger, query, schema=sample_request_body.sql_schema)
+        result = scrap_data_to_df(_logger, query, schema=SampleResultRequestBody.sql_schema)
 
         return JSONResponse(status_code=status.HTTP_200_OK, content=result.to_json())
     except Exception as e:
         err_msg = f'invalid sql query, plz re-check it.'
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg}\naddition :{e}')
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg} addition :{e}')
 
 
 if __name__ == '__main__':

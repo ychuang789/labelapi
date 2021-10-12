@@ -54,15 +54,15 @@ class CreateTaskRequestBody(BaseModel):
 class TaskListRequestBody:
     order_column: str = 'date_done'
     number: int = 10
-    offset: int = 10
+    offset: int = 50
     sql_schema: str = 'sqlite:///save.db'
     table: str = 'celery_taskmeta'
 
 
-class SampleResultRequestBody(BaseModel):
+class SampleResultRequestBody:
     order_column: str = "create_time"
-    number: int = 10
+    number: int = 50
     offset: int = 1000
     sql_schema: str = 'audience_result'
-    table: List[str] = 'test'
+    table: List[str] = ['test']
 
