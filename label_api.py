@@ -21,12 +21,10 @@ app = FastAPI(title="Labeling Task API",
 
 @app.post('/api/tasks/')
 async def create(create_request_body: CreateTaskRequestBody):
-    if create_request_body.start_time < create_request_body.end_time:
-        pass
-    else:
+    if create_request_body.start_time >= create_request_body.end_time:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                            content=f'start time must be earlier to end time.')
-
+                            content=f'In setting.CreateTaskRequestBody start_time '
+                                    f'must be earlier to end_time.')
 
     task_id = uuid.uuid1().hex
     setting = {"task_id": task_id,
@@ -41,7 +39,7 @@ async def create(create_request_body: CreateTaskRequestBody):
         pattern = read_from_dir(create_request_body.model_type.value, create_request_body.predict_type.value)
     except Exception as e:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                            content=f'rule file is not found.\n addition :{e}')
+                            content=e)
 
     if create_request_body.predict_type.value == 'author_name':
 
@@ -100,7 +98,7 @@ async def check_status(_id):
         return JSONResponse(status_code=status.HTTP_200_OK, content=_result.status)
     except Exception as e:
         err_msg = f'task id is not exist, plz re-check the task id.'
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg}\naddition :{e}')
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg} addition :{e}')
 
 @app.get('/api/tasks/<_id>/sample/', description='input a 69 digit of id which generate from create task api')
 async def sample_result(_id: str):
