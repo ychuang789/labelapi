@@ -51,6 +51,14 @@ class CreateTaskRequestBody(BaseModel):
     target_schema: str = "forum_data"
     target_table: str = "ts_page_content"
 
+class TaskListRequestBody:
+    order_column: str = 'date_done'
+    number: int = 10
+    offset: int = 10
+    sql_schema: str = 'sqlite:///save.db'
+    table: str = 'celery_taskmeta'
+
+
 class SampleResultRequestBody(BaseModel):
     order_column: str = "create_time"
     number: int = 10

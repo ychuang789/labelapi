@@ -5,9 +5,10 @@ import uvicorn
 from celery.result import AsyncResult
 from fastapi import FastAPI, Query, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import create_engine
 
 from celery_worker import label_data
-from settings import CreateTaskRequestBody, SampleResultRequestBody
+from settings import CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody
 from utils.database_core import scrap_data_to_df
 from utils.helper import get_logger
 from utils.run_label_task import read_from_dir
@@ -66,20 +67,32 @@ async def create(create_request_body: CreateTaskRequestBody):
 
 
 @app.get('/api/tasks/')
-async def task_list(tasks: List[str] = Query(None)):
+async def task_list():
     try:
-        status_dict = {}
-        for i in range(len(tasks)):
-            _result = AsyncResult(tasks[i].split(';')[1], app=label_data)
-            temp = {
-                tasks[i]: _result.status
-            }
-            status_dict.update(temp)
+        engine = create_engine(TaskListRequestBody.sql_schema)
+        count = engine.execute(f'SELECT COUNT(task_id) FROM celery_taskmeta').fetchall()[0][0]
 
-        return JSONResponse(status_code=status.HTTP_200_OK, content=status_dict)
+        # if offset setting is greater than total rows of database, change it to half of count of database.
+        offset = f'(SELECT COUNT(task_id)/2 FROM celery_taskmeta)' if TaskListRequestBody.offset > count \
+            else TaskListRequestBody.offset
+
+        query = f'SELECT task_id, status FROM {TaskListRequestBody.table} ' \
+                f'WHERE id >= (SELECT id FROM {TaskListRequestBody.table} ' \
+                f'ORDER BY {TaskListRequestBody.order_column} ' \
+                f'LIMIT {offset}, 1) ' \
+                f'LIMIT 10;'
+        result = engine.execute(query).fetchall()
+
+        _dict = {}
+        for task_id, stat in result:
+            _dict.update(
+                {task_id: stat}
+            )
+
+        return JSONResponse(status_code=status.HTTP_200_OK, content=_dict)
     except Exception as e:
-        err_msg = f'invalid task list, plz retry.'
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg}\naddition :{e}')
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=e)
+
 
 @app.get('/api/tasks/check_status/')
 async def check_status(_id: str = Query(...)):
