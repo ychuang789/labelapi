@@ -13,8 +13,8 @@ from models.rule_model import RuleModel
 from models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
-from settings import DatabaseInfo
-from utils.database_core import scrap_data_to_df, connect_database
+from settings import DatabaseInfo, SOURCE
+from utils.database_core import connect_database, create_table
 from utils.helper import get_logger
 from utils.selections import ModelType, PredictTarget, KeywordMatchType
 from utils.input_example import InputExample
@@ -77,11 +77,11 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         for i in tqdm(range(len(df))):
             _input_data = InputExample(
                 id_=df['id'].iloc[i],
-                s_area_id=df['source_author'].iloc[i][:8],
-                author=df['source_author'].iloc[i][9:],
-                title="",
-                content=df['applied_content'].iloc[i],
-                post_time=df['created_at'].iloc[i]
+                s_area_id=df['s_area_id'].iloc[i],
+                author=df['author'].iloc[i],
+                title=df['title'].iloc[i],
+                content=df['content'].iloc[i],
+                post_time=df['post_time'].iloc[i]
             )
             rs, prob = model.predict([_input_data], target=predict_type)
 
@@ -100,11 +100,11 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         for i in tqdm(range(len(df))):
             _input_data = InputExample(
                 id_=df['id'].iloc[i],
-                s_area_id=df['source_author'].iloc[i][:8],
-                author=df['source_author'].iloc[i][9:],
-                title="",
-                content=df['applied_content'].iloc[i],
-                post_time=df['created_at'].iloc[i]
+                s_area_id=df['s_area_id'].iloc[i],
+                author=df['author'].iloc[i],
+                title=df['title'].iloc[i],
+                content=df['content'].iloc[i],
+                post_time=df['post_time'].iloc[i]
             )
             rs, prob = model.predict([_input_data], target=predict_type)
 
@@ -126,62 +126,57 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
 
     logger.info('finish labeling, generate the output ...')
     df["panel"].replace({"female": "/female", "male": "/male"}, inplace=True)
-    df.rename(columns={'created_at': 'create_time'}, inplace=True)
-    df.rename(columns={'source_author': 'source_id'}, inplace=True)
+    df.rename(columns={'post_time': 'create_time'}, inplace=True)
+    df['source_author'] = df['s_id'] + '_' + df['author']
+    df['field_content'] = df['s_id']
+    if predict_type == PredictTarget.AUTHOR_NAME.value:
+        df['match_content'] = df['author']
+    else:
+        df['match_content'] = df[predict_type]
 
-    df['field_content'] = [i[:8] for i in df['source_id'].values.tolist()]
-    df['matched_content'] = [i[9:] for i in df['source_id'].values.tolist()]
-
-    df_output = df[['id', 'task_id', 'source_id', 'create_time', 'panel', 'field_content', 'matched_content']]
+    df_output = df[['id', 'task_id', 'source_author', 'create_time',
+                    'panel', 'field_content', 'match_content']]
 
     if to_database:
         logger.info(f'write the output into database ...')
         start = datetime.now()
-        create_table_query = f'CREATE TABLE IF NOT EXISTS `test`(' \
-                             f'`id` INT(11) NOT NULL, ' \
-                             f'`task_id` VARCHAR(32) NOT NULL,' \
-                             f'`source_id` VARCHAR(200) NOT NULL,' \
-                             f'`panel` VARCHAR(200) NOT NULL,' \
-                             f'`create_time` DATETIME NOT NULL,' \
-                             f'`field_content` VARCHAR(8) NOT NULL,' \
-                             f'`matched_content` VARCHAR(200) NOT NULL' \
-                             f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
-                             f'AUTO_INCREMENT=1 ;'
 
 
         engine = create_engine(DatabaseInfo.engine_info)
 
         exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
 
-        if 'test' in exist_tables:
-            pass
-        else:
-            logger.info(f'no table test in schema {DatabaseInfo.output_schema}, '
-                        f'start creating one...')
-            # try:
-            with connect_database(DatabaseInfo.output_schema).cursor() as cursor:
-                logger.info('connecting to database...')
-                logger.info('creating table...')
-                cursor.execute(create_table_query)
-                connect_database(DatabaseInfo.output_schema).close()
-                logger.info(f'successfully created table test')
-            # except:
-            #     logger.error('Cannot create the table')
-            #     return
+        result_table_list = []
+        for k,v in SOURCE.items():
+
+            df_write = df_output[df_output['field_content'] == k]
+
+            if df_write.empty:
+                logger.info(f'There is no data from {v}')
+                continue
+
+            _table_name = f'wh_panel_mapping_{v}'
+            if _table_name not in exist_tables:
+                logger.info(f'no table {_table_name} in schema {DatabaseInfo.output_schema}, '
+                            f'start creating one...')
+                create_table(k,logger, schema=DatabaseInfo.output_schema)
 
 
-        logger.info(f'write dataframe into table test')
-        try:
-            connection = engine.connect()
-            df_output.to_sql(name='test', con=connection, if_exists='append', index=False)
-            now = datetime.now()
-            difference = now - start
-            logger.info(f'writing table test into db cost {difference.total_seconds()} second')
-            return f'writing table test into db cost {difference.total_seconds()} second'
-        except:
-            logger.error(f'write dataframe to test failed!')
-            raise ConnectionError(f'failed to write output into database... '
-                                  f'probable wrong query or connection issue')
+            logger.info(f'write data into {DatabaseInfo.output_schema}.{_table_name}')
+            try:
+                connection = engine.connect()
+                df_write.to_sql(name=_table_name, con=connection, if_exists='append', index=False)
+                logger.info(f'successfully write data into {DatabaseInfo.output_schema}.{_table_name}')
+            except:
+                logger.error(f'write dataframe to test failed!')
+                raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
+                                      f'probable wrong query or connection issue')
+            result_table_list.append(_table_name)
+
+        now = datetime.now()
+        difference = now - start
+        logger.info(f'writing table test into db cost {difference.total_seconds()} second')
+        return result_table_list
 
 
     else:

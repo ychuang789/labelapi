@@ -38,3 +38,23 @@ class QueryStatements(Enum):
     # FEMALE_RULE = f'SELECT * FROM female_author_name_rules'
     QUERY = f'SELECT * FROM {INPUT_TABLE} WHERE applied_feature="author"'
 
+class SampleResulTable(str, Enum):
+    blog = 'wh_panel_mapping_blog'
+    Comment = 'wh_panel_mapping_Comment'
+    Dcard = 'wh_panel_mapping_Dcard'
+    fbfans = 'wh_panel_mapping_fbfans'
+    fbgroup = 'wh_panel_mapping_fbgroup'
+    fbkol = 'wh_panel_mapping_fbkol'
+    fbprivategroup = 'wh_panel_mapping_fbprivategroup'
+    forum = 'wh_panel_mapping_forum'
+    Instagram = 'wh_panel_mapping_Instagram'
+    news = 'wh_panel_mapping_news'
+    plurk = 'wh_panel_mapping_plurk'
+    Ptt = 'wh_panel_mapping_Ptt'
+    Tiktok = 'wh_panel_mapping_Tiktok'
+    Twitter = 'wh_panel_mapping_Twitter'
+    Youtube = 'wh_panel_mapping_Youtube'
+
+
+
+

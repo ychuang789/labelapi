@@ -44,10 +44,10 @@ class DatabaseInfo:
     engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
 
 class CreateTaskRequestBody(BaseModel):
-    model_type: ModelType = ModelType.KEYWORD_MODEL.value
-    predict_type: PredictTarget = PredictTarget.AUTHOR_NAME.value
-    start_time: datetime = "2021-01-01 00:00:00"
-    end_time: datetime = "2021-12-31 23:59:59"
+    model_type: str = 'keyword_model'
+    predict_type: str = 'author_name'
+    start_time: datetime = "2018-01-01 00:00:00"
+    end_time: datetime = "2018-12-31 23:59:59"
     target_schema: str = "forum_data"
     target_table: str = "ts_page_content"
 
@@ -64,5 +64,20 @@ class SampleResultRequestBody:
     number: int = 50
     offset: int = 1000
     sql_schema: str = 'audience_result'
-    table: List[str] = ['test']
+    table: List[str] = ['wh_panel_mapping_Comment',
+                        'wh_panel_mapping_Dcard',
+                        'wh_panel_mapping_Ptt',
+                        'wh_panel_mapping_Youtube',
+                        'wh_panel_mapping_Instagram',
+                        'wh_panel_mapping_Tiktok',
+                        'wh_panel_mapping_Twitter',
+                        'wh_panel_mapping_fbfans',
+                        'wh_panel_mapping_fbgroup',
+                        'wh_panel_mapping_fbkol',
+                        'wh_panel_mapping_fbprivategroup',
+                        'wh_panel_mapping_plurk',
+                        'wh_panel_mapping_forum',
+                        'wh_panel_mapping_blog',
+                        'wh_panel_mapping_news']
+
 
