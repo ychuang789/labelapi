@@ -71,7 +71,7 @@ async def create(create_request_body: CreateTaskRequestBody):
 
 @app.get('/api/tasks/', description="Return a subset of celery_id and celery_status, "
                                     "you can pick a 'SUCCESS' celery_id and get it's "
-                                    "sample query information in next api")
+                                    "sample query information in /api/tasks/{celery_id} api")
 async def task_list():
     try:
         engine = create_engine(TaskListRequestBody.sql_schema)
@@ -122,7 +122,7 @@ async def sample_result(task_id: str,
                                                                                     'right key of mouse to '
                                                                                     'choose multiple tables')):
     if len(task_id) != 32:
-        err_msg = f'{task_id} is not in proper format, expect 69 digits get {len(task_id)} digits.'
+        err_msg = f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits.'
         _logger.error({"status_code": status.HTTP_400_BAD_REQUEST, "content": f'{err_msg}'})
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg}')
 
@@ -140,8 +140,7 @@ async def sample_result(task_id: str,
 
     try:
         result = scrap_data_to_df(_logger, q, schema=SampleResultRequestBody.sql_schema, _to_dict=True)
-        json_result = jsonable_encoder(result)
-        return JSONResponse(status_code=status.HTTP_200_OK, content=json_result)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
     except Exception as e:
         err_msg = f'invalid sql query, plz re-check it.'
         _logger.error({"status_code": status.HTTP_400_BAD_REQUEST, "content": f'{err_msg} Addition :{e}'})
