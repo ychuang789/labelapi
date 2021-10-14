@@ -98,7 +98,7 @@ async def task_list():
         _logger.error({"status_code":status.HTTP_500_INTERNAL_SERVER_ERROR, "content":e})
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
 
-@app.get('/api/tasks/{celery_id}', description='input a 69 digit of id which generate from create task api')
+@app.get('/api/tasks/{celery_id}', description='input a celery_id and output task_id with table_name for sampling query.')
 async def check_status(celery_id):
     try:
         _result = AsyncResult(celery_id, app=label_data)
