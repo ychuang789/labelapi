@@ -53,7 +53,7 @@ class CreateTaskRequestBody(BaseModel):
 
 class TaskListRequestBody:
     order_column: str = 'date_done'
-    number: int = 50
+    number: int = 10
     offset: int = 1000
     sql_schema: str = 'sqlite:///save.db'
     table: str = 'celery_taskmeta'

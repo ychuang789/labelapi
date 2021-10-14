@@ -130,6 +130,7 @@ dmypy.json
 # tests scripts
 test.py
 temp.py
+tmp.py
 unit_test.py
 
 # notebook
