@@ -176,8 +176,11 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         now = datetime.now()
         difference = now - start
         logger.info(f'writing table test into db cost {difference.total_seconds()} second')
-        return result_table_list
 
+        _output = {
+            df_output['task_id'][0]:result_table_list
+        }
+        return _output
 
     else:
         logger.info('write the output into local folder ...')
@@ -189,7 +192,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         df_output.to_csv(file_path, index=False, encoding='utf-8-sig')
         logger.info(f'file is saved as output_{len(df_output)}_{round(time_diff.total_seconds())}.csv')
 
-        _output = json.dumps(f'output_{len(df_output)}_{round(time_diff.total_seconds())}.csv')
+        _output = f'output_{len(df_output)}_{round(time_diff.total_seconds())}.csv'
 
         return _output
 

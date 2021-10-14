@@ -186,16 +186,15 @@ def get_create_task_query(target_table, predict_type, start_time, end_time):
 def get_count_query():
     return 'SELECT COUNT(task_id) FROM celery_taskmeta'
 
-def get_tasks_query(table, order_column, offset, number):
+def get_tasks_query(table, order_column, number):
     q = f'SELECT task_id, status FROM {table} ' \
         f'ORDER BY {order_column} DESC ' \
-        f'LIMIT {number} ' \
-        f'OFFSET {offset}'
+        f'LIMIT {number} '
 
     return q
 
 def get_sample_query(_id, tablename, order_column, offset, number):
-    q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id.split(';')[0]}' " \
+    q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
         f"AND id >= (SELECT id FROM {tablename} ORDER BY {order_column} " \
         f"LIMIT {offset},1) " \
         f"LIMIT {number})"

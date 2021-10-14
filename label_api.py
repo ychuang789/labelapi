@@ -1,4 +1,5 @@
 import uuid
+from collections import OrderedDict
 from typing import List
 
 import uvicorn
@@ -20,9 +21,11 @@ from utils.selections import SampleResulTable
 _logger = get_logger('label_API')
 
 app = FastAPI(title="Labeling Task API",
-              description="For helping AS department to labeling the data")
+              description="For helping AS department to labeling the data.")
 
-@app.post('/api/tasks/', description='create lableing task, edit the request body to fit your requirement')
+@app.post('/api/tasks/', description='Create lableing task, '
+                                     'edit the request body to fit your requirement. '
+                                     'Make sure to save the information of tasks')
 async def create(create_request_body: CreateTaskRequestBody):
     if create_request_body.start_time >= create_request_body.end_time:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
@@ -61,42 +64,44 @@ async def create(create_request_body: CreateTaskRequestBody):
                                      query, pattern, create_request_body.model_type,
                                      create_request_body.predict_type))
 
-    setting.update({'task_id': f'{task_id};{result.id}'})
+    setting.update({'celery_id': f'{result.id}'})
     _logger.info(f'API configuration: {setting}')
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=setting)
 
-@app.get('/api/tasks/', description="return a subset of tasks with 36-digit worker_id and worker status")
+@app.get('/api/tasks/', description="Return a subset of celery_id and celery_status, "
+                                    "you can pick a 'SUCCESS' celery_id and get it's "
+                                    "sample query information in next api")
 async def task_list():
     try:
         engine = create_engine(TaskListRequestBody.sql_schema)
         count = engine.execute(get_count_query()).fetchall()[0][0]
 
         # if offset setting is greater than total rows of database, change it to half of count of database.
-        offset = f'(SELECT COUNT(task_id)/2 FROM celery_taskmeta)' if TaskListRequestBody.offset > count \
-            else TaskListRequestBody.offset
+        # offset = f'(SELECT COUNT(task_id)/2 FROM celery_taskmeta)' if TaskListRequestBody.offset > count \
+        #     else TaskListRequestBody.offset
 
         query = get_tasks_query(TaskListRequestBody.table,
                                 TaskListRequestBody.order_column,
-                                offset,
+                                # offset,
                                 TaskListRequestBody.number)
         result = engine.execute(query).fetchall()
 
-        _dict = {}
+        _dict = OrderedDict()
         for task_id, stat in result:
             _dict.update(
                 {task_id: stat}
             )
 
-        return JSONResponse(status_code=status.HTTP_200_OK, content=_dict)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(_dict))
     except Exception as e:
         _logger.error({"status_code":status.HTTP_500_INTERNAL_SERVER_ERROR, "content":e})
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=e)
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
 
-@app.get('/api/tasks/<_id>', description='input a 69 digit of id which generate from create task api')
-async def check_status(_id):
+@app.get('/api/tasks/{celery_id}', description='input a 69 digit of id which generate from create task api')
+async def check_status(celery_id):
     try:
-        _result = AsyncResult(_id.split(';')[1], app=label_data)
+        _result = AsyncResult(celery_id, app=label_data)
         if _result.status == 'SUCCESS':
             result_content = {
                 _result.status: _result.get()
@@ -110,20 +115,20 @@ async def check_status(_id):
         _logger.error({"status_code": status.HTTP_404_NOT_FOUND, "content": f'{err_msg} Addition :{e}'})
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg} Addition :{e}')
 
-@app.get('/api/tasks/<_id>/sample/', description='input a 69 digit of id which generate from create task api and'
+@app.get('/api/tasks/{task_id}/sample/', description='input a 69 digit of id which generate from create task api and'
                                                  ' add tables information from task id API')
-async def sample_result(_id: str,
+async def sample_result(task_id: str,
                         table_name: List[SampleResulTable] = Query(..., description='press Ctrl/Command with '
                                                                                     'right key of mouse to '
                                                                                     'choose multiple tables')):
-    if len(_id) != 69:
-        err_msg = f'{_id} is not in proper format, expect 69 digits get {len(_id)} digits.'
+    if len(task_id) != 32:
+        err_msg = f'{task_id} is not in proper format, expect 69 digits get {len(task_id)} digits.'
         _logger.error({"status_code": status.HTTP_400_BAD_REQUEST, "content": f'{err_msg}'})
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg}')
 
     q = ''
     for i in range(len(table_name)):
-        query = get_sample_query(_id,table_name[i],
+        query = get_sample_query(task_id,table_name[i],
                                  SampleResultRequestBody.order_column,
                                  SampleResultRequestBody.offset,
                                  SampleResultRequestBody.number)
