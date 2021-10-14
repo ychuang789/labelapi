@@ -25,7 +25,7 @@ The main functions of the API:
 
 ## Work Flow
 
-<img align="left" width="800" height="800" src="workflow.png">
+<img src="workflow.png">
 
 ## Built With
 
