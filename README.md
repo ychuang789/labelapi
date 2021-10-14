@@ -3,12 +3,14 @@
 ###### created by Weber Huang at 2021-10-07
 
 + [Description](#description)
++ [Work Flow](#work-flow)
 + [Built With](#built-with)
 + [Quick Start](#quick-start)
   + [Set up docker](#set-up-docker)
   + [Set up environment](#set-up-environment)
   + [Set up database information](#set-up-database-information)
   + [Initialize the worker](#initialize-the-worker)
+  + [Run the API](run-the-api)
 
 ## Description
 
@@ -21,9 +23,13 @@ The main functions of the API:
 + let user to check the status via task id
 + show the labeling result sample
 
+## Work Flow
+
+<img align="left" width="800" height="800" src="workflow.png">
+
 ## Built With
 
-Windows
+Windows 10
 
 Python 3.8
 
@@ -31,7 +37,7 @@ Celery 5.1.2
 
 FastAPI 0.68.1
 
-
+SQLModel 0.04
 
 ## Quick Start
 
@@ -119,7 +125,7 @@ $ celery -A celery_worker worker -l INFO -P solo
 
 ```
 
-#### Test the API
+#### Run the API
 
 ```bash
 $ python label_api.py
@@ -130,5 +136,9 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 
-Open the link http://127.0.0.1:8000/docs to use the labeling API UI
+Open the link http://127.0.0.1:8000/docs to use the OpenAPI UI
+
+
+
+
 
