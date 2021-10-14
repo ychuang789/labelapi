@@ -115,8 +115,8 @@ async def check_status(celery_id):
         _logger.error({"status_code": status.HTTP_404_NOT_FOUND, "content": f'{err_msg} Addition :{e}'})
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg} Addition :{e}')
 
-@app.get('/api/tasks/{task_id}/sample/', description='input a 69 digit of id which generate from create task api and'
-                                                 ' add tables information from task id API')
+@app.get('/api/tasks/{task_id}/sample/', description='input a task_id and table_name to get the sampling result, you can input '
+                                                     'celery_id in /api/tasks/{celery_id} to gain such information ')
 async def sample_result(task_id: str,
                         table_name: List[SampleResulTable] = Query(..., description='press Ctrl/Command with '
                                                                                     'right key of mouse to '
