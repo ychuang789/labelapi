@@ -142,20 +142,20 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         start = datetime.now()
 
 
-        engine = create_engine(DatabaseInfo.engine_info)
+        engine = create_engine(DatabaseInfo.engine_info, pool_size=0, max_overflow=-1)
 
         exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
 
         result_table_list = []
-        for k,v in SOURCE.items():
 
-            df_write = df_output[df_output['field_content'] == k]
+        for k,v in SOURCE.items():
+            df_write = df_output[df_output['field_content'].isin(v)]
 
             if df_write.empty:
-                logger.info(f'There is no data from {v}')
+                logger.info(f'There is no data from {k}')
                 continue
 
-            _table_name = f'wh_panel_mapping_{v}'
+            _table_name = f'wh_panel_mapping_{k}'
             if _table_name not in exist_tables:
                 logger.info(f'no table {_table_name} in schema {DatabaseInfo.output_schema}, '
                             f'start creating one...')
@@ -177,11 +177,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         difference = now - start
         logger.info(f'writing table test into db cost {difference.total_seconds()} second')
 
-        _output = {
-            df_output['task_id'][0]:result_table_list
-        }
-        return _output
-
+        return result_table_list
     else:
         logger.info('write the output into local folder ...')
         now = datetime.now()

@@ -88,8 +88,8 @@ def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool
 
 
 def create_table(table_ID: str, logger: get_logger, schema=None):
-    if SOURCE.get(table_ID):
-        table_name = f'wh_panel_mapping_{SOURCE.get(table_ID)}'
+    if table_ID:
+        table_name = f'wh_panel_mapping_{table_ID}'
         insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_name}`(' \
                      f'`id` VARCHAR(32) NOT NULL,' \
                      f'`task_id` VARCHAR(32) NOT NULL,' \
@@ -107,13 +107,88 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
                 logger.info('creating table...')
                 cursor.execute(insert_sql)
                 func(schema).close()
-                logger.info(f'successfully created table {SOURCE.get(table_ID)}')
+                logger.info(f'successfully created table {table_ID}')
         except Exception as e:
             logger.error(e)
             raise e
 
     else:
         pass
+
+
+def create_state_table(logger: get_logger, schema=None):
+    insert_sql = f'CREATE TABLE IF NOT EXISTS `state`(' \
+                 f'`task_id` VARCHAR(32) NOT NULL,' \
+                 f'`stat` VARCHAR(32) NOT NULL,' \
+                 f'`model_type` VARCHAR(32) NOT NULL,' \
+                 f'`predict_type` VARCHAR(32) NOT NULL,' \
+                 f'`date_range` TEXT(1073741823) NOT NULL,' \
+                 f'`target_table` VARCHAR(32) NOT NULL,' \
+                 f'`create_time` DATETIME NOT NULL,' \
+                 f'`result` TEXT(1073741823) NOT NULL' \
+                 f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
+                 f'AUTO_INCREMENT=1 ;'
+    func = connect_database
+    try:
+        with func(schema).cursor() as cursor:
+            logger.info('connecting to database...')
+            logger.info('creating table...')
+            cursor.execute(insert_sql)
+            func(schema).close()
+            logger.info(f'successfully created table.')
+    except Exception as e:
+        logger.error(e)
+        raise e
+
+def insert2state(task_id, status, model_type, predict_type,
+                 date_range, target_table, time, result,
+                 logger: get_logger, schema=None):
+    func = connect_database
+    insert_sql = f'INSERT INTO state ' \
+                 f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
+                 f'VALUES (' \
+                 f'"{task_id}", ' \
+                 f'"{status}", ' \
+                 f'"{model_type}", ' \
+                 f'"{predict_type}", ' \
+                 f'"{date_range}", ' \
+                 f'"{target_table}", ' \
+                 f'"{time}", ' \
+                 f'"{result}");'
+    # try:
+    connection = func(schema)
+    with connection:
+        with connection.cursor() as cursor:
+            logger.info('connecting to database...')
+            cursor.execute(insert_sql)
+            logger.info(f'successfully write into table.')
+        connection.commit()
+    # except Exception as e:
+    #     logger.error(e)
+    #     raise e
+
+def update2state(task_id, result, logger: get_logger, schema=None, seccess=True):
+    func = connect_database
+    if seccess:
+        insert_sql = f'UPDATE state ' \
+                     f'SET stat = "SUCCESS", result = "{result}"' \
+                     f'Where task_id = "{task_id}"'
+    else:
+        insert_sql = f'UPDATE state ' \
+                     f'SET stat = "FAILURE", result = "{result}"' \
+                     f'Where task_id = "{task_id}"'
+    try:
+        connection = func(schema)
+        with connection:
+            with connection.cursor() as cursor:
+                logger.info('connecting to database...')
+                logger.info('creating table...')
+                cursor.execute(insert_sql)
+                logger.info(f'successfully created table.')
+            connection.commit()
+    except Exception as e:
+        logger.error(e)
+        raise e
 
 
 def insert_table(table_ID: str, logger: get_logger, df):
@@ -155,6 +230,7 @@ def clean_up_table(table_name: str, logger: get_logger, schema=None) :
     except Exception as e:
         logger.error('Cannot drop the table')
         raise e
+
 def result_to_db(save_dir: SAVE_FOLDER, file_name: str, logger: get_logger):
     file_path = Path(save_dir / file_name)
     df = pd.read_csv(file_path, encoding='utf-8')
@@ -187,16 +263,16 @@ def get_count_query():
     return 'SELECT COUNT(task_id) FROM celery_taskmeta'
 
 def get_tasks_query(table, order_column, number):
-    q = f'SELECT task_id, status FROM {table} ' \
+    q = f'SELECT * FROM {table} ' \
         f'ORDER BY {order_column} DESC ' \
         f'LIMIT {number} '
 
     return q
 
-def get_sample_query(_id, tablename, order_column, offset, number):
+def get_sample_query(_id, tablename, number):
     q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
-        f"AND id >= (SELECT id FROM {tablename} ORDER BY {order_column} " \
-        f"LIMIT {offset},1) " \
+        f"AND rand() <= 0.2 " \
         f"LIMIT {number})"
-
     return q
+
+

@@ -21,7 +21,7 @@ class TestAPIs(object):
         assert response.status_code == 200
 
     def test_check_status(self):
-        response = self.client.get(f"/api/tasks/ddc68933-13e4-4df5-a312-02e3bcdc8fc8")
+        response = self.client.get(f"/api/tasks/e138514e307a11eca07b04ea56825bad")
         assert response.status_code == 200
 
     def test_sample_result(self):

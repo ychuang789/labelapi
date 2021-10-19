@@ -1,5 +1,8 @@
+import base64
+import json
 import uuid
 from collections import OrderedDict
+from datetime import datetime, timedelta
 from typing import List
 
 import uvicorn
@@ -10,9 +13,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data
-from settings import CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody
+from settings import CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo
 from utils.database_core import scrap_data_to_df, get_create_task_query, get_count_query, get_tasks_query, \
-    get_sample_query
+    get_sample_query, create_state_table, insert2state
 from utils.helper import get_logger
 from utils.run_label_task import read_from_dir
 from utils.selections import SampleResulTable
@@ -20,8 +23,7 @@ from utils.selections import SampleResulTable
 
 _logger = get_logger('label_API')
 
-app = FastAPI(title="Labeling Task API",
-              description="For helping AS department to labeling the data.")
+app = FastAPI(title="Labeling Task API")
 
 @app.post('/api/tasks/', description='Create lableing task, '
                                      'edit the request body to fit your requirement. '
@@ -53,55 +55,64 @@ async def create(create_request_body: CreateTaskRequestBody):
                                       create_request_body.start_time,
                                       create_request_body.end_time)
     else:
-
         query = get_create_task_query(create_request_body.target_table,
                                       create_request_body.predict_type,
                                       create_request_body.start_time,
                                       create_request_body.end_time)
+    engine = create_engine(DatabaseInfo.engine_info)
+    _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
+    if 'state' not in _exist_tables:
+        create_state_table(_logger, schema=DatabaseInfo.output_schema)
+    res = ""
 
-    _logger.info('start the labeling worker ...')
-    result = label_data.apply_async((task_id, create_request_body.target_schema,
-                                     query, pattern, create_request_body.model_type,
-                                     create_request_body.predict_type))
+    try:
+        _logger.info('start the labeling worker ...')
+        result = label_data.apply_async(args=(task_id, create_request_body.target_schema,
+                                         query, pattern, create_request_body.model_type,
+                                         create_request_body.predict_type),
+                                        task_id=task_id,
+                                        expires=datetime.now() + timedelta(days=7))
 
-    setting.update({'celery_id': f'{result.id}'})
+        insert2state(task_id, result.status, setting.get('model_type'), setting.get('predict_type'),
+                     setting.get('date_range'), setting.get('target_table'), datetime.now(),
+                     res, _logger, schema=DatabaseInfo.output_schema)
+    except Exception as e:
+        _logger.error(f'cannot execute the task since {e}')
+        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=e)
+
+
     _logger.info(f'API configuration: {setting}')
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=setting)
 
-@app.get('/api/tasks/', description="Return a subset of celery_id and celery_status, "
-                                    "you can pick a 'SUCCESS' celery_id and get it's "
-                                    "sample query information in /api/tasks/{celery_id} api")
+@app.get('/api/tasks/', description="Return a subset of task_id and task_status, "
+                                    "you can pick a 'SUCCESS' task_id and get it's "
+                                    "sample query information in /api/tasks/{task_id} api")
 async def task_list():
     try:
         engine = create_engine(TaskListRequestBody.sql_schema)
-        count = engine.execute(get_count_query()).fetchall()[0][0]
-
-        # if offset setting is greater than total rows of database, change it to half of count of database.
-        # offset = f'(SELECT COUNT(task_id)/2 FROM celery_taskmeta)' if TaskListRequestBody.offset > count \
-        #     else TaskListRequestBody.offset
-
         query = get_tasks_query(TaskListRequestBody.table,
                                 TaskListRequestBody.order_column,
-                                # offset,
                                 TaskListRequestBody.number)
         result = engine.execute(query).fetchall()
 
         _dict = OrderedDict()
-        for task_id, stat in result:
-            _dict.update(
-                {task_id: stat}
-            )
+        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time", "result"]
+        for i in result:
+            temp = dict(zip(col, list(i)))
+            _dict.update({
+                temp.get("task_id"): {i: temp[i] for i in temp if i != 'task_id'}
+            })
 
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(_dict))
     except Exception as e:
-        _logger.error({"status_code":status.HTTP_500_INTERNAL_SERVER_ERROR, "content":e})
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
+        _logger.error(f"cannot connect to server since {e}")
+        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=jsonable_encoder(e))
 
-@app.get('/api/tasks/{celery_id}', description='input a celery_id and output task_id with table_name for sampling query.')
-async def check_status(celery_id):
+@app.get('/api/tasks/{task_id}', description='input a task_id and output task_id with table_name for sampling query.')
+async def check_status(task_id):
     try:
-        _result = AsyncResult(celery_id, app=label_data)
+        _result = AsyncResult(task_id, app=label_data)
         if _result.status == 'SUCCESS':
             result_content = {
                 _result.status: _result.get()
@@ -113,10 +124,10 @@ async def check_status(celery_id):
     except Exception as e:
         err_msg = f'task id is not exist, plz re-check the task id.'
         _logger.error({"status_code": status.HTTP_404_NOT_FOUND, "content": f'{err_msg} Addition :{e}'})
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=f'{err_msg} Addition :{e}')
+        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=e)
 
 @app.get('/api/tasks/{task_id}/sample/', description='input a task_id and table_name to get the sampling result, you can input '
-                                                     'celery_id in /api/tasks/{celery_id} to gain such information ')
+                                                     'task_id in /api/tasks/{task_id} to gain such information ')
 async def sample_result(task_id: str,
                         table_name: List[SampleResulTable] = Query(..., description='press Ctrl/Command with '
                                                                                     'right key of mouse to '
@@ -129,8 +140,6 @@ async def sample_result(task_id: str,
     q = ''
     for i in range(len(table_name)):
         query = get_sample_query(task_id,table_name[i],
-                                 SampleResultRequestBody.order_column,
-                                 SampleResultRequestBody.offset,
                                  SampleResultRequestBody.number)
         q += query
         if i != len(table_name)-1:

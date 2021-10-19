@@ -142,5 +142,8 @@ save.db
 # pickle file
 *.pkl
 
+# excel
+*.xlsx
+
 
 
