@@ -1,5 +1,3 @@
-import base64
-import json
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -90,7 +88,7 @@ async def create(create_request_body: CreateTaskRequestBody):
                                     "sample query information in /api/tasks/{task_id} api")
 async def task_list():
     try:
-        engine = create_engine(TaskListRequestBody.sql_schema)
+        engine = create_engine(TaskListRequestBody.engine_info)
         query = get_tasks_query(TaskListRequestBody.table,
                                 TaskListRequestBody.order_column,
                                 TaskListRequestBody.number)
@@ -148,7 +146,7 @@ async def sample_result(task_id: str,
             pass
 
     try:
-        result = scrap_data_to_df(_logger, q, schema=SampleResultRequestBody.sql_schema, _to_dict=True)
+        result = scrap_data_to_df(_logger, q, schema=SampleResultRequestBody.schema_name, _to_dict=True)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
     except Exception as e:
         err_msg = f'invalid sql query, plz re-check it.'

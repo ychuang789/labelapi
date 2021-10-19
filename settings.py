@@ -57,7 +57,7 @@ class TaskListRequestBody:
     order_column: str = 'create_time'
     number: int = 5
     offset: int = 1000
-    sql_schema: str = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
+    engine_info: str = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
     table: str = 'state'
 
 
@@ -65,7 +65,7 @@ class SampleResultRequestBody:
     order_column: str = "create_time"
     number: int = 50
     offset: int = 1000
-    sql_schema: str = 'audience_result'
+    schema_name: str = 'audience_result'
 
 
 SOURCE = {
