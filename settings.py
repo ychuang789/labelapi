@@ -22,6 +22,7 @@ class CeleryConfig:
     timezone = 'Asia/Taipei'
     enable_utc = False
     result_expires = None
+    batch_size = 1000000
 
 class DatabaseInfo:
     load_dotenv()
@@ -32,7 +33,8 @@ class DatabaseInfo:
     input_schema = os.getenv('INPUT_SCHEMA')
     output_schema = os.getenv('OUTPUT_SCHEMA')
     rule_schemas = os.getenv('RULE_SHEMAS')
-    engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
+    input_engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{input_schema}?charset=utf8mb4'
+    output_engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
 
 class CreateTaskRequestBody(BaseModel):
     model_type: str = 'keyword_model'
@@ -41,6 +43,7 @@ class CreateTaskRequestBody(BaseModel):
     end_time: datetime = "2018-12-31 23:59:59"
     target_schema: str = "forum_data"
     target_table: str = "ts_page_content"
+    get_all: bool = True if os.getenv('GET_ALL') else False
 
 class TaskListRequestBody:
     load_dotenv()

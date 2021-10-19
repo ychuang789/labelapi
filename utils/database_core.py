@@ -5,13 +5,14 @@ from pathlib import Path
 
 import pymysql
 import pandas as pd
+from sqlalchemy import create_engine as ce
 from sqlmodel import SQLModel, create_engine
 from tqdm import tqdm
 
 from definition import SCRAP_FOLDER, SAVE_FOLDER
 from utils.helper import get_logger
 from utils.selections import QueryStatements
-from settings import DatabaseInfo, SOURCE
+from settings import DatabaseInfo, SOURCE, CreateTaskRequestBody
 
 
 def create_db(db_path, config_db):
@@ -86,6 +87,31 @@ def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool
         logger.error(e)
         raise e
 
+def get_data_by_batch(predict_type, count, batch_size,
+                      schema, table, date_info = False, **kwargs) -> pd.DataFrame:
+    func = connect_database
+    if not date_info:
+        with func(schema=schema).cursor() as cursor:
+            for offset in range(0, count, batch_size):
+                q = f"SELECT * FROM {table} " \
+                    f"WHERE {predict_type} IS NOT NULL " \
+                    f"LIMIT {batch_size} OFFSET {offset}"
+                cursor.execute(q)
+                result = to_dataframe(cursor.fetchall())
+                yield result
+            func(schema=schema).close()
+    else:
+        with func(schema=schema).cursor() as cursor:
+            for offset in range(0, count, batch_size):
+                q = f"SELECT * FROM {table} " \
+                    f"WHERE {predict_type} IS NOT NULL " \
+                    f"AND post_time >= '{kwargs.get('start_time')}' " \
+                    f"AND post_time <= '{kwargs.get('end_time')}' "\
+                    f"LIMIT {batch_size} OFFSET {offset}"
+                cursor.execute(q)
+                result = to_dataframe(cursor.fetchall())
+                yield result
+            func(schema=schema).close()
 
 def create_table(table_ID: str, logger: get_logger, schema=None):
     if table_ID:
@@ -194,7 +220,7 @@ def update2state(task_id, result, logger: get_logger, schema=None, seccess=True)
 def insert_table(table_ID: str, logger: get_logger, df):
     if SOURCE.get(table_ID):
         logger.info('connect to database...')
-        engine = create_engine(DatabaseInfo.engine_info.value)
+        engine = create_engine(DatabaseInfo.output_engine_info.value)
         exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
 
         if SOURCE.get(table_ID) in exist_tables:
@@ -250,12 +276,16 @@ def result_to_db(save_dir: SAVE_FOLDER, file_name: str, logger: get_logger):
 
     return f'Output file {file_name} is write into {DatabaseInfo.output_schema}'
 
-def get_create_task_query(target_table, predict_type, start_time, end_time):
+def get_create_task_query(target_table, predict_type, start_time, end_time, get_all = False):
 
-    q = f"SELECT * FROM {target_table} " \
-        f"WHERE {predict_type} IS NOT NULL " \
-        f"AND post_time >= '{start_time}'" \
-        f"AND post_time <= '{end_time}'"
+    if not get_all:
+        q = f"SELECT * FROM {target_table} " \
+            f"WHERE {predict_type} IS NOT NULL " \
+            f"AND post_time >= '{start_time}'" \
+            f"AND post_time <= '{end_time}'"
+    else:
+        q = f"SELECT * FROM {target_table} " \
+            f"WHERE {predict_type} IS NOT NULL"
 
     return q
 

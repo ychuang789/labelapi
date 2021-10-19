@@ -46,28 +46,39 @@ async def create(create_request_body: CreateTaskRequestBody):
         _logger.error({"status_code":status.HTTP_400_BAD_REQUEST, "content":e})
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=e)
 
+    # if create_request_body.predict_type == 'author_name':
+    #     pred_type = "author"
+    #     query = get_create_task_query(create_request_body.target_table,
+    #                                   pred_type,
+    #                                   create_request_body.start_time,
+    #                                   create_request_body.end_time,
+    #                                   get_all=create_request_body.get_all)
+    # else:
+    #     query = get_create_task_query(create_request_body.target_table,
+    #                                   create_request_body.predict_type,
+    #                                   create_request_body.start_time,
+    #                                   create_request_body.end_time,
+    #                                   get_all=create_request_body.get_all)
+
     if create_request_body.predict_type == 'author_name':
         pred_type = "author"
-        query = get_create_task_query(create_request_body.target_table,
-                                      pred_type,
-                                      create_request_body.start_time,
-                                      create_request_body.end_time)
     else:
-        query = get_create_task_query(create_request_body.target_table,
-                                      create_request_body.predict_type,
-                                      create_request_body.start_time,
-                                      create_request_body.end_time)
-    engine = create_engine(DatabaseInfo.engine_info)
+        pred_type = create_request_body.predict_type
+
+    engine = create_engine(DatabaseInfo.output_engine_info)
     _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
     if 'state' not in _exist_tables:
         create_state_table(_logger, schema=DatabaseInfo.output_schema)
     res = ""
 
+    date_info_dict = {'start_time': create_request_body.start_time,
+                      'end_time': create_request_body.end_time}
+
     try:
         _logger.info('start the labeling worker ...')
         result = label_data.apply_async(args=(task_id, create_request_body.target_schema,
-                                         query, pattern, create_request_body.model_type,
-                                         create_request_body.predict_type),
+                                              pattern, create_request_body.model_type, pred_type),
+                                        kwargs=date_info_dict,
                                         task_id=task_id,
                                         expires=datetime.now() + timedelta(days=7))
 

@@ -142,7 +142,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         start = datetime.now()
 
 
-        engine = create_engine(DatabaseInfo.engine_info, pool_size=0, max_overflow=-1)
+        engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
 
         exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
 
