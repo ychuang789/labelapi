@@ -22,7 +22,6 @@ class CeleryConfig:
     timezone = 'Asia/Taipei'
     enable_utc = False
     result_expires = None
-    batch_size = 1000000
 
 class DatabaseInfo:
     load_dotenv()
@@ -44,6 +43,7 @@ class CreateTaskRequestBody(BaseModel):
     target_schema: str = "forum_data"
     target_table: str = "ts_page_content"
     get_all: bool = True if os.getenv('GET_ALL') else False
+    batch_size: int = 1000000
 
 class TaskListRequestBody:
     load_dotenv()

@@ -74,7 +74,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     if model_type == ModelType.RULE_MODEL.value:
         model = RuleModel(pattern)
         temp_list = []
-        for i in tqdm(range(len(df))):
+        for i in range(len(df)):
             _input_data = InputExample(
                 id_=df['id'].iloc[i],
                 s_area_id=df['s_area_id'].iloc[i],
@@ -97,7 +97,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     elif model_type == ModelType.KEYWORD_MODEL.value:
         model = KeywordModel(pattern)
         temp_list = []
-        for i in tqdm(range(len(df))):
+        for i in range(len(df)):
             _input_data = InputExample(
                 id_=df['id'].iloc[i],
                 s_area_id=df['s_area_id'].iloc[i],
@@ -124,7 +124,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
 
     # df = df[['id', 'task_id', 'source_author', 'created_at', 'panel']]
 
-    logger.info('finish labeling, generate the output ...')
+    # logger.info('finish labeling, generate the output ...')
     df["panel"].replace({"female": "/female", "male": "/male"}, inplace=True)
     df.rename(columns={'post_time': 'create_time'}, inplace=True)
     df['source_author'] = df['s_id'] + '_' + df['author']
@@ -137,32 +137,25 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     df_output = df[['id', 'task_id', 'source_author', 'create_time',
                     'panel', 'field_content', 'match_content']]
 
+    df_output.dropna(subset=['panel'], inplace=True)
+
     if to_database:
         logger.info(f'write the output into database ...')
-        start = datetime.now()
-
 
         engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
-
         exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-
         result_table_list = []
 
         for k,v in SOURCE.items():
             df_write = df_output[df_output['field_content'].isin(v)]
 
             if df_write.empty:
-                logger.info(f'There is no data from {k}')
                 continue
 
             _table_name = f'wh_panel_mapping_{k}'
             if _table_name not in exist_tables:
-                logger.info(f'no table {_table_name} in schema {DatabaseInfo.output_schema}, '
-                            f'start creating one...')
                 create_table(k,logger, schema=DatabaseInfo.output_schema)
 
-
-            logger.info(f'write data into {DatabaseInfo.output_schema}.{_table_name}')
             try:
                 connection = engine.connect()
                 df_write.to_sql(name=_table_name, con=connection, if_exists='append', index=False)
@@ -172,12 +165,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
                 raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
                                       f'probable wrong query or connection issue')
             result_table_list.append(_table_name)
-
-        now = datetime.now()
-        difference = now - start
-        logger.info(f'writing table test into db cost {difference.total_seconds()} second')
-
         return result_table_list
+
     else:
         logger.info('write the output into local folder ...')
         now = datetime.now()
@@ -193,4 +182,12 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         return _output
 
 
+def generate_test():
+    temp = 0
+    b = 1
+    for i in range(100000):
+        a = temp
+        b += a
+        temp = b
 
+    return temp

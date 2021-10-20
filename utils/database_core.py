@@ -87,7 +87,7 @@ def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool
         logger.error(e)
         raise e
 
-def get_data_by_batch(predict_type, count, batch_size,
+def get_data_by_batch(count, predict_type, batch_size,
                       schema, table, date_info = False, **kwargs) -> pd.DataFrame:
     func = connect_database
     if not date_info:
@@ -119,10 +119,10 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
         insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_name}`(' \
                      f'`id` VARCHAR(32) NOT NULL,' \
                      f'`task_id` VARCHAR(32) NOT NULL,' \
-                     f'`source_author` VARCHAR(200) NOT NULL,' \
+                     f'`source_author` TEXT(65535) NOT NULL,' \
                      f'`panel` VARCHAR(200) NOT NULL,' \
                      f'`create_time` DATETIME NOT NULL,' \
-                     f'`field_content` VARCHAR(32) NOT NULL,' \
+                     f'`field_content` TEXT(65535) NOT NULL,' \
                      f'`match_content` TEXT(1073741823) NOT NULL' \
                      f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                      f'AUTO_INCREMENT=1 ;'
@@ -305,4 +305,6 @@ def get_sample_query(_id, tablename, number):
         f"LIMIT {number})"
     return q
 
-
+def query_state(_id):
+    q = f"SELECT * FROM state WHERE task_id = '{_id}'"
+    return q

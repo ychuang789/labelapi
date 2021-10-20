@@ -1,10 +1,9 @@
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Dict
 
 import uvicorn
-from celery.result import AsyncResult
 from fastapi import FastAPI, status, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -13,7 +12,7 @@ from sqlalchemy import create_engine
 from celery_worker import label_data
 from settings import CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo
 from utils.database_core import scrap_data_to_df, get_create_task_query, get_count_query, get_tasks_query, \
-    get_sample_query, create_state_table, insert2state
+    get_sample_query, create_state_table, insert2state, query_state
 from utils.helper import get_logger
 from utils.run_label_task import read_from_dir
 from utils.selections import SampleResulTable
@@ -32,67 +31,65 @@ async def create(create_request_body: CreateTaskRequestBody):
                             content=f'In setting.CreateTaskRequestBody start_time '
                                     f'must be earlier to end_time.')
 
-    task_id = uuid.uuid1().hex
-    setting = {"task_id": task_id,
-               "model_type": create_request_body.model_type,
-               "predict_type": create_request_body.predict_type,
-               "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
-               "target_table": create_request_body.target_table}
+    # create the tracking table `state` in `audience_result`
+    engine = create_engine(DatabaseInfo.output_engine_info)
+    _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
+    if 'state' not in _exist_tables:
+        create_state_table(_logger, schema=DatabaseInfo.output_schema)
 
-    _logger.info('Preparing data...')
+
     try:
         pattern = read_from_dir(create_request_body.model_type, create_request_body.predict_type)
     except Exception as e:
         _logger.error({"status_code":status.HTTP_400_BAD_REQUEST, "content":e})
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=e)
 
-    # if create_request_body.predict_type == 'author_name':
-    #     pred_type = "author"
-    #     query = get_create_task_query(create_request_body.target_table,
-    #                                   pred_type,
-    #                                   create_request_body.start_time,
-    #                                   create_request_body.end_time,
-    #                                   get_all=create_request_body.get_all)
-    # else:
-    #     query = get_create_task_query(create_request_body.target_table,
-    #                                   create_request_body.predict_type,
-    #                                   create_request_body.start_time,
-    #                                   create_request_body.end_time,
-    #                                   get_all=create_request_body.get_all)
+    task_id = uuid.uuid1().hex
+    setting: Dict = {"model_type": create_request_body.model_type,
+                     "predict_type": create_request_body.predict_type,
+                     "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
+                     "target_schema": create_request_body.target_schema,
+                     "target_table": create_request_body.target_table,
+                     "date_info": create_request_body.get_all,
+                     "batch_size": create_request_body.batch_size
+                     }
+    date_info_dict = {"date_info_dict":
+                          {'start_time': create_request_body.start_time,
+                           'end_time': create_request_body.end_time}
+                      }
+    param = dict()
+    param.update(setting)
+    param.update({'pattern': pattern})
+    param.update(date_info_dict)
 
     if create_request_body.predict_type == 'author_name':
-        pred_type = "author"
+        param['predict_type'] = "author"
     else:
-        pred_type = create_request_body.predict_type
+        pass
 
-    engine = create_engine(DatabaseInfo.output_engine_info)
-    _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-    if 'state' not in _exist_tables:
-        create_state_table(_logger, schema=DatabaseInfo.output_schema)
-    res = ""
-
-    date_info_dict = {'start_time': create_request_body.start_time,
-                      'end_time': create_request_body.end_time}
 
     try:
         _logger.info('start the labeling worker ...')
-        result = label_data.apply_async(args=(task_id, create_request_body.target_schema,
-                                              pattern, create_request_body.model_type, pred_type),
-                                        kwargs=date_info_dict,
+        result = label_data.apply_async(args=(task_id, ),
+                                        kwargs=param,
                                         task_id=task_id,
                                         expires=datetime.now() + timedelta(days=7))
-
-        insert2state(task_id, result.status, setting.get('model_type'), setting.get('predict_type'),
+        res = ""
+        insert2state(task_id, result.state, setting.get('model_type'), setting.get('predict_type'),
                      setting.get('date_range'), setting.get('target_table'), datetime.now(),
                      res, _logger, schema=DatabaseInfo.output_schema)
     except Exception as e:
         _logger.error(f'cannot execute the task since {e}')
-        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=e)
+        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=jsonable_encoder(e))
 
 
     _logger.info(f'API configuration: {setting}')
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=setting)
+
+    config = {"task_id": task_id}
+    config.update(param)
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=config)
 
 @app.get('/api/tasks/', description="Return a subset of task_id and task_status, "
                                     "you can pick a 'SUCCESS' task_id and get it's "
@@ -121,14 +118,24 @@ async def task_list():
 @app.get('/api/tasks/{task_id}', description='input a task_id and output task_id with table_name for sampling query.')
 async def check_status(task_id):
     try:
-        _result = AsyncResult(task_id, app=label_data)
-        if _result.status == 'SUCCESS':
+        engine = create_engine(DatabaseInfo.output_engine_info)
+        _r = engine.execute(query_state(task_id)).fetchone()
+
+        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time", "result"]
+
+        _result = dict(zip(col, list(_r)))
+
+
+        # _result = AsyncResult(task_id, app=label_data)
+        # if _result.status == 'SUCCESS':
+
+        if _result.get('status') == 'SUCCESS':
             result_content = {
-                _result.status: _result.get()
+                _result.get('status'): _result.get('result')
             }
             return JSONResponse(status_code=status.HTTP_200_OK, content=result_content)
         else:
-            return JSONResponse(status_code=status.HTTP_200_OK, content=_result.status)
+            return JSONResponse(status_code=status.HTTP_200_OK, content=_result.get('status'))
 
     except Exception as e:
         err_msg = f'task id is not exist, plz re-check the task id.'
