@@ -150,7 +150,7 @@ Or modify following parts:
 
   **input example (default) :**
 
-  ```json
+  ```shell
   curl -X 'POST' \
     'http://127.0.0.1:8000/api/tasks/' \
     -H 'accept: application/json' \
@@ -202,7 +202,7 @@ Or modify following parts:
 
   **input example :**
 
-  ```json
+  ```shell
   curl -X 'GET' \
     'http://127.0.0.1:8000/api/tasks/' \
     -H 'accept: application/json'
@@ -266,7 +266,7 @@ Or modify following parts:
 
   **input example :**
 
-  ```json
+  ```shell
   curl -X 'GET' \
     'http://127.0.0.1:8000/api/tasks/b773c786320c11eca0ca04ea56825bad' \
     -H 'accept: application/json'
