@@ -113,9 +113,12 @@ def get_data_by_batch(count, predict_type, batch_size,
                 yield result
             func(schema=schema).close()
 
-def create_table(table_ID: str, logger: get_logger, schema=None):
+def create_table(table_ID: str, logger: get_logger, schema=None, temp=False):
     if table_ID:
-        table_name = f'wh_panel_mapping_{table_ID}'
+        if not temp:
+            table_name = f'wh_panel_mapping_{table_ID}'
+        else:
+            table_name = table_ID
         insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_name}`(' \
                      f'`id` VARCHAR(32) NOT NULL,' \
                      f'`task_id` VARCHAR(32) NOT NULL,' \
@@ -242,7 +245,7 @@ def insert_table(table_ID: str, logger: get_logger, df):
         logger.error('table_name is not found')
         return
 
-def clean_up_table(table_name: str, logger: get_logger, schema=None) :
+def drop_table(table_name: str, logger: get_logger, schema=None) :
     """drop table name"""
     drop_sql = f'DROP TABLE {table_name};'
     func = connect_database
@@ -307,4 +310,8 @@ def get_sample_query(_id, tablename, number):
 
 def query_state(_id):
     q = f"SELECT * FROM state WHERE task_id = '{_id}'"
+    return q
+
+def get_result_query(_id, tablename):
+    q = f"SELECT * FROM {tablename} WHERE task_id = '{_id} '"
     return q

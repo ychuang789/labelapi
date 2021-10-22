@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Dict
 
 from celery import Celery
 from sqlalchemy import create_engine
@@ -6,8 +7,8 @@ from sqlalchemy import create_engine
 from settings import CeleryConfig, DatabaseInfo
 from utils.database_core import update2state, get_data_by_batch
 from utils.helper import get_logger
-from utils.run_label_task import labeling, generate_test
-
+from utils.run_label_task import labeling
+from utils.clean_up_result import run_workflow
 
 name = CeleryConfig.name
 celery_app = Celery(name=name,
@@ -27,7 +28,9 @@ def label_data(task_id, **kwargs):
 
     try:
         engine = create_engine(DatabaseInfo.input_engine_info)
-        count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')}").fetchone()[0]
+        count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
+                               f"WHERE {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
+        _logger.info(f'length of table {kwargs.get("target_table")} is {count} rows')
     except Exception as e:
         err_msg = f"cannot connect to {kwargs.get('target_table')}, addition error message {e}"
         _logger.error(err_msg)
@@ -61,10 +64,19 @@ def label_data(task_id, **kwargs):
 
     update2state(task_id, ','.join(table_set), _logger, schema=DatabaseInfo.output_schema)
 
+    try:
+        result_dict = run_workflow(task_id, list(table_set), _logger, drop=False)
+    except Exception as e:
+        err_msg = f'task {task_id} failed at the cleaning stage, additional error message {e}'
+        _logger.error(err_msg)
+        raise err_msg
+
+
     finish_time = datetime.now()
     _logger.info(f'task {task_id} {kwargs.get("target_table")} done, total time is '
-                 f'{(finish_time - start_time).total_seconds()/60} minutes')
+                 f'{(finish_time - start_time).total_seconds() / 60} minutes')
 
-# @celery_app.task(name=f'{name}.testing', track_started=True)
-# def testing():
-#     generate_test()
+    return result_dict
+
+
+

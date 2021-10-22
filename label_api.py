@@ -50,7 +50,7 @@ async def create(create_request_body: CreateTaskRequestBody):
                      "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
                      "target_schema": create_request_body.target_schema,
                      "target_table": create_request_body.target_table,
-                     "date_info": create_request_body.get_all,
+                     "date_info": create_request_body.date_info,
                      "batch_size": create_request_body.batch_size
                      }
     date_info_dict = {"date_info_dict":
@@ -88,8 +88,9 @@ async def create(create_request_body: CreateTaskRequestBody):
 
     config = {"task_id": task_id}
     config.update(param)
+    config.pop("pattern")
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=config)
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
 @app.get('/api/tasks/', description="Return a subset of task_id and task_status, "
                                     "you can pick a 'SUCCESS' task_id and get it's "

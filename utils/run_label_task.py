@@ -134,10 +134,11 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     else:
         df['match_content'] = df[predict_type]
 
-    df_output = df[['id', 'task_id', 'source_author', 'create_time',
+    _df_output = df[['id', 'task_id', 'source_author', 'create_time',
                     'panel', 'field_content', 'match_content']]
 
-    df_output.dropna(subset=['panel'], inplace=True)
+    df_output = _df_output.loc[_df_output['panel'] != '']
+    # df_output.dropna(subset=['panel'], inplace=True)
 
     if to_database:
         logger.info(f'write the output into database ...')
@@ -152,9 +153,9 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
             if df_write.empty:
                 continue
 
-            _table_name = f'wh_panel_mapping_{k}'
+            _table_name = k
             if _table_name not in exist_tables:
-                create_table(k,logger, schema=DatabaseInfo.output_schema)
+                create_table(k,logger, schema=DatabaseInfo.output_schema, temp=True)
 
             try:
                 connection = engine.connect()
