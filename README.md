@@ -35,8 +35,6 @@ Celery 5.1.2
 
 FastAPI 0.68.1
 
-Redis 3.5.3 
-
 SQLModel 0.04
 
 ## Quick Start
