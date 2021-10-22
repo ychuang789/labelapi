@@ -10,9 +10,10 @@
   + [Set up environment](#set-up-environment)
   + [Set up database information](#set-up-database-information)
   + [Initialize the worker](#initialize-the-worker)
-  + [Run the API](run-the-api)
+  + [Run the API](#run-the-api)
 + [Usage](#usage)
 + [Error code](#error-code)
+
 
 ## Description
 
