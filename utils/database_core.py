@@ -113,36 +113,32 @@ def get_data_by_batch(count, predict_type, batch_size,
                 yield result
             func(schema=schema).close()
 
-def create_table(table_ID: str, logger: get_logger, schema=None, temp=False):
-    if table_ID:
-        if not temp:
-            table_name = f'wh_panel_mapping_{table_ID}'
-        else:
-            table_name = table_ID
-        insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_name}`(' \
-                     f'`id` VARCHAR(32) NOT NULL,' \
-                     f'`task_id` VARCHAR(32) NOT NULL,' \
-                     f'`source_author` TEXT(65535) NOT NULL,' \
-                     f'`panel` VARCHAR(200) NOT NULL,' \
-                     f'`create_time` DATETIME NOT NULL,' \
-                     f'`field_content` TEXT(65535) NOT NULL,' \
-                     f'`match_content` TEXT(1073741823) NOT NULL' \
-                     f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
-                     f'AUTO_INCREMENT=1 ;'
-        func = connect_database
-        try:
-            with func(schema).cursor() as cursor:
-                logger.info('connecting to database...')
-                logger.info('creating table...')
-                cursor.execute(insert_sql)
-                func(schema).close()
-                logger.info(f'successfully created table {table_ID}')
-        except Exception as e:
-            logger.error(e)
-            raise e
+def create_table(table_ID: str, logger: get_logger, schema=None):
+    insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_ID}`(' \
+                 f'`id` VARCHAR(32) NOT NULL,' \
+                 f'`task_id` VARCHAR(32) NOT NULL,' \
+                 f'`source_author` TEXT(65535) NOT NULL,' \
+                 f'`panel` VARCHAR(200) NOT NULL,' \
+                 f'`create_time` DATETIME NOT NULL,' \
+                 f'`field_content` TEXT(65535) NOT NULL,' \
+                 f'`match_content` TEXT(1073741823) NOT NULL' \
+                 f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
+                 f'AUTO_INCREMENT=1 ;'
+    func = connect_database
+    try:
+        with func(schema).cursor() as cursor:
+            logger.info('connecting to database...')
+            logger.info('creating table...')
+            cursor.execute(insert_sql)
+            func(schema).close()
+            logger.info(f'successfully created table {table_ID}')
+    except Exception as e:
+        logger.error(e)
+        raise e
 
-    else:
-        pass
+
+
+
 
 
 def create_state_table(logger: get_logger, schema=None):

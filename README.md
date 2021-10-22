@@ -1,4 +1,4 @@
-# Audience API
+# Audience API v 2.0
 
 ###### created by Weber Huang at 2021-10-07
 
@@ -11,17 +11,14 @@
   + [Set up database information](#set-up-database-information)
   + [Initialize the worker](#initialize-the-worker)
   + [Run the API](run-the-api)
++ [Usage](#usage)
++ [Error code](#error-code)
 
 ## Description
 
-This API is built for data labeling task which support the Analysis Department.
+This API is built for the usage of RD2 data labeling tasks supporting users selecting model and rule  to labeling the target range of data, and result sampling. 
 
-The main functions of the API: 
 
-+ It let users to input the query parameters to query from the database to scrap out data 
-+ support executing the background labeling task
-+ let user to check the status via task id
-+ show the labeling result sample
 
 ## Work Flow
 
@@ -36,6 +33,8 @@ Python 3.8
 Celery 5.1.2
 
 FastAPI 0.68.1
+
+Redis 3.5.3 
 
 SQLModel 0.04
 
@@ -83,8 +82,8 @@ HOST=<database host>
 PORT=<database port>
 USER=<database username>
 PASSWORD=<database password>
-INPUT_SCHEMA=<database schema>
-OUTPUT_SCHEMA=<database schema>
+INPUT_SCHEMA=<database schema where you want to label>
+OUTPUT_SCHEMA=<database schema where you want to store the result and state>
 ```
 
 Replace the value from your own, and save the file as `.env`
@@ -136,9 +135,243 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 
-Open the link http://127.0.0.1:8000/docs to use the OpenAPI UI
 
 
+## Usage
 
+Open the link http://127.0.0.1:8000/docs after you run the API to use the APIs at OpenAPI user interface. You can use it by `try it out` to modify the APIs input / output :
 
+<img src="OpenAPI.png">
+
+Or modify following parts: 
+
++ `/api/tasks` POST (create_task) :  Input the task information for example model type, predict type, date info, etc., and return task_id with task configuration.
+
+  **input example (default) :**
+
+  ```json
+  curl -X 'POST' \
+    'http://127.0.0.1:8000/api/tasks/' \
+    -H 'accept: application/json' \
+    -H 'Content-Type: application/json' \
+    -d '{
+    "model_type": "keyword_model",
+    "predict_type": "author_name",
+    "start_time": "2018-01-01 00:00:00",
+    "end_time": "2018-12-31 23:59:59",
+    "target_schema": "forum_data",
+    "target_table": "ts_page_content",
+    "date_info": false,
+    "batch_size": 1000000
+  }'
+  ```
+
+  + Edit `model_type`, `predict_type` to select the model and pattern :
+    + model_type: keyword_model, rule_model
+    + predict_type: author_name, content, s_area_id
+  + Edit `start_time`, `end_time`, `target_schema` and `target_table` to select then range of target data you want to labeling: 
+    + start_time and end_time refer to the post_time of the data, set `date_info` to *false* if you want to label whole data in table.
+    + target_schema and target_table point to which table of data you want to labeling
+    + It is suggested to run the task by batch to reduce the usage of memory, `batch_size` means the number of rows you want to execute in each batch (*default* is 1000000)
+
+  **output example :**
+
+  ```json
+  {
+    "task_id": "7bc4d57a330611ec8fe704ea56825bad",
+    "model_type": "keyword_model",
+    "predict_type": "author",
+    "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
+    "target_schema": "forum_data",
+    "target_table": "ts_page_content",
+    "date_info": false,
+    "batch_size": 1000000,
+    "date_info_dict": {
+      "start_time": "2018-01-01T00:00:00",
+      "end_time": "2018-12-31T23:59:59"
+    }
+  }
+  ```
+
+  Save the `task_id` if you want to directly query the task status or result after.
+
+  
+
++ `/api/tasks` GET (task_list) : Return the recent created tasks' id and tasks' information (task configuration with result if it was finished).
+
+  **input example :**
+
+  ```json
+  curl -X 'GET' \
+    'http://127.0.0.1:8000/api/tasks/' \
+    -H 'accept: application/json'
+  ```
+
+  **output example :**
+
+  ```json
+  {
+    "988b791b32d911eca68704ea56825bad": {
+      "status": "SUCCESS",
+      "model_type": "keyword_model",
+      "predict_type": "author_name",
+      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
+      "target_table": "ts_page_content",
+      "create_time": "2021-10-22T09:44:29",
+      "result": "forum,Dcard"
+    },
+    "b773c786320c11eca0ca04ea56825bad": {
+      "status": "SUCCESS",
+      "model_type": "keyword_model",
+      "predict_type": "author_name",
+      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
+      "target_table": "ts_page_content",
+      "create_time": "2021-10-21T09:17:54",
+      "result": "wh_panel_mapping_Dcard,wh_panel_mapping_forum"
+    },
+    "509f463f318611ecbb6a04ea56825bad": {
+      "status": "SUCCESS",
+      "model_type": "keyword_model",
+      "predict_type": "author_name",
+      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
+      "target_table": "ts_page_content",
+      "create_time": "2021-10-20T17:15:49",
+      "result": "wh_panel_mapping_forum,wh_panel_mapping_Dcard"
+    },
+    "0ecd3774318611ec9ecd04ea56825bad": {
+      "status": "PENDING",
+      "model_type": "keyword_model",
+      "predict_type": "author_name",
+      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
+      "target_table": "ts_page_content",
+      "create_time": "2021-10-20T17:13:58",
+      "result": ""
+    },
+    "d135e614317c11ec9f9c04ea56825bad": {
+      "status": "SUCCESS",
+      "model_type": "keyword_model",
+      "predict_type": "author_name",
+      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
+      "target_table": "ts_page_content",
+      "create_time": "2021-10-20T16:07:50",
+      "result": "wh_panel_mapping_forum,wh_panel_mapping_Dcard"
+    }
+  }
+  ```
+
+  
+
++ `/api/tasks/{task_id}` GET (check_status) : Return the task status (*PENDING, SUCCESS, FAILURE*) via task id, if the task is *SUCCESS* return result too.
+
+  **input example :**
+
+  ```json
+  curl -X 'GET' \
+    'http://127.0.0.1:8000/api/tasks/b773c786320c11eca0ca04ea56825bad' \
+    -H 'accept: application/json'
+  ```
+
+  **output example :**
+
+  ````json
+  {
+    "SUCCESS": "wh_panel_mapping_Dcard,wh_panel_mapping_forum"
+  }
+  ````
+
+  
+
++ `/api/tasks/{task_id}/sample/` GET (sample_result) : Input task id and result (table_name), return the sampling results from result tables.
+
+  **input example :**
+
+  ```shell
+  curl -X 'GET' \
+    'http://127.0.0.1:8000/api/tasks/988b791b32d911eca68704ea56825bad/sample/?table_name=wh_panel_mapping_Dcard&table_name=wh_panel_mapping_forum' \
+    -H 'accept: application/json'
+  ```
+
+  **output example :**
+
+  ````json
+  [
+    {
+      "id": "1514778057509_F02",
+      "task_id": "988b791b32d911eca68704ea56825bad",
+      "source_author": "WH_F0116_女神 雅典娜warmman07/M",
+      "panel": "/female",
+      "create_time": "2018-01-01T11:27:30",
+      "field_content": "WH_F0116",
+      "match_content": "女神 雅典娜warmman07/M"
+    },
+    {
+      "id": "1514793390003_F02",
+      "task_id": "988b791b32d911eca68704ea56825bad",
+      "source_author": "WH_F0116_偶4克萊爾爾爾🙈iamclaire926/F",
+      "panel": "/female",
+      "create_time": "2018-01-01T15:41:48",
+      "field_content": "WH_F0116",
+      "match_content": "偶4克萊爾爾爾🙈iamclaire926/F"
+    },
+    {
+      "id": "1514795231214_F02",
+      "task_id": "988b791b32d911eca68704ea56825bad",
+      "source_author": "WH_F0116_生者akaii/M",
+      "panel": "/male",
+      "create_time": "2018-01-01T16:12:39",
+      "field_content": "WH_F0116",
+      "match_content": "生者akaii/M"
+    },
+    {
+      "id": "1514799613632_F02",
+      "task_id": "988b791b32d911eca68704ea56825bad",
+      "source_author": "WH_F0116_馬偕妹ㄓcatherine900117/F",
+      "panel": "/female",
+      "create_time": "2018-01-01T17:33:31",
+      "field_content": "WH_F0116",
+      "match_content": "馬偕妹ㄓcatherine900117/F"
+    },
+    {
+      "id": "1514813950284_1_F02",
+      "task_id": "988b791b32d911eca68704ea56825bad",
+      "source_author": "WH_F0116_思考未來的女子rin00467/F",
+      "panel": "/female",
+      "create_time": "2018-01-01T21:18:52",
+      "field_content": "WH_F0116",
+      "match_content": "思考未來的女子rin00467/F"
+    },
+    {
+      "id": "1514829464318_F02",
+      "task_id": "988b791b32d911eca68704ea56825bad",
+      "source_author": "WH_F0116_Amy Tsais6013104/F",
+      "panel": "/female",
+      "create_time": "2018-01-02T01:52:34",
+      "field_content": "WH_F0116",
+      "match_content": "Amy Tsais6013104/F"
+    }
+  ]
+  ````
+
+  | Column        | Description                            |
+  | ------------- | -------------------------------------- |
+  | id            | Row id from original data              |
+  | task_id       | Labeling task id                       |
+  | source_author | Combine the s_id with author_name      |
+  | panel         | Result of labeling                     |
+  | create_time   | Post_time                              |
+  | field_content | s_id                                   |
+  | match_content | The content which is used to labeling. |
+
+  
+
+  ## Error code
+
+  | Error code | Error message         | Note                                                         |
+  | ---------- | --------------------- | ------------------------------------------------------------ |
+  | 200        | OK                    | Successful response                                          |
+  | 400        | Bad request           | Probably wrong format of API input                           |
+  | 404        | Not found             | Task id is not exist                                         |
+  | 500        | Internal Server Error | Probably due to the database or worker problem or server die |
+
+  
 

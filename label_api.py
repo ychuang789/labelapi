@@ -20,12 +20,26 @@ from utils.selections import SampleResulTable
 
 _logger = get_logger('label_API')
 
-app = FastAPI(title="Labeling Task API")
+description = """
+This service is created by department of Research and Development 2 to help Audience labeling.    
+#### Item   
+1. create_task : a post api which create a labeling task via the information in the request body.   
+2. task_list : return the recent tasks and tasks information.    
+3. check_status : return a single task status and results if success via task_id.  
+4. sample_result : return the labeling results from database via task_id and table information.    
+#### Users  
+For eland staff only. 
+"""
+
+app = FastAPI(title="Audience API",
+              description=description,
+              version='2.0'
+              )
 
 @app.post('/api/tasks/', description='Create lableing task, '
                                      'edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks')
-async def create(create_request_body: CreateTaskRequestBody):
+async def create_task(create_request_body: CreateTaskRequestBody):
     if create_request_body.start_time >= create_request_body.end_time:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
                             content=f'In setting.CreateTaskRequestBody start_time '
@@ -80,7 +94,7 @@ async def create(create_request_body: CreateTaskRequestBody):
                      res, _logger, schema=DatabaseInfo.output_schema)
     except Exception as e:
         _logger.error(f'cannot execute the task since {e}')
-        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=jsonable_encoder(e))
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
 
 
     _logger.info(f'API configuration: {setting}')
@@ -92,10 +106,9 @@ async def create(create_request_body: CreateTaskRequestBody):
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
-@app.get('/api/tasks/', description="Return a subset of task_id and task_status, "
-                                    "you can pick a 'SUCCESS' task_id and get it's "
-                                    "sample query information in /api/tasks/{task_id} api")
-async def task_list():
+@app.get('/api/tasks/', description="Return a subset of task_id and task_info, "
+                                    "you can pick a 'SUCCESS' task_id and get it's ")
+async def tasks_list():
     try:
         engine = create_engine(TaskListRequestBody.engine_info)
         query = get_tasks_query(TaskListRequestBody.table,
@@ -114,9 +127,10 @@ async def task_list():
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(_dict))
     except Exception as e:
         _logger.error(f"cannot connect to server since {e}")
-        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=jsonable_encoder(e))
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
 
-@app.get('/api/tasks/{task_id}', description='input a task_id and output task_id with table_name for sampling query.')
+@app.get('/api/tasks/{task_id}', description='Input a task_id and output status. If the task is successed, '
+                                             'return the result tables for querying sample results')
 async def check_status(task_id):
     try:
         engine = create_engine(DatabaseInfo.output_engine_info)
@@ -143,8 +157,9 @@ async def check_status(task_id):
         _logger.error({"status_code": status.HTTP_404_NOT_FOUND, "content": f'{err_msg} Addition :{e}'})
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=e)
 
-@app.get('/api/tasks/{task_id}/sample/', description='input a task_id and table_name to get the sampling result, you can input '
-                                                     'task_id in /api/tasks/{task_id} to gain such information ')
+@app.get('/api/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
+                                                     'If you have no clue of task_id or table_names check the  '
+                                                     '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
 async def sample_result(task_id: str,
                         table_name: List[SampleResulTable] = Query(..., description='press Ctrl/Command with '
                                                                                     'right key of mouse to '
@@ -168,7 +183,7 @@ async def sample_result(task_id: str,
         result = scrap_data_to_df(_logger, q, schema=SampleResultRequestBody.schema_name, _to_dict=True)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
     except Exception as e:
-        err_msg = f'invalid sql query, plz re-check it.'
+        err_msg = f'invalid query, plz re-check it.'
         _logger.error({"status_code": status.HTTP_400_BAD_REQUEST, "content": f'{err_msg} Addition :{e}'})
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg} Addition :{e}')
 

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Dict
 
 from celery import Celery
 from sqlalchemy import create_engine
@@ -48,8 +47,7 @@ def label_data(task_id, **kwargs):
 
         try:
             _output = labeling(task_id, element, kwargs.get('model_type'),
-                               pred, kwargs.get('pattern'), _logger,
-                               to_database=True)
+                               pred, kwargs.get('pattern'), _logger)
 
             for i in _output:
                 table_set.add(i)
@@ -64,19 +62,10 @@ def label_data(task_id, **kwargs):
 
     update2state(task_id, ','.join(table_set), _logger, schema=DatabaseInfo.output_schema)
 
-    try:
-        result_dict = run_workflow(task_id, list(table_set), _logger, drop=False)
-    except Exception as e:
-        err_msg = f'task {task_id} failed at the cleaning stage, additional error message {e}'
-        _logger.error(err_msg)
-        raise err_msg
-
 
     finish_time = datetime.now()
     _logger.info(f'task {task_id} {kwargs.get("target_table")} done, total time is '
                  f'{(finish_time - start_time).total_seconds() / 60} minutes')
-
-    return result_dict
 
 
 

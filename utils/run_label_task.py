@@ -14,6 +14,7 @@ from models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
 from settings import DatabaseInfo, SOURCE
+from utils.clean_up_result import run_cleaning
 from utils.database_core import connect_database, create_table
 from utils.helper import get_logger
 from utils.selections import ModelType, PredictTarget, KeywordMatchType
@@ -68,7 +69,7 @@ def convert_input_data(df: pd.DataFrame) -> Iterable[InputExample]:
     return input_examples
 
 def labeling(_id:str, df: pd.DataFrame, model_type: str,
-             predict_type: str, pattern: Dict, logger: get_logger, to_database=False):
+             predict_type: str, pattern: Dict, logger: get_logger):
     start = datetime.now()
     logger.info(f'start labeling at {start} ...')
     if model_type == ModelType.RULE_MODEL.value:
@@ -138,49 +139,40 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
                     'panel', 'field_content', 'match_content']]
 
     df_output = _df_output.loc[_df_output['panel'] != '']
-    # df_output.dropna(subset=['panel'], inplace=True)
 
-    if to_database:
-        logger.info(f'write the output into database ...')
+    logger.info(f'write the output into database ...')
 
-        engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
-        exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-        result_table_list = []
+    engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
+    exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
+    result_table_list = []
 
-        for k,v in SOURCE.items():
-            df_write = df_output[df_output['field_content'].isin(v)]
+    for k,v in SOURCE.items():
+        df_write = df_output[df_output['field_content'].isin(v)]
 
-            if df_write.empty:
-                continue
+        if df_write.empty:
+            continue
 
-            _table_name = k
-            if _table_name not in exist_tables:
-                create_table(k,logger, schema=DatabaseInfo.output_schema, temp=True)
+        try:
+            _df_write = run_cleaning(df_write)
+        except Exception as e:
+            raise e
 
-            try:
-                connection = engine.connect()
-                df_write.to_sql(name=_table_name, con=connection, if_exists='append', index=False)
-                logger.info(f'successfully write data into {DatabaseInfo.output_schema}.{_table_name}')
-            except:
-                logger.error(f'write dataframe to test failed!')
-                raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
-                                      f'probable wrong query or connection issue')
-            result_table_list.append(_table_name)
-        return result_table_list
+        _table_name= f'wh_panel_mapping_{k}'
+        if _table_name not in exist_tables:
+            create_table(k,logger, schema=DatabaseInfo.output_schema)
 
-    else:
-        logger.info('write the output into local folder ...')
-        now = datetime.now()
-        time_diff = now - start
+        try:
+            connection = engine.connect()
+            _df_write.to_sql(name=_table_name, con=connection, if_exists='append', index=False)
+            logger.info(f'successfully write data into {DatabaseInfo.output_schema}.{_table_name}')
+        except Exception as e:
+            logger.error(f'write dataframe to test failed!')
+            raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
+                                  f'additional error message {e}')
+        result_table_list.append(_table_name)
+    return result_table_list
 
-        file_path = Path(SAVE_FOLDER / f'output_{len(df_output)}_{round(time_diff.total_seconds())}.csv')
-        logger.info(f'saving file to {SAVE_FOLDER}')
-        df_output.to_csv(file_path, index=False, encoding='utf-8-sig')
-        logger.info(f'file is saved as output_{len(df_output)}_{round(time_diff.total_seconds())}.csv')
 
-        _output = f'output_{len(df_output)}_{round(time_diff.total_seconds())}.csv'
-
-        return _output
 
 
 def generate_test():
