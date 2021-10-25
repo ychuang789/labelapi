@@ -87,31 +87,100 @@ def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool
         logger.error(e)
         raise e
 
-def get_data_by_batch(count, predict_type, batch_size,
-                      schema, table, date_info = False, **kwargs) -> pd.DataFrame:
-    func = connect_database
-    if not date_info:
-        with func(schema=schema).cursor() as cursor:
-            for offset in range(0, count, batch_size):
-                q = f"SELECT * FROM {table} " \
-                    f"WHERE {predict_type} IS NOT NULL " \
-                    f"LIMIT {batch_size} OFFSET {offset}"
-                cursor.execute(q)
-                result = to_dataframe(cursor.fetchall())
-                yield result
-            func(schema=schema).close()
+def get_count(enging_info, condition, **kwargs):
+    engine = create_engine(enging_info)
+    if not kwargs.get('date_info'):
+        if not kwargs.get('chunk_by_source'):
+            count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
+                                   f"WHERE {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
+            return count
+
+        else:
+            assert condition != None, f'chunk_by_source is set to True ' \
+                                      f'while source_array is not found.'
+
+            count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
+                                   f"WHERE s_id in {condition} "
+                                   f"AND {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
+            return count
     else:
-        with func(schema=schema).cursor() as cursor:
-            for offset in range(0, count, batch_size):
-                q = f"SELECT * FROM {table} " \
-                    f"WHERE {predict_type} IS NOT NULL " \
-                    f"AND post_time >= '{kwargs.get('start_time')}' " \
-                    f"AND post_time <= '{kwargs.get('end_time')}' "\
-                    f"LIMIT {batch_size} OFFSET {offset}"
-                cursor.execute(q)
-                result = to_dataframe(cursor.fetchall())
-                yield result
-            func(schema=schema).close()
+        if not kwargs.get('chunk_by_source'):
+            count = engine.execute(f"SELECT COUNT(*) "
+                                   f"FROM {kwargs.get('target_table')} "
+                                   f"WHERE {kwargs.get('predict_type')} IS NOT NULL " 
+                                   f"AND post_time >= '{kwargs.get('start_time')}' "
+                                   f"AND post_time <= '{kwargs.get('end_time')}'"
+                                   ).fetchone()[0]
+            return count
+        else:
+            assert condition != None, f'chunk_by_source is set to True ' \
+                                      f'while source_array is not found.'
+
+            count = engine.execute(f"SELECT COUNT(*) "
+                                   f"FROM {kwargs.get('target_table')} "
+                                   f"WHERE s_id in {condition} "
+                                   f"AND {kwargs.get('predict_type')} IS NOT NULL "
+                                   f"AND post_time >= '{kwargs.get('start_time')}' "
+                                   f"AND post_time <= '{kwargs.get('end_time')}'"
+                                   ).fetchone()[0]
+            return count
+
+
+def get_data_by_batch(count, predict_type, batch_size,
+                      schema, table, condition,
+                      date_info = False, chunk_by_source = False, **kwargs) -> pd.DataFrame:
+    func = connect_database
+
+    if not date_info:
+        if not chunk_by_source:
+            with func(schema=schema).cursor() as cursor:
+                for offset in range(0, count, batch_size):
+                    q = f"SELECT * FROM {table} " \
+                        f"WHERE {predict_type} IS NOT NULL " \
+                        f"LIMIT {batch_size} OFFSET {offset}"
+                    cursor.execute(q)
+                    result = to_dataframe(cursor.fetchall())
+                    yield result
+                func(schema=schema).close()
+        else:
+            assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
+            with func(schema=schema).cursor() as cursor:
+                for offset in range(0, count, batch_size):
+                    q = f"SELECT * FROM {table} " \
+                        f"WHERE s_id in {condition} " \
+                        f"AND {predict_type} IS NOT NULL " \
+                        f"LIMIT {batch_size} OFFSET {offset}"
+                    cursor.execute(q)
+                    result = to_dataframe(cursor.fetchall())
+                    yield result
+                func(schema=schema).close()
+    else:
+        if not chunk_by_source:
+            with func(schema=schema).cursor() as cursor:
+                for offset in range(0, count, batch_size):
+                    q = f"SELECT * FROM {table} " \
+                        f"WHERE {predict_type} IS NOT NULL " \
+                        f"AND post_time >= '{kwargs.get('start_time')}' " \
+                        f"AND post_time <= '{kwargs.get('end_time')}' "\
+                        f"LIMIT {batch_size} OFFSET {offset}"
+                    cursor.execute(q)
+                    result = to_dataframe(cursor.fetchall())
+                    yield result
+                func(schema=schema).close()
+        else:
+            assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
+            with func(schema=schema).cursor() as cursor:
+                for offset in range(0, count, batch_size):
+                    q = f"SELECT * FROM {table} " \
+                        f"WHERE s_id in {condition} " \
+                        f"AND {predict_type} IS NOT NULL " \
+                        f"AND post_time >= '{kwargs.get('start_time')}' " \
+                        f"AND post_time <= '{kwargs.get('end_time')}' "\
+                        f"LIMIT {batch_size} OFFSET {offset}"
+                    cursor.execute(q)
+                    result = to_dataframe(cursor.fetchall())
+                    yield result
+                func(schema=schema).close()
 
 def create_table(table_ID: str, logger: get_logger, schema=None):
     insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_ID}`(' \

@@ -3,8 +3,7 @@ import json
 from dotenv import load_dotenv
 from datetime import datetime
 from pydantic import BaseModel
-from typing import List
-
+from typing import List, Dict
 
 
 class CeleryConfig:
@@ -42,7 +41,9 @@ class CreateTaskRequestBody(BaseModel):
     end_time: datetime = "2018-12-31 23:59:59"
     target_schema: str = "forum_data"
     target_table: str = "ts_page_content"
+    target_source: Dict[str, List[str]] = None
     date_info: bool = False if os.getenv('DATE_INFO') else True
+    chunk_by_source: bool = False if os.getenv('CHUNK_BY_SOURCE') else True
     batch_size: int = 1000000
 
 class TaskListRequestBody:

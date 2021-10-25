@@ -64,7 +64,9 @@ async def create_task(create_request_body: CreateTaskRequestBody):
                      "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
                      "target_schema": create_request_body.target_schema,
                      "target_table": create_request_body.target_table,
+                     "target_source": create_request_body.target_source,
                      "date_info": create_request_body.date_info,
+                     "chunk_by_source": create_request_body.chunk_by_source,
                      "batch_size": create_request_body.batch_size
                      }
     date_info_dict = {"date_info_dict":
