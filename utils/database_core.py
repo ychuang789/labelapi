@@ -5,13 +5,14 @@ from pathlib import Path
 
 import pymysql
 import pandas as pd
+from sqlalchemy import create_engine as ce
 from sqlmodel import SQLModel, create_engine
 from tqdm import tqdm
 
 from definition import SCRAP_FOLDER, SAVE_FOLDER
 from utils.helper import get_logger
 from utils.selections import QueryStatements
-from settings import DatabaseInfo, SOURCE
+from settings import DatabaseInfo, SOURCE, CreateTaskRequestBody
 
 
 def create_db(db_path, config_db):
@@ -67,10 +68,9 @@ def scrap_data_to_csv(logger):
 
     return file_list
 
-def scrap_data_to_df(logger: get_logger, query: str, schema: str = None, _to_dict: bool = False):
+def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool = False):
     func = connect_database
-    # try:
-    if schema:
+    try:
         with func(schema=schema).cursor() as cursor:
             logger.info('connecting to database...')
             cursor.execute(query)
@@ -82,55 +82,144 @@ def scrap_data_to_df(logger: get_logger, query: str, schema: str = None, _to_dic
                 result = cursor.fetchall()
                 func().close()
                 return result
-    else:
-        with func().cursor() as cursor:
-            logger.info('connecting to database...')
-            cursor.execute(query)
-            if not _to_dict:
+
+    except Exception as e:
+        logger.error(e)
+        raise e
+
+def get_data_by_batch(count, predict_type, batch_size,
+                      schema, table, date_info = False, **kwargs) -> pd.DataFrame:
+    func = connect_database
+    if not date_info:
+        with func(schema=schema).cursor() as cursor:
+            for offset in range(0, count, batch_size):
+                q = f"SELECT * FROM {table} " \
+                    f"WHERE {predict_type} IS NOT NULL " \
+                    f"LIMIT {batch_size} OFFSET {offset}"
+                cursor.execute(q)
                 result = to_dataframe(cursor.fetchall())
-                func().close()
-                return result
-            else:
-                result = cursor.fetchall()
-                func().close()
-                return result
+                yield result
+            func(schema=schema).close()
+    else:
+        with func(schema=schema).cursor() as cursor:
+            for offset in range(0, count, batch_size):
+                q = f"SELECT * FROM {table} " \
+                    f"WHERE {predict_type} IS NOT NULL " \
+                    f"AND post_time >= '{kwargs.get('start_time')}' " \
+                    f"AND post_time <= '{kwargs.get('end_time')}' "\
+                    f"LIMIT {batch_size} OFFSET {offset}"
+                cursor.execute(q)
+                result = to_dataframe(cursor.fetchall())
+                yield result
+            func(schema=schema).close()
 
-    # except:
-    #     logger.error(f'fail to scrap data')
-    #     return 'fail to scrap data, probably caused by wrong query, plz re-check it'
+def create_table(table_ID: str, logger: get_logger, schema=None):
+    insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_ID}`(' \
+                 f'`id` VARCHAR(32) NOT NULL,' \
+                 f'`task_id` VARCHAR(32) NOT NULL,' \
+                 f'`source_author` TEXT(65535) NOT NULL,' \
+                 f'`panel` VARCHAR(200) NOT NULL,' \
+                 f'`create_time` DATETIME NOT NULL,' \
+                 f'`field_content` TEXT(65535) NOT NULL,' \
+                 f'`match_content` TEXT(1073741823) NOT NULL' \
+                 f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
+                 f'AUTO_INCREMENT=1 ;'
+    func = connect_database
+    try:
+        with func(schema).cursor() as cursor:
+            logger.info('connecting to database...')
+            logger.info('creating table...')
+            cursor.execute(insert_sql)
+            func(schema).close()
+            logger.info(f'successfully created table {table_ID}')
+    except Exception as e:
+        logger.error(e)
+        raise e
 
 
-def create_table(table_ID: str, logger: get_logger):
-    if SOURCE.get(table_ID):
-        insert_sql = f'CREATE TABLE IF NOT EXISTS `{SOURCE.get(table_ID)}`(' \
-                     f'`source_id` VARCHAR(8) NOT NULL, ' \
-                     f'`author` VARCHAR(200) NOT NULL,' \
-                     f'`source_author` VARCHAR(200) NOT NULL,' \
-                     f'`panel` VARCHAR(200) NOT NULL,' \
-                     f'`applied_meta` TEXT(1073741823)' \
-                     f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
-                     f'AUTO_INCREMENT=1 ;'
-        func = connect_database
-        try:
-            with func(DatabaseInfo, write=True).cursor() as cursor:
+
+
+
+
+def create_state_table(logger: get_logger, schema=None):
+    insert_sql = f'CREATE TABLE IF NOT EXISTS `state`(' \
+                 f'`task_id` VARCHAR(32) NOT NULL,' \
+                 f'`stat` VARCHAR(32) NOT NULL,' \
+                 f'`model_type` VARCHAR(32) NOT NULL,' \
+                 f'`predict_type` VARCHAR(32) NOT NULL,' \
+                 f'`date_range` TEXT(1073741823) NOT NULL,' \
+                 f'`target_table` VARCHAR(32) NOT NULL,' \
+                 f'`create_time` DATETIME NOT NULL,' \
+                 f'`result` TEXT(1073741823) NOT NULL' \
+                 f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
+                 f'AUTO_INCREMENT=1 ;'
+    func = connect_database
+    try:
+        with func(schema).cursor() as cursor:
+            logger.info('connecting to database...')
+            logger.info('creating table...')
+            cursor.execute(insert_sql)
+            func(schema).close()
+            logger.info(f'successfully created table.')
+    except Exception as e:
+        logger.error(e)
+        raise e
+
+def insert2state(task_id, status, model_type, predict_type,
+                 date_range, target_table, time, result,
+                 logger: get_logger, schema=None):
+    func = connect_database
+    insert_sql = f'INSERT INTO state ' \
+                 f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
+                 f'VALUES (' \
+                 f'"{task_id}", ' \
+                 f'"{status}", ' \
+                 f'"{model_type}", ' \
+                 f'"{predict_type}", ' \
+                 f'"{date_range}", ' \
+                 f'"{target_table}", ' \
+                 f'"{time}", ' \
+                 f'"{result}");'
+    # try:
+    connection = func(schema)
+    with connection:
+        with connection.cursor() as cursor:
+            logger.info('connecting to database...')
+            cursor.execute(insert_sql)
+            logger.info(f'successfully write into table.')
+        connection.commit()
+    # except Exception as e:
+    #     logger.error(e)
+    #     raise e
+
+def update2state(task_id, result, logger: get_logger, schema=None, seccess=True):
+    func = connect_database
+    if seccess:
+        insert_sql = f'UPDATE state ' \
+                     f'SET stat = "SUCCESS", result = "{result}"' \
+                     f'Where task_id = "{task_id}"'
+    else:
+        insert_sql = f'UPDATE state ' \
+                     f'SET stat = "FAILURE", result = "{result}"' \
+                     f'Where task_id = "{task_id}"'
+    try:
+        connection = func(schema)
+        with connection:
+            with connection.cursor() as cursor:
                 logger.info('connecting to database...')
                 logger.info('creating table...')
                 cursor.execute(insert_sql)
-                func(DatabaseInfo, write=True).close()
-                logger.info(f'successfully created table {SOURCE.get(table_ID)}')
-        except:
-            logger.error('Cannot create the table')
-            return
-
-    else:
-        logger.error('table_name is not found')
-        return
+                logger.info(f'successfully created table.')
+            connection.commit()
+    except Exception as e:
+        logger.error(e)
+        raise e
 
 
 def insert_table(table_ID: str, logger: get_logger, df):
     if SOURCE.get(table_ID):
         logger.info('connect to database...')
-        engine = create_engine(DatabaseInfo.engine_info.value)
+        engine = create_engine(DatabaseInfo.output_engine_info.value)
         exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
 
         if SOURCE.get(table_ID) in exist_tables:
@@ -152,20 +241,20 @@ def insert_table(table_ID: str, logger: get_logger, df):
         logger.error('table_name is not found')
         return
 
-def clean_up_table(table_name: str, logger: get_logger):
+def drop_table(table_name: str, logger: get_logger, schema=None) :
     """drop table name"""
     drop_sql = f'DROP TABLE {table_name};'
     func = connect_database
     try:
-        with func(DatabaseInfo, write=True).cursor() as cursor:
+        with func(schema=schema).cursor() as cursor:
             logger.info('connecting to database...')
             logger.info('dropping table...')
             cursor.execute(drop_sql)
-            func(DatabaseInfo, write=True).close()
+            func(schema=schema).close()
             logger.info(f'successfully dropped table {table_name}')
-    except:
+    except Exception as e:
         logger.error('Cannot drop the table')
-        return
+        raise e
 
 def result_to_db(save_dir: SAVE_FOLDER, file_name: str, logger: get_logger):
     file_path = Path(save_dir / file_name)
@@ -186,31 +275,39 @@ def result_to_db(save_dir: SAVE_FOLDER, file_name: str, logger: get_logger):
 
     return f'Output file {file_name} is write into {DatabaseInfo.output_schema}'
 
-def get_create_task_query(target_table, predict_type, start_time, end_time):
+def get_create_task_query(target_table, predict_type, start_time, end_time, get_all = False):
 
-    q = f"SELECT * FROM {target_table} " \
-        f"WHERE {predict_type} IS NOT NULL " \
-        f"AND post_time >= '{start_time}'" \
-        f"AND post_time <= '{end_time}'"
+    if not get_all:
+        q = f"SELECT * FROM {target_table} " \
+            f"WHERE {predict_type} IS NOT NULL " \
+            f"AND post_time >= '{start_time}'" \
+            f"AND post_time <= '{end_time}'"
+    else:
+        q = f"SELECT * FROM {target_table} " \
+            f"WHERE {predict_type} IS NOT NULL"
 
     return q
 
 def get_count_query():
     return 'SELECT COUNT(task_id) FROM celery_taskmeta'
 
-def get_tasks_query(table, order_column, offset, number):
-    q = f'SELECT task_id, status FROM {table} ' \
-        f'WHERE id >= (SELECT id FROM {table} ' \
-        f'ORDER BY {order_column} ' \
-        f'LIMIT {offset}, 1) ' \
-        f'LIMIT {number}'
+def get_tasks_query(table, order_column, number):
+    q = f'SELECT * FROM {table} ' \
+        f'ORDER BY {order_column} DESC ' \
+        f'LIMIT {number} '
 
     return q
 
-def get_sample_query(_id, string, order_column, offset, number):
-    q = f"SELECT * FROM {string}WHERE task_id = '{_id.split(';')[0]}' " \
-        f"AND id >= (SELECT id FROM {string}ORDER BY {order_column} " \
-        f"LIMIT {offset},1) " \
-        f"LIMIT {number}"
+def get_sample_query(_id, tablename, number):
+    q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
+        f"AND rand() <= 0.2 " \
+        f"LIMIT {number})"
+    return q
 
+def query_state(_id):
+    q = f"SELECT * FROM state WHERE task_id = '{_id}'"
+    return q
+
+def get_result_query(_id, tablename):
+    q = f"SELECT * FROM {tablename} WHERE task_id = '{_id} '"
     return q
