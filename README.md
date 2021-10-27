@@ -363,14 +363,32 @@ Or modify following parts:
 
   
 
-  ## Error code
+## Error code
 
-  | Error code | Error message         | Note                                                         |
-  | ---------- | --------------------- | ------------------------------------------------------------ |
-  | 200        | OK                    | Successful response                                          |
-  | 400        | Bad request           | Probably wrong format of API input                           |
-  | 404        | Not found             | Task id is not exist                                         |
-  | 500        | Internal Server Error | Probably due to the database or worker problem or server die |
+| Error code | Error message         | Note                                                         |
+| ---------- | --------------------- | ------------------------------------------------------------ |
+| 200        | OK                    | Successful response                                          |
+| 400        | Bad request           | Probably wrong format of API input                           |
+| 404        | Not found             | Task id is not exist                                         |
+| 500        | Internal Server Error | Probably due to the database or worker problem or server die |
 
-  
+## System Requirement
+
+Testing system information : 
+
+System : Windows 10
+
+Processor : Intel(R) Core(TM) i5-8259U
+
+RAM : 16G
+
+Baseline Performance
+
++ Testing database : Forum data 16,018,794 rows
++ Testing model : keyword_base model
+
++ Finished time : 40.95 minutes
+
++ Max memory usage :   6255.77 Mb
++ Rate of labeled (numbers of result labeled data / number of distinct s_id, author) : 20 %
 
