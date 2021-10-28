@@ -139,10 +139,12 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
 
     logger.info(f'write the output into database ...')
 
-    engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
+    engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1).connect()
+
     exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
     result_table_list = []
     output_number_row = 0
+
     for k,v in SOURCE.items():
         df_write = df_output[df_output['field_content'].isin(v)]
 
@@ -156,18 +158,20 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
 
         _table_name= f'wh_panel_mapping_{k}'
         if _table_name not in exist_tables:
-            create_table(k,logger, schema=DatabaseInfo.output_schema)
+            create_table(_table_name, logger, schema=DatabaseInfo.output_schema)
 
         try:
-            connection = engine.connect()
-            _df_write.to_sql(name=_table_name, con=connection, if_exists='append', index=False)
+
+            _df_write.to_sql(name=_table_name, con=engine, if_exists='append', index=False)
             logger.info(f'successfully write data into {DatabaseInfo.output_schema}.{_table_name}')
+
         except Exception as e:
             logger.error(f'write dataframe to test failed!')
             raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
                                   f'additional error message {e}')
         result_table_list.append(_table_name)
         output_number_row += len(_df_write)
+    engine.close()
     return result_table_list, output_number_row
 
 

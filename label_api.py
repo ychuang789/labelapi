@@ -46,11 +46,11 @@ async def create_task(create_request_body: CreateTaskRequestBody):
                                     f'must be earlier to end_time.')
 
     # create the tracking table `state` in `audience_result`
-    engine = create_engine(DatabaseInfo.output_engine_info)
+    engine = create_engine(DatabaseInfo.output_engine_info).connect()
     _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
     if 'state' not in _exist_tables:
         create_state_table(_logger, schema=DatabaseInfo.output_schema)
-
+    engine.close()
 
     try:
         pattern = read_from_dir(create_request_body.model_type, create_request_body.predict_type)
