@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data
-from settings import CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo
+from settings import CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo, SOURCE
 from utils.database_core import scrap_data_to_df, get_create_task_query, get_count_query, get_tasks_query, \
     get_sample_query, create_state_table, insert2state, query_state
 from utils.helper import get_logger
@@ -58,16 +58,15 @@ async def create_task(create_request_body: CreateTaskRequestBody):
         _logger.error({"status_code":status.HTTP_400_BAD_REQUEST, "content":e})
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=e)
 
-    task_id = uuid.uuid1().hex
+    # task_id = uuid.uuid1().hex
     setting: Dict = {"model_type": create_request_body.model_type,
                      "predict_type": create_request_body.predict_type,
                      "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
                      "target_schema": create_request_body.target_schema,
                      "target_table": create_request_body.target_table,
-                     "target_source": create_request_body.target_source,
                      "date_info": create_request_body.date_info,
                      "chunk_by_source": create_request_body.chunk_by_source,
-                     "batch_size": create_request_body.batch_size
+                     "target_source": create_request_body.target_source
                      }
     date_info_dict = {"date_info_dict":
                           {'start_time': create_request_body.start_time,
@@ -84,28 +83,27 @@ async def create_task(create_request_body: CreateTaskRequestBody):
         pass
 
 
+    task_id = uuid.uuid1().hex
     try:
         _logger.info('start the labeling worker ...')
-        result = label_data.apply_async(args=(task_id, ),
+        result = label_data.apply_async(args=(task_id,),
                                         kwargs=param,
                                         task_id=task_id,
-                                        expires=datetime.now() + timedelta(days=7))
+                                        expires=datetime.now() + timedelta(days=7), queue=create_request_body.queue_name)
         res = ""
         insert2state(task_id, result.state, setting.get('model_type'), setting.get('predict_type'),
                      setting.get('date_range'), setting.get('target_table'), datetime.now(),
                      res, _logger, schema=DatabaseInfo.output_schema)
+
     except Exception as e:
         _logger.error(f'cannot execute the task since {e}')
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
 
 
+
+    config = {task_id: setting}
+
     _logger.info(f'API configuration: {setting}')
-
-
-    config = {"task_id": task_id}
-    config.update(param)
-    config.pop("pattern")
-
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
 @app.get('/api/tasks/', description="Return a subset of task_id and task_info, "

@@ -8,7 +8,7 @@ from utils.helper import get_logger
 
 
 def scrap_result(_id: str, table_name: str) -> pd.DataFrame:
-    connection = connect_database(schema=DatabaseInfo.output_schema)
+    connection = connect_database(schema=DatabaseInfo.output_schema, output=True)
     q = get_result_query(_id, table_name)
     with connection.cursor() as cursor:
         cursor.execute(q)

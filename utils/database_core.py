@@ -7,6 +7,7 @@ import pymysql
 import pandas as pd
 from sqlalchemy import create_engine as ce
 from sqlmodel import SQLModel, create_engine
+from sqlalchemy import create_engine as C
 from tqdm import tqdm
 
 from definition import SCRAP_FOLDER, SAVE_FOLDER
@@ -22,22 +23,33 @@ def create_db(db_path, config_db):
         engine = create_engine(f'{config_db}', encoding='utf-8')
         SQLModel.metadata.create_all(engine)
 
-def connect_database(schema = DatabaseInfo.input_schema):
-        try:
-            config = {
-                'host': DatabaseInfo.host,
-                'port': DatabaseInfo.port,
-                'user': DatabaseInfo.user,
-                'password': DatabaseInfo.password,
-                'db': schema,
-                'charset': 'utf8mb4',
-                'cursorclass': pymysql.cursors.DictCursor,
-            }
-            connection = pymysql.connect(**config)
-            return connection
+def connect_database(schema = None, output = False):
+    if not output:
+        config = {
+            'host': DatabaseInfo.host,
+            'port': DatabaseInfo.port,
+            'user': DatabaseInfo.user,
+            'password': DatabaseInfo.password,
+            'db': schema,
+            'charset': 'utf8mb4',
+            'cursorclass': pymysql.cursors.DictCursor,
+        }
+    else:
+        config = {
+            'host': DatabaseInfo.output_host,
+            'port': DatabaseInfo.output_port,
+            'user': DatabaseInfo.output_user,
+            'password': DatabaseInfo.output_password,
+            'db': schema,
+            'charset': 'utf8mb4',
+            'cursorclass': pymysql.cursors.DictCursor,
+        }
+    try:
+        connection = pymysql.connect(**config)
+        return connection
 
-        except:
-            logging.error('Fail to connect to database.')
+    except:
+        logging.error('Fail to connect to database.')
 
 
 def to_dataframe(data):
@@ -88,7 +100,7 @@ def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool
         raise e
 
 def get_count(enging_info, condition, **kwargs):
-    engine = create_engine(enging_info)
+    engine = C(enging_info)
     if not kwargs.get('date_info'):
         if not kwargs.get('chunk_by_source'):
             count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
@@ -108,8 +120,8 @@ def get_count(enging_info, condition, **kwargs):
             count = engine.execute(f"SELECT COUNT(*) "
                                    f"FROM {kwargs.get('target_table')} "
                                    f"WHERE {kwargs.get('predict_type')} IS NOT NULL " 
-                                   f"AND post_time >= '{kwargs.get('start_time')}' "
-                                   f"AND post_time <= '{kwargs.get('end_time')}'"
+                                   f"AND post_time BETWEEN '{kwargs.get('date_info_dict').get('start_time')}' "
+                                   f"AND '{kwargs.get('date_info_dict').get('end_time')}'"
                                    ).fetchone()[0]
             return count
         else:
@@ -120,8 +132,8 @@ def get_count(enging_info, condition, **kwargs):
                                    f"FROM {kwargs.get('target_table')} "
                                    f"WHERE s_id in {condition} "
                                    f"AND {kwargs.get('predict_type')} IS NOT NULL "
-                                   f"AND post_time >= '{kwargs.get('start_time')}' "
-                                   f"AND post_time <= '{kwargs.get('end_time')}'"
+                                   f"AND post_time >= '{kwargs.get('date_info_dict').get('start_time')}' "
+                                   f"AND post_time <= '{kwargs.get('date_info_dict').get('end_time')}'"
                                    ).fetchone()[0]
             return count
 
@@ -195,11 +207,11 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
                  f'AUTO_INCREMENT=1 ;'
     func = connect_database
     try:
-        with func(schema).cursor() as cursor:
+        with func(schema, output=True).cursor() as cursor:
             logger.info('connecting to database...')
             logger.info('creating table...')
             cursor.execute(insert_sql)
-            func(schema).close()
+            func(schema, output=True).close()
             logger.info(f'successfully created table {table_ID}')
     except Exception as e:
         logger.error(e)
@@ -224,11 +236,11 @@ def create_state_table(logger: get_logger, schema=None):
                  f'AUTO_INCREMENT=1 ;'
     func = connect_database
     try:
-        with func(schema).cursor() as cursor:
+        with func(schema, output=True).cursor() as cursor:
             logger.info('connecting to database...')
             logger.info('creating table...')
             cursor.execute(insert_sql)
-            func(schema).close()
+            func(schema, output=True).close()
             logger.info(f'successfully created table.')
     except Exception as e:
         logger.error(e)
@@ -250,7 +262,7 @@ def insert2state(task_id, status, model_type, predict_type,
                  f'"{time}", ' \
                  f'"{result}");'
     # try:
-    connection = func(schema)
+    connection = func(schema, output=True)
     with connection:
         with connection.cursor() as cursor:
             logger.info('connecting to database...')
@@ -261,18 +273,19 @@ def insert2state(task_id, status, model_type, predict_type,
     #     logger.error(e)
     #     raise e
 
-def update2state(task_id, result, logger: get_logger, schema=None, seccess=True):
+def update2state(task_id, result, logger: get_logger, input_row_length = None, output_row_length = None, schema=None, success=True):
     func = connect_database
-    if seccess:
+    if success:
         insert_sql = f'UPDATE state ' \
-                     f'SET stat = "SUCCESS", result = "{result}"' \
+                     f'SET stat = "SUCCESS", result = "{result}", ' \
+                     f'length_receive_table = {input_row_length}, length_output_table = {output_row_length} ' \
                      f'Where task_id = "{task_id}"'
     else:
         insert_sql = f'UPDATE state ' \
-                     f'SET stat = "FAILURE", result = "{result}"' \
+                     f'SET stat = "FAILURE", result = "{result}" ' \
                      f'Where task_id = "{task_id}"'
     try:
-        connection = func(schema)
+        connection = func(schema, output=True)
         with connection:
             with connection.cursor() as cursor:
                 logger.info('connecting to database...')
@@ -315,11 +328,11 @@ def drop_table(table_name: str, logger: get_logger, schema=None) :
     drop_sql = f'DROP TABLE {table_name};'
     func = connect_database
     try:
-        with func(schema=schema).cursor() as cursor:
+        with func(schema=schema, output=True).cursor() as cursor:
             logger.info('connecting to database...')
             logger.info('dropping table...')
             cursor.execute(drop_sql)
-            func(schema=schema).close()
+            func(schema=schema, output=True).close()
             logger.info(f'successfully dropped table {table_name}')
     except Exception as e:
         logger.error('Cannot drop the table')
@@ -380,3 +393,20 @@ def query_state(_id):
 def get_result_query(_id, tablename):
     q = f"SELECT * FROM {tablename} WHERE task_id = '{_id} '"
     return q
+
+def add_column(schema, table, col_name, col_type, **kwargs):
+
+    if kwargs:
+        condition = ''
+        for k,v in kwargs:
+            condition += f' {k} {v}'
+    else:
+        condition = ''
+    connection = connect_database(schema=schema, output=True)
+    q = f'ALTER TABLE {table} ' \
+        f'ADD COLUMN {col_name} {col_type}'
+
+    q += condition
+    with connection.cursor() as cursor:
+        cursor.execute(q)
+        connection.close()

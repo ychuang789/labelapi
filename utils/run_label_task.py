@@ -1,21 +1,18 @@
 import os
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Union, Tuple, List
 
 from sqlalchemy import create_engine
-from tqdm import tqdm
 import pandas as pd
 
-from definition import SAVE_FOLDER
 from models.rule_model import RuleModel
 from models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
 from settings import DatabaseInfo, SOURCE
 from utils.clean_up_result import run_cleaning
-from utils.database_core import connect_database, create_table
+from utils.database_core import create_table
 from utils.helper import get_logger
 from utils.selections import ModelType, PredictTarget, KeywordMatchType
 from utils.input_example import InputExample
@@ -145,7 +142,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
     exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
     result_table_list = []
-
+    output_number_row = 0
     for k,v in SOURCE.items():
         df_write = df_output[df_output['field_content'].isin(v)]
 
@@ -170,8 +167,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
             raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
                                   f'additional error message {e}')
         result_table_list.append(_table_name)
-    return result_table_list
-
+        output_number_row += len(_df_write)
+    return result_table_list, output_number_row
 
 
 
