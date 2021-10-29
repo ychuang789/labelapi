@@ -384,7 +384,7 @@ RAM : 16G
 
 Baseline Performance
 
-+ Database size : 2,376,186 rows
++ Data size : 2,376,186 rows
 + Predict model : keyword_base model  
 + Finished time : 23.26 minutes  
 
