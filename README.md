@@ -384,8 +384,8 @@ RAM : 16G
 
 Baseline Performance
 
-+ Testing database size : 2,376,186 rows
-+ Testing model : keyword_base model  
++ Database size : 2,376,186 rows
++ Predict model : keyword_base model  
 + Finished time : 23.26 minutes  
 
 + Max memory usage :   201.80 Mb
