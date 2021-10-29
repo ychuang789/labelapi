@@ -384,11 +384,9 @@ RAM : 16G
 
 Baseline Performance
 
-+ Testing database : Forum data 16,018,794 rows
-+ Testing model : keyword_base model
++ Testing database size : 2,376,186 rows
++ Testing model : keyword_base model  
++ Finished time : 23.26 minutes  
 
-+ Finished time : 40.95 minutes
-
-+ Max memory usage :   6255.77 Mb
-+ Rate of labeled (numbers of result labeled data / number of distinct s_id, author) : 20 %
++ Max memory usage :   201.80 Mb
 
