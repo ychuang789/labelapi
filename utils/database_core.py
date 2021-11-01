@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pymysql
 import pandas as pd
-from sqlalchemy import create_engine as ce
 from sqlmodel import SQLModel, create_engine
 from sqlalchemy import create_engine as C
 from tqdm import tqdm
@@ -142,6 +141,13 @@ def get_count(enging_info, condition, **kwargs):
             engine.close()
             return count
 
+def get_label_data_count(task_id):
+    connection = C(DatabaseInfo.output_engine_info).connect()
+    q = f'SELECT length_output_table FROM state where task_id = "{task_id}";'
+    _count = connection.execute(q).fetchone()[0]
+    connection.close()
+    return _count
+
 
 def get_data_by_batch(count, predict_type, batch_size,
                       schema, table, condition,
@@ -202,6 +208,18 @@ def get_data_by_batch(count, predict_type, batch_size,
                     yield result
                     func(schema=schema).close()
 
+def get_label_data_by_batch(task_id, count, batch_size, schema, table):
+    for offset in range(0, count, batch_size):
+        connection = connect_database(schema=schema, output=True)
+        with connection.cursor() as cursor:
+            q = f"SELECT * FROM {table} " \
+                f"WHERE task_id = '{task_id}' " \
+                f"LIMIT {batch_size} OFFSET {offset}"
+            cursor.execute(q)
+            result = to_dataframe(cursor.fetchall())
+            yield result
+
+
 def create_table(table_ID: str, logger: get_logger, schema=None):
     insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_ID}`(' \
                  f'`id` VARCHAR(32) NOT NULL,' \
@@ -226,20 +244,21 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
         raise e
 
 
-
-
-
-
 def create_state_table(logger: get_logger, schema=None):
     insert_sql = f'CREATE TABLE IF NOT EXISTS `state`(' \
                  f'`task_id` VARCHAR(32) NOT NULL,' \
                  f'`stat` VARCHAR(32) NOT NULL,' \
                  f'`model_type` VARCHAR(32) NOT NULL,' \
                  f'`predict_type` VARCHAR(32) NOT NULL,' \
-                 f'`date_range` TEXT(1073741823) NOT NULL,' \
+                 f'`date_range` TEXT(1073741823),' \
                  f'`target_table` VARCHAR(32) NOT NULL,' \
                  f'`create_time` DATETIME NOT NULL,' \
-                 f'`result` TEXT(1073741823) NOT NULL' \
+                 f'`peak_memory` FLOAT(10),' \
+                 f'`length_receive_table` INT(11) NOT NULL,' \
+                 f'`length_output_table` INT(11) NOT NULL,' \
+                 f'`result` TEXT(1073741823)' \
+                 f'`rate_of_label` INT(11),' \
+                 f'`run_time` FLOAT(10)' \
                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                  f'AUTO_INCREMENT=1 ;'
     func = connect_database
@@ -253,6 +272,8 @@ def create_state_table(logger: get_logger, schema=None):
     except Exception as e:
         logger.error(e)
         raise e
+
+
 
 def insert2state(task_id, status, model_type, predict_type,
                  date_range, target_table, time, result,
@@ -281,18 +302,16 @@ def insert2state(task_id, status, model_type, predict_type,
                  f'"{time}", ' \
                  f'"{result}");'
     try:
-        with connection:
-            with connection.cursor() as cursor:
-                logger.info('connecting to database...')
-                cursor.execute(insert_sql)
-                logger.info(f'successfully write into table.')
-            connection.commit()
-
+        cursor = connection.cursor()
+        logger.info('connecting to database...')
+        cursor.execute(insert_sql)
+        logger.info(f'successfully insert state into table.')
+        connection.commit()
+        connection.close()
     except Exception as e:
-        logger.error(e)
         raise e
 
-def update2state(task_id, result, logger: get_logger, input_row_length = None, output_row_length = None, schema=None, success=True):
+def update2state(task_id, result, logger: get_logger, input_row_length = None, output_row_length = None, run_time=None, schema=None, success=True):
     config = {
         'host': DatabaseInfo.output_host,
         'port': DatabaseInfo.output_port,
@@ -307,23 +326,52 @@ def update2state(task_id, result, logger: get_logger, input_row_length = None, o
     if success:
         insert_sql = f'UPDATE state ' \
                      f'SET stat = "SUCCESS", result = "{result}", ' \
-                     f'length_receive_table = {input_row_length}, length_output_table = {output_row_length} ' \
+                     f'length_receive_table = {input_row_length}, ' \
+                     f'length_output_table = {output_row_length}, ' \
+                     f'run_time = {run_time} ' \
                      f'Where task_id = "{task_id}"'
     else:
         insert_sql = f'UPDATE state ' \
                      f'SET stat = "FAILURE", result = "{result}" ' \
                      f'Where task_id = "{task_id}"'
-    try:
-        with connection:
-            with connection.cursor() as cursor:
-                logger.info('connecting to database...')
-                logger.info('creating table...')
-                cursor.execute(insert_sql)
-                logger.info(f'successfully created table.')
-            connection.commit()
 
+
+    try:
+        cursor = connection.cursor()
+        logger.info('connecting to database...')
+        cursor.execute(insert_sql)
+        logger.info(f'successfully write state into table.')
+        connection.commit()
+        connection.close()
     except Exception as e:
-        logger.error(e)
+        raise e
+
+def update_memory_time_to_state(task_id, time_data: float, memory_usage: int, logger: get_logger, schema=None):
+    config = {
+        'host': DatabaseInfo.output_host,
+        'port': DatabaseInfo.output_port,
+        'user': DatabaseInfo.output_user,
+        'password': DatabaseInfo.output_password,
+        'db': schema,
+        'charset': 'utf8mb4',
+        'cursorclass': pymysql.cursors.DictCursor,
+    }
+
+    connection = pymysql.connect(**config)
+
+    insert_sql = f'UPDATE state ' \
+                 f'SET run_time = {time_data}, ' \
+                 f'peak_memory = {memory_usage} ' \
+                 f'Where task_id = "{task_id}"'
+
+    try:
+        cursor = connection.cursor()
+        logger.info('connecting to database...')
+        cursor.execute(insert_sql)
+        logger.info(f'successfully write resource statement into table.')
+        connection.commit()
+        connection.close()
+    except Exception as e:
         raise e
 
 
@@ -435,9 +483,35 @@ def add_column(schema, table, col_name, col_type, **kwargs):
         condition = ''
     connection = connect_database(schema=schema, output=True)
     q = f'ALTER TABLE {table} ' \
-        f'ADD COLUMN {col_name} {col_type}'
+        f'ADD COLUMN {col_name} {col_type}(10)'
 
     q += condition
     with connection.cursor() as cursor:
         cursor.execute(q)
         connection.close()
+
+def get_distinct_count(schema, tablename, condition=None):
+    info = f"mysql+pymysql://{os.getenv('INPUT_USER')}:{os.getenv('INPUT_PASSWORD')}@" \
+           f"{os.getenv('INPUT_HOST')}:{os.getenv('INPUT_PORT')}/{schema}?charset=utf8mb4"
+    connection = C(info).connect()
+    if not connection:
+        q = f'SELECT count(distinct s_id, author) ' \
+            f'FROM {tablename} ' \
+            f'WHERE author IS NOT NULL and s_id IS NOT NULL;'
+    else:
+        q = f'SELECT count(distinct s_id, author) ' \
+            f'FROM {tablename} ' \
+            f'WHERE author IS NOT NULL and s_id IS NOT NULL ' \
+            f'and s_id in {condition};'
+    count = connection.execute(q).fetchone()[0]
+    connection.close()
+
+    return count
+
+def get_label_source_from_state(task_id):
+    connection = C(DatabaseInfo.output_engine_info).connect()
+    q = f'SELECT target_table FROM state WHERE task_id = "{task_id}"; '
+    source_name = connection.execute(q).fetchone()[0]
+    connection.close()
+
+    return source_name

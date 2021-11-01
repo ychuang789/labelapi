@@ -92,7 +92,7 @@ async def create_task(create_request_body: CreateTaskRequestBody):
                                         expires=datetime.now() + timedelta(days=7), queue=create_request_body.queue_name)
         res = ""
         insert2state(task_id, result.state, setting.get('model_type'), setting.get('predict_type'),
-                     setting.get('date_range'), setting.get('target_table'), datetime.now(),
+                     setting.get('date_range'), setting.get('target_schema'), datetime.now(),
                      res, _logger, schema=DatabaseInfo.output_schema)
 
     except Exception as e:
@@ -117,7 +117,8 @@ async def tasks_list():
         result = engine.execute(query).fetchall()
 
         _dict = OrderedDict()
-        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time", "result"]
+        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time",
+               "peak_memory", "length_receive_table", "length_output_table", "result", "rate_of_label"]
         for i in result:
             temp = dict(zip(col, list(i)))
             _dict.update({
@@ -136,13 +137,11 @@ async def check_status(task_id):
         engine = create_engine(DatabaseInfo.output_engine_info)
         _r = engine.execute(query_state(task_id)).fetchone()
 
-        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time", "result"]
+        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time",
+               "peak_memory", "length_receive_table", "length_output_table", "result", "rate_of_label"]
 
         _result = dict(zip(col, list(_r)))
 
-
-        # _result = AsyncResult(task_id, app=label_data)
-        # if _result.status == 'SUCCESS':
 
         if _result.get('status') == 'SUCCESS':
             result_content = {

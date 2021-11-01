@@ -5,13 +5,18 @@ from itertools import chain
 
 import pandas as pd
 from celery import Celery
+from sqlalchemy import create_engine
+
 from settings import CeleryConfig, DatabaseInfo
-from utils.database_core import update2state, get_data_by_batch, get_count
+from utils.database_core import update2state, get_data_by_batch, get_count, get_label_data_by_batch, \
+    get_label_data_count
 from utils.helper import get_logger
 from utils.run_label_task import labeling
+from utils.task_generate_production_core import TaskGenerateOutput
+from utils.task_info_core import TaskInfo
 from utils.worker_core import memory_usage_tracking, track_cpu_usage
 
-_logger = get_logger('label_data')
+
 
 name = CeleryConfig.name
 celery_app = Celery(name=name,
@@ -27,18 +32,11 @@ celery_app.conf.update(task_track_started=True)
 @celery_app.task(name=f'{name}.label_data', track_started=True)
 @memory_usage_tracking
 def label_data(task_id, **kwargs):
+    _logger = get_logger('label_data')
+
     load_dotenv()
     start_time = datetime.now()
     cpu_info_df = pd.DataFrame(columns=['task_id', 'batch', 'cpu_percent', 'cpu_freq', 'cpu_load_avg'])
-
-    # if kwargs.get('target_source'):
-    #     target_source = list(chain(*kwargs.get('target_source').values()))
-    #     if len(target_source) > 1:
-    #         condition = tuple(target_source)
-    #     else:
-    #         condition = f'({target_source[0]})'
-    # else:
-    #     condition = kwargs.get('target_source')
 
     target_source_list = kwargs.get('target_source') if kwargs.get('target_source') != 'string' else None
     if target_source_list:
@@ -66,10 +64,6 @@ def label_data(task_id, **kwargs):
         _logger.error(err_msg)
         raise ConnectionError(err_msg)
 
-    # if count > 2000000:
-    #     batch_size = 1000000
-    # else:
-    #     batch_size = count // 2
 
     batch_size = 10000
 
@@ -106,26 +100,55 @@ def label_data(task_id, **kwargs):
             _logger.error(err_msg)
             raise err_msg
 
-
-    update2state(task_id, ','.join(table_set), _logger, count, row_number, schema=DatabaseInfo.output_schema)
-
-
-    finish_time = datetime.now()
+    finish_time = (datetime.now() - start_time).total_seconds() / 60
     _logger.info(f'task {task_id} {kwargs.get("target_table")} done, total time is '
-                 f'{(finish_time - start_time).total_seconds() / 60} minutes')
+                 f'{finish_time} minutes')
+
+    update2state(task_id, ','.join(table_set), _logger, count, row_number, finish_time, schema=DatabaseInfo.output_schema)
 
     cpu_info_df.to_csv(f'save_file/{task_id}_cpu_info.csv', encoding='utf-8-sig', index=False)
 
+
+
     return {task_id: table_set}
 
-# @celery_app.task(name=f'{name}.testing', track_started=True)
-# @memory_usage_tracking
-# def testing():
-#     a, b = 0, 1
-#     for i in range(10000):
-#         temp = b
-#         b += a
-#         a = temp
+# @celery_app.task(name=f'{name}.label_data', track_started=True)
+# def generate_production(task_id, **kwargs):
+#     _logger = get_logger('produce_outcome')
+#     start_time = datetime.now()
 #
-#     return b
+#     # count = get_label_data_count(task_id)
+#     # batch_size = 1000
+#     # row_number = 0
+#     # for idx, element in enumerate(get_label_data_by_batch(task_id, count, batch_size,
+#     #                                                       kwargs.get('production_schema'),
+#     #                                                       kwargs.get('production_table'))):
+#
+#     try:
+#         generate_production = TaskGenerateOutput(task_id,
+#                                                  kwargs.get('production_schema'),
+#                                                  kwargs.get('production_table'),
+#                                                  _logger)
+#         _output_table_name, row_num = generate_production.clean()
+#
+#         # row_number += row_num
+#     except Exception as e:
+#         raise e
+#
+#     try:
+#         task_info_obj = TaskInfo(task_id,
+#                                  kwargs.get('production_schema'),
+#                                  kwargs.get('production_table'),
+#                                  kwargs.get('target_table'),
+#                                  row_num,
+#                                  _logger)
+#         task_info_obj.generate_output()
+#     except Exception as e:
+#         raise e
+#
+#     end_time = datetime.now()
+#
+#     _logger.info(f'total time for {task_id}: {kwargs.get("production_table")} is {(end_time-start_time).total_seconds()/60} minutes')
+
+
 
