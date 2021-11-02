@@ -1,4 +1,5 @@
 import uuid
+import threading
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import List, Dict
@@ -9,8 +10,9 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
-from celery_worker import label_data
-from settings import CreateLabelRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo, SOURCE
+from celery_worker import label_data, generate_production
+from settings import CreateLabelRequestBody, CreateGenerateTaskRequestBody, SampleResultRequestBody, \
+    TaskListRequestBody, DatabaseInfo, SOURCE
 from utils.database_core import scrap_data_to_df, get_create_task_query, get_count_query, get_tasks_query, \
     get_sample_query, create_state_table, insert2state, query_state
 from utils.helper import get_logger
@@ -40,70 +42,89 @@ app = FastAPI(title="Audience API",
                                      'edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks')
 async def create_task(create_request_body: CreateLabelRequestBody):
-    if create_request_body.start_time >= create_request_body.end_time:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                            content=f'In setting.CreateTaskRequestBody start_time '
-                                    f'must be earlier to end_time.')
+    create_task_start_time = datetime.now()
+    config = {}
+    if create_request_body.do_label_task:
+        if create_request_body.start_time >= create_request_body.end_time:
+            return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
+                                content=f'In setting.CreateTaskRequestBody start_time '
+                                        f'must be earlier to end_time.')
 
-    # create the tracking table `state` in `audience_result`
-    engine = create_engine(DatabaseInfo.output_engine_info).connect()
-    _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-    if 'state' not in _exist_tables:
-        create_state_table(_logger, schema=DatabaseInfo.output_schema)
-    engine.close()
+        # create the tracking table `state` in `audience_result`
+        engine = create_engine(DatabaseInfo.output_engine_info).connect()
+        _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
+        if 'state' not in _exist_tables:
+            create_state_table(_logger, schema=DatabaseInfo.output_schema)
+        engine.close()
 
-    try:
-        pattern = read_from_dir(create_request_body.model_type, create_request_body.predict_type)
-    except Exception as e:
-        _logger.error({"status_code":status.HTTP_400_BAD_REQUEST, "content":e})
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=e)
+        try:
+            pattern = read_from_dir(create_request_body.model_type, create_request_body.predict_type)
+        except Exception as e:
+            _logger.error({"status_code":status.HTTP_400_BAD_REQUEST, "content":e})
+            return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=e)
 
-    # task_id = uuid.uuid1().hex
-    setting: Dict = {"model_type": create_request_body.model_type,
-                     "predict_type": create_request_body.predict_type,
-                     "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
-                     "target_schema": create_request_body.target_schema,
-                     "target_table": create_request_body.target_table,
-                     "date_info": create_request_body.date_info
-                     # "chunk_by_source": create_request_body.chunk_by_source,
-                     # "target_source": create_request_body.target_source
-                     }
-    date_info_dict = {"date_info_dict":
-                          {'start_time': create_request_body.start_time,
-                           'end_time': create_request_body.end_time}
-                      }
-    param = dict()
-    param.update(setting)
-    param.update({'pattern': pattern})
-    param.update(date_info_dict)
+        # task_id = uuid.uuid1().hex
+        setting: Dict = {"model_type": create_request_body.model_type,
+                         "predict_type": create_request_body.predict_type,
+                         "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
+                         "target_schema": create_request_body.target_schema,
+                         "target_table": create_request_body.target_table,
+                         "date_info": create_request_body.date_info
+                         # "chunk_by_source": create_request_body.chunk_by_source,
+                         # "target_source": create_request_body.target_source
+                         }
+        date_info_dict = {"date_info_dict":
+                              {'start_time': create_request_body.start_time,
+                               'end_time': create_request_body.end_time}
+                          }
+        param = dict()
+        param.update(setting)
+        param.update({'pattern': pattern})
+        param.update(date_info_dict)
 
-    if create_request_body.predict_type == 'author_name':
-        param['predict_type'] = "author"
-    else:
-        pass
-
-
-    task_id = uuid.uuid1().hex
-    try:
-        _logger.info('start the labeling worker ...')
-        result = label_data.apply_async(args=(task_id,),
-                                        kwargs=param,
-                                        task_id=task_id,
-                                        expires=datetime.now() + timedelta(days=7), queue=create_request_body.queue_name)
-        res = ""
-        insert2state(task_id, result.state, setting.get('model_type'), setting.get('predict_type'),
-                     setting.get('date_range'), setting.get('target_schema'), datetime.now(),
-                     res, _logger, schema=DatabaseInfo.output_schema)
-
-    except Exception as e:
-        _logger.error(f'cannot execute the task since {e}')
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
+        if create_request_body.predict_type == 'author_name':
+            param['predict_type'] = "author"
+        else:
+            pass
 
 
+        task_id = uuid.uuid1().hex
+        try:
+            _logger.info('start the labeling worker ...')
+            result = label_data.apply_async(args=(task_id,),
+                                            kwargs=param,
+                                            task_id=task_id,
+                                            expires=datetime.now() + timedelta(days=7), queue=create_request_body.queue_name)
+            res = ""
+            insert2state(task_id, result.state, setting.get('model_type'), setting.get('predict_type'),
+                         setting.get('date_range'), setting.get('target_schema'), datetime.now(),
+                         res, _logger, schema=DatabaseInfo.output_schema)
 
-    config = {task_id: setting}
+        except Exception as e:
+            _logger.error(f'cannot execute the task since {e}')
+            return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
 
-    _logger.info(f'API configuration: {setting}')
+        config.update({task_id: setting})
+        _logger.info(f'API configuration: {setting}')
+
+    if create_request_body.do_prod_generate_task:
+        setting : CreateGenerateTaskRequestBody = create_request_body.prod_generate_config
+
+        if len(setting.prod_generate_task_id) != 32:
+            return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
+                                content=jsonable_encoder(f'expect task_id in 32 digits, '
+                                                         f'but get {len(setting.prod_generate_task_id)} digits.'))
+
+        interval = (setting.prod_generate_schedule - create_task_start_time).total_seconds()
+        if interval < 0:
+            return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
+                                content=jsonable_encoder(f'schedule datetime is earlier than current time.'))
+
+        timer = threading.Timer(interval, generate_production.apply_async(), (setting.prod_generate_task_id,))
+        timer.start()
+        config.update({"HTTP code": "OK"})
+        config.update(setting)
+
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
 @app.get('/api/tasks/', description="Return a subset of task_id and task_info, "

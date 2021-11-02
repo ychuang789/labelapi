@@ -776,6 +776,7 @@ class DatabaseInfo:
 
 class CreateGenerateTaskRequestBody(BaseModel):
     # generate_production
+    prod_generate_schedule: datetime = "2021-11-02 10:59:00"
     prod_generate_task_id: Optional[str] = None
     prod_generate_schema: str = os.getenv('OUTPUT_SCHEMA')
     prod_generate_target_table: str = "ts_page_content"
@@ -784,11 +785,12 @@ class CreateGenerateTaskRequestBody(BaseModel):
     prod_generate_start_time: datetime = "2020-01-01 00:00:00"
     prod_generate_end_time: datetime = "2020-12-31 23:59:59"
     prod_generate_queue_name: str = "queue1"
-    prod_generate_schedule: datetime = "2020-11-01 00:00:00"
+
 
 class CreateLabelRequestBody(BaseModel):
     # labeling
     do_label_task: bool = False
+    do_prod_generate_task: bool = False
     model_type: str = 'keyword_model'
     predict_type: str = 'author_name'
     start_time: datetime = "2020-01-01 00:00:00"
@@ -797,7 +799,6 @@ class CreateLabelRequestBody(BaseModel):
     target_table: str = "ts_page_content"
     date_info: bool = True
     queue_name: str = "queue1"
-    do_prod_generate_task: bool = False
     prod_generate_config: Optional[CreateGenerateTaskRequestBody] = None
 
 
