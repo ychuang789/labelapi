@@ -1,6 +1,6 @@
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pymysql
@@ -531,3 +531,38 @@ def get_label_source_from_state(task_id):
     connection.close()
 
     return source_name
+
+
+def get_timedelta_query(predict_type, table, start_time, end_time):
+    q = f"SELECT * FROM {table} " \
+        f"WHERE {predict_type} IS NOT NULL " \
+        f"AND post_time >= '{start_time}' " \
+        f"AND post_time <= '{end_time}';"
+
+    return q
+
+def get_batch_by_timedelta(schema, predict_type, table,
+                           begin_date: datetime, last_date: datetime,
+                           interval: timedelta = timedelta(hours=6)) -> pd.DataFrame:
+    while begin_date <= last_date:
+        connection = connect_database(schema=schema)
+
+        if begin_date + interval > last_date:
+            break
+
+        else:
+            start_date_interval = begin_date + interval
+            cursor = connection.cursor()
+            cursor.execute(get_timedelta_query(predict_type, table, begin_date, start_date_interval))
+            result = to_dataframe(cursor.fetchall())
+            begin_date += interval
+
+            yield result
+            connection.close()
+
+
+
+
+
+
+
