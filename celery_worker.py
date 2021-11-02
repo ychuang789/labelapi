@@ -38,20 +38,20 @@ def label_data(task_id, **kwargs):
     start_time = datetime.now()
     cpu_info_df = pd.DataFrame(columns=['task_id', 'batch', 'cpu_percent', 'cpu_freq', 'cpu_load_avg'])
 
-    target_source_list = kwargs.get('target_source') if kwargs.get('target_source') != 'string' else None
-    if target_source_list:
-        if len(target_source_list) > 1:
-            condition = tuple(target_source_list)
-        else:
-            condition = f'("{target_source_list[0]}")'
-    else:
-        condition = None
+    # target_source_list = kwargs.get('target_source') if kwargs.get('target_source') != 'string' else None
+    # if target_source_list:
+    #     if len(target_source_list) > 1:
+    #         condition = tuple(target_source_list)
+    #     else:
+    #         condition = f'("{target_source_list[0]}")'
+    # else:
+    #     condition = None
 
 
     try:
         engine_info = f"mysql+pymysql://{os.getenv('INPUT_USER')}:{os.getenv('INPUT_PASSWORD')}@" \
                       f"{os.getenv('INPUT_HOST')}:{os.getenv('INPUT_PORT')}/{kwargs.get('target_schema')}?charset=utf8mb4"
-        count = get_count(engine_info, condition, **kwargs)
+        count = get_count(engine_info, **kwargs)
         if count == 0:
             _logger.info(f'length of table {kwargs.get("target_table")} is {count} rows')
             return f'length of table {kwargs.get("target_table")} is {count} rows, skip the task {task_id}'
@@ -72,9 +72,7 @@ def label_data(task_id, **kwargs):
     for idx, element in enumerate(get_data_by_batch(count,
                                                     kwargs.get('predict_type'), batch_size,
                                                     kwargs.get('target_schema'), kwargs.get('target_table'),
-                                                    condition,
                                                     date_info = kwargs.get('date_info'),
-                                                    chunk_by_source = kwargs.get('chunk_by_source'),
                                                     **kwargs.get('date_info_dict'))):
 
         _logger.info(f'Start calculating task {task_id} {kwargs.get("target_table")}_batch_{idx} ...')
@@ -112,43 +110,44 @@ def label_data(task_id, **kwargs):
 
     return {task_id: table_set}
 
-# @celery_app.task(name=f'{name}.label_data', track_started=True)
-# def generate_production(task_id, **kwargs):
-#     _logger = get_logger('produce_outcome')
-#     start_time = datetime.now()
-#
-#     # count = get_label_data_count(task_id)
-#     # batch_size = 1000
-#     # row_number = 0
-#     # for idx, element in enumerate(get_label_data_by_batch(task_id, count, batch_size,
-#     #                                                       kwargs.get('production_schema'),
-#     #                                                       kwargs.get('production_table'))):
-#
-#     try:
-#         generate_production = TaskGenerateOutput(task_id,
-#                                                  kwargs.get('production_schema'),
-#                                                  kwargs.get('production_table'),
-#                                                  _logger)
-#         _output_table_name, row_num = generate_production.clean()
-#
-#         # row_number += row_num
-#     except Exception as e:
-#         raise e
-#
-#     try:
-#         task_info_obj = TaskInfo(task_id,
-#                                  kwargs.get('production_schema'),
-#                                  kwargs.get('production_table'),
-#                                  kwargs.get('target_table'),
-#                                  row_num,
-#                                  _logger)
-#         task_info_obj.generate_output()
-#     except Exception as e:
-#         raise e
-#
-#     end_time = datetime.now()
-#
-#     _logger.info(f'total time for {task_id}: {kwargs.get("production_table")} is {(end_time-start_time).total_seconds()/60} minutes')
+@celery_app.task(name=f'{name}.label_data', track_started=True)
+def generate_production(task_id, **kwargs):
+    _logger = get_logger('produce_outcome')
+    start_time = datetime.now()
+
+    # count = get_label_data_count(task_id)
+    # batch_size = 1000
+    # row_number = 0
+    # for idx, element in enumerate(get_label_data_by_batch(task_id, count, batch_size,
+    #                                                       kwargs.get('production_schema'),
+    #                                                       kwargs.get('production_table'))):
+
+    try:
+        generate_production = TaskGenerateOutput(task_id,
+                                                 kwargs.get('prod_generate_schema'),
+                                                 kwargs.get('prod_generate_table'),
+                                                 _logger)
+        _output_table_name, row_num = generate_production.clean()
+
+        # row_number += row_num
+    except Exception as e:
+        raise e
+
+    try:
+        task_info_obj = TaskInfo(task_id,
+                                 kwargs.get('prod_generate_schema'),
+                                 kwargs.get('prod_generate_table'),
+                                 kwargs.get('prod_generate_target_table'),
+                                 row_num, _logger,
+                                 date_info=kwargs.get('prod_generate_date_info'),
+                                 **kwargs.get('prod_generate_date_info_dict'))
+        task_info_obj.generate_output()
+    except Exception as e:
+        raise e
+
+    end_time = datetime.now()
+
+    _logger.info(f'total time for {task_id}: {kwargs.get("production_table")} is {(end_time-start_time).total_seconds()/60} minutes')
 
 
 

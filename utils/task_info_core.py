@@ -6,7 +6,9 @@ from utils.helper import get_logger
 
 
 class TaskInfo(object):
-    def __init__(self, task_id: str, schema: str, table: str, from_target_table: str, row_count: int, logger: get_logger):
+    def __init__(self, task_id: str, schema: str, table: str,
+                 from_target_table: str, row_count: int,
+                 logger: get_logger, date_info = True, **kwargs):
         self.task_id = task_id
         self.schema = schema
         self.table = table
@@ -15,6 +17,9 @@ class TaskInfo(object):
         self.logger = logger
         self.partial_table = table.split("_")[-1]
         self._from_schema = get_label_source_from_state(task_id)
+        self.date_info = date_info
+        self.start_time = kwargs.get('start_time')
+        self.end_time = kwargs.get('end_time')
 
         connection = create_engine(DatabaseInfo.output_engine_info).connect()
         _exist_tables = [i[0] for i in connection.execute('SHOW TABLES').fetchall()]
@@ -27,7 +32,10 @@ class TaskInfo(object):
         state_dict = self.get_status_info(self.task_id, self.schema, self.logger)
         _source_distinct_count = self.get_source_distinct_count(self._from_schema,
                                                                 self.from_target_table,
-                                                                self.partial_table)
+                                                                self.partial_table,
+                                                                self.date_info,
+                                                                self.start_time,
+                                                                self.end_time)
         _task_info_statement = {
             'task_id' : state_dict.get('task_id'),
             'input_data_size' : state_dict.get('length_receive_table'),
@@ -106,7 +114,8 @@ class TaskInfo(object):
             logger.error(e)
             raise e
 
-    def get_source_distinct_count(self, source_schema, table_name, partial_table):
+    def get_source_distinct_count(self, source_schema, table_name, partial_table,
+                                  date_info, start_time, end_time):
 
         target_source_list = SOURCE.get(partial_table)
         if len(target_source_list) > 1:
@@ -114,7 +123,11 @@ class TaskInfo(object):
         else:
             condition = f'("{target_source_list[0]}")'
 
-        source_distinct_count = get_distinct_count(source_schema, table_name, condition=condition)
+        source_distinct_count = get_distinct_count(source_schema, table_name,
+                                                   condition=condition,
+                                                   date_info=date_info,
+                                                   start_time=start_time,
+                                                   end_time=end_time)
 
         return source_distinct_count
 

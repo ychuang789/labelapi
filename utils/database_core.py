@@ -12,7 +12,7 @@ from tqdm import tqdm
 from definition import SCRAP_FOLDER, SAVE_FOLDER
 from utils.helper import get_logger
 from utils.selections import QueryStatements
-from settings import DatabaseInfo, SOURCE, CreateTaskRequestBody
+from settings import DatabaseInfo, SOURCE, CreateLabelRequestBody
 
 
 def create_db(db_path, config_db):
@@ -98,48 +98,48 @@ def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool
         logger.error(e)
         raise e
 
-def get_count(enging_info, condition, **kwargs):
+def get_count(enging_info, **kwargs):
     engine = C(enging_info).connect()
 
     if not kwargs.get('date_info'):
-        if not kwargs.get('chunk_by_source'):
-            count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
-                                   f"WHERE {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
-            engine.close()
-            return count
+        # if not kwargs.get('chunk_by_source'):
+        count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
+                               f"WHERE {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
+        engine.close()
+        return count
 
-        else:
-            assert condition != None, f'chunk_by_source is set to True ' \
-                                      f'while source_array is not found.'
-
-            count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
-                                   f"WHERE s_id in {condition} "
-                                   f"AND {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
-            engine.close()
-            return count
+        # else:
+        #     assert condition != None, f'chunk_by_source is set to True ' \
+        #                               f'while source_array is not found.'
+        #
+        #     count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
+        #                            f"WHERE s_id in {condition} "
+        #                            f"AND {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
+        #     engine.close()
+        #     return count
     else:
-        if not kwargs.get('chunk_by_source'):
-            count = engine.execute(f"SELECT COUNT(*) "
-                                   f"FROM {kwargs.get('target_table')} "
-                                   f"WHERE {kwargs.get('predict_type')} IS NOT NULL " 
-                                   f"AND post_time BETWEEN '{kwargs.get('date_info_dict').get('start_time')}' "
-                                   f"AND '{kwargs.get('date_info_dict').get('end_time')}'"
-                                   ).fetchone()[0]
-            engine.close()
-            return count
-        else:
-            assert condition != None, f'chunk_by_source is set to True ' \
-                                      f'while source_array is not found.'
-
-            count = engine.execute(f"SELECT COUNT(*) "
-                                   f"FROM {kwargs.get('target_table')} "
-                                   f"WHERE s_id in {condition} "
-                                   f"AND {kwargs.get('predict_type')} IS NOT NULL "
-                                   f"AND post_time >= '{kwargs.get('date_info_dict').get('start_time')}' "
-                                   f"AND post_time <= '{kwargs.get('date_info_dict').get('end_time')}'"
-                                   ).fetchone()[0]
-            engine.close()
-            return count
+        # if not kwargs.get('chunk_by_source'):
+        count = engine.execute(f"SELECT COUNT(*) "
+                               f"FROM {kwargs.get('target_table')} "
+                               f"WHERE {kwargs.get('predict_type')} IS NOT NULL " 
+                               f"AND post_time BETWEEN '{kwargs.get('date_info_dict').get('start_time')}' "
+                               f"AND '{kwargs.get('date_info_dict').get('end_time')}'"
+                               ).fetchone()[0]
+        engine.close()
+        return count
+        # else:
+        #     assert condition != None, f'chunk_by_source is set to True ' \
+        #                               f'while source_array is not found.'
+        #
+        #     count = engine.execute(f"SELECT COUNT(*) "
+        #                            f"FROM {kwargs.get('target_table')} "
+        #                            f"WHERE s_id in {condition} "
+        #                            f"AND {kwargs.get('predict_type')} IS NOT NULL "
+        #                            f"AND post_time >= '{kwargs.get('date_info_dict').get('start_time')}' "
+        #                            f"AND post_time <= '{kwargs.get('date_info_dict').get('end_time')}'"
+        #                            ).fetchone()[0]
+        #     engine.close()
+        #     return count
 
 def get_label_data_count(task_id):
     connection = C(DatabaseInfo.output_engine_info).connect()
@@ -150,63 +150,62 @@ def get_label_data_count(task_id):
 
 
 def get_data_by_batch(count, predict_type, batch_size,
-                      schema, table, condition,
-                      date_info = False, chunk_by_source = False, **kwargs) -> pd.DataFrame:
+                      schema, table, date_info = False, **kwargs) -> pd.DataFrame:
 
     if not date_info:
-        if not chunk_by_source:
-            for offset in range(0, count, batch_size):
-                func = connect_database
-                with func(schema=schema).cursor() as cursor:
-                    q = f"SELECT * FROM {table} " \
-                        f"WHERE {predict_type} IS NOT NULL " \
-                        f"LIMIT {batch_size} OFFSET {offset}"
-                    cursor.execute(q)
-                    result = to_dataframe(cursor.fetchall())
-                    yield result
-                    func(schema=schema).close()
-        else:
-            assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
-            for offset in range(0, count, batch_size):
-                func = connect_database
-                with func(schema=schema).cursor() as cursor:
-                    q = f"SELECT * FROM {table} " \
-                        f"WHERE s_id in {condition} " \
-                        f"AND {predict_type} IS NOT NULL " \
-                        f"LIMIT {batch_size} OFFSET {offset}"
-                    cursor.execute(q)
-                    result = to_dataframe(cursor.fetchall())
-                    yield result
-                    func(schema=schema).close()
+        # if not chunk_by_source:
+        for offset in range(0, count, batch_size):
+            func = connect_database
+            with func(schema=schema).cursor() as cursor:
+                q = f"SELECT * FROM {table} " \
+                    f"WHERE {predict_type} IS NOT NULL " \
+                    f"LIMIT {batch_size} OFFSET {offset}"
+                cursor.execute(q)
+                result = to_dataframe(cursor.fetchall())
+                yield result
+                func(schema=schema).close()
+        # else:
+        #     assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
+        #     for offset in range(0, count, batch_size):
+        #         func = connect_database
+        #         with func(schema=schema).cursor() as cursor:
+        #             q = f"SELECT * FROM {table} " \
+        #                 f"WHERE s_id in {condition} " \
+        #                 f"AND {predict_type} IS NOT NULL " \
+        #                 f"LIMIT {batch_size} OFFSET {offset}"
+        #             cursor.execute(q)
+        #             result = to_dataframe(cursor.fetchall())
+        #             yield result
+        #             func(schema=schema).close()
     else:
-        if not chunk_by_source:
-            for offset in range(0, count, batch_size):
-                func = connect_database
-                with func(schema=schema).cursor() as cursor:
-                    q = f"SELECT * FROM {table} " \
-                        f"WHERE {predict_type} IS NOT NULL " \
-                        f"AND post_time >= '{kwargs.get('start_time')}' " \
-                        f"AND post_time <= '{kwargs.get('end_time')}' "\
-                        f"LIMIT {batch_size} OFFSET {offset}"
-                    cursor.execute(q)
-                    result = to_dataframe(cursor.fetchall())
-                    yield result
-                    func(schema=schema).close()
-        else:
-            assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
-            for offset in range(0, count, batch_size):
-                func = connect_database
-                with func(schema=schema).cursor() as cursor:
-                    q = f"SELECT * FROM {table} " \
-                        f"WHERE s_id in {condition} " \
-                        f"AND {predict_type} IS NOT NULL " \
-                        f"AND post_time >= '{kwargs.get('start_time')}' " \
-                        f"AND post_time <= '{kwargs.get('end_time')}' "\
-                        f"LIMIT {batch_size} OFFSET {offset}"
-                    cursor.execute(q)
-                    result = to_dataframe(cursor.fetchall())
-                    yield result
-                    func(schema=schema).close()
+        # if not chunk_by_source:
+        for offset in range(0, count, batch_size):
+            func = connect_database
+            with func(schema=schema).cursor() as cursor:
+                q = f"SELECT * FROM {table} " \
+                    f"WHERE {predict_type} IS NOT NULL " \
+                    f"AND post_time >= '{kwargs.get('start_time')}' " \
+                    f"AND post_time <= '{kwargs.get('end_time')}' "\
+                    f"LIMIT {batch_size} OFFSET {offset}"
+                cursor.execute(q)
+                result = to_dataframe(cursor.fetchall())
+                yield result
+                func(schema=schema).close()
+        # else:
+        #     assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
+        #     for offset in range(0, count, batch_size):
+        #         func = connect_database
+        #         with func(schema=schema).cursor() as cursor:
+        #             q = f"SELECT * FROM {table} " \
+        #                 f"WHERE s_id in {condition} " \
+        #                 f"AND {predict_type} IS NOT NULL " \
+        #                 f"AND post_time >= '{kwargs.get('start_time')}' " \
+        #                 f"AND post_time <= '{kwargs.get('end_time')}' "\
+        #                 f"LIMIT {batch_size} OFFSET {offset}"
+        #             cursor.execute(q)
+        #             result = to_dataframe(cursor.fetchall())
+        #             yield result
+        #             func(schema=schema).close()
 
 def get_label_data_by_batch(task_id, count, batch_size, schema, table):
     for offset in range(0, count, batch_size):
@@ -490,19 +489,36 @@ def add_column(schema, table, col_name, col_type, **kwargs):
         cursor.execute(q)
         connection.close()
 
-def get_distinct_count(schema, tablename, condition=None):
+def get_distinct_count(schema, tablename, condition=None, date_info=False, start_time=None, end_time=None):
     info = f"mysql+pymysql://{os.getenv('INPUT_USER')}:{os.getenv('INPUT_PASSWORD')}@" \
            f"{os.getenv('INPUT_HOST')}:{os.getenv('INPUT_PORT')}/{schema}?charset=utf8mb4"
     connection = C(info).connect()
-    if not connection:
-        q = f'SELECT count(distinct s_id, author) ' \
-            f'FROM {tablename} ' \
-            f'WHERE author IS NOT NULL and s_id IS NOT NULL;'
+    if date_info:
+        if not connection:
+            q = f'SELECT count(distinct s_id, author) ' \
+                f'FROM {tablename} ' \
+                f'WHERE author IS NOT NULL ' \
+                f'AND s_id IS NOT NULL ' \
+                f"AND post_time >= '{start_time}' " \
+                f"AND post_time <= '{end_time}';"
+        else:
+            q = f'SELECT count(distinct s_id, author) ' \
+                f'FROM {tablename} ' \
+                f'WHERE author IS NOT NULL ' \
+                f'AND s_id IS NOT NULL ' \
+                f'AND s_id in {condition} ' \
+                f"AND post_time >= '{start_time}' " \
+                f"AND post_time <= '{end_time}';"
     else:
-        q = f'SELECT count(distinct s_id, author) ' \
-            f'FROM {tablename} ' \
-            f'WHERE author IS NOT NULL and s_id IS NOT NULL ' \
-            f'and s_id in {condition};'
+        if not connection:
+            q = f'SELECT count(distinct s_id, author) ' \
+                f'FROM {tablename} ' \
+                f'WHERE author IS NOT NULL and s_id IS NOT NULL;'
+        else:
+            q = f'SELECT count(distinct s_id, author) ' \
+                f'FROM {tablename} ' \
+                f'WHERE author IS NOT NULL and s_id IS NOT NULL ' \
+                f'and s_id in {condition};'
     count = connection.execute(q).fetchone()[0]
     connection.close()
 

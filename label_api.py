@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data
-from settings import CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo, SOURCE
+from settings import CreateLabelRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo, SOURCE
 from utils.database_core import scrap_data_to_df, get_create_task_query, get_count_query, get_tasks_query, \
     get_sample_query, create_state_table, insert2state, query_state
 from utils.helper import get_logger
@@ -39,7 +39,7 @@ app = FastAPI(title="Audience API",
 @app.post('/api/tasks/', description='Create lableing task, '
                                      'edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks')
-async def create_task(create_request_body: CreateTaskRequestBody):
+async def create_task(create_request_body: CreateLabelRequestBody):
     if create_request_body.start_time >= create_request_body.end_time:
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
                             content=f'In setting.CreateTaskRequestBody start_time '
@@ -64,9 +64,9 @@ async def create_task(create_request_body: CreateTaskRequestBody):
                      "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
                      "target_schema": create_request_body.target_schema,
                      "target_table": create_request_body.target_table,
-                     "date_info": create_request_body.date_info,
-                     "chunk_by_source": create_request_body.chunk_by_source,
-                     "target_source": create_request_body.target_source
+                     "date_info": create_request_body.date_info
+                     # "chunk_by_source": create_request_body.chunk_by_source,
+                     # "target_source": create_request_body.target_source
                      }
     date_info_dict = {"date_info_dict":
                           {'start_time': create_request_body.start_time,

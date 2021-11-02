@@ -15,12 +15,12 @@ class TaskGenerateOutput(object):
         # self.data = data
         self.logger = logger
 
-        self.table_name = f"{table}"
+        self.table_name = table.split('_')[-1]
 
     def clean(self):
         df = self.scrap_success_data_to_df(self.task_id, self.schema, self.table, self.logger)
         _output_df = run_cleaning(df)
-        output_table_name, _row_number = self.write_to_output_table(_output_df, self.schema, self.table, self.logger)
+        output_table_name, _row_number = self.write_to_output_table(_output_df, self.schema, self.table_name, self.logger)
         return output_table_name, _row_number
 
     def scrap_success_data_to_df(self, task_id: str, schema: str, table: str ,logger: get_logger) -> pd.DataFrame:
