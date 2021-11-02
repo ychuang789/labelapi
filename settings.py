@@ -794,7 +794,7 @@ class CreateLabelRequestBody(BaseModel):
     model_type: str = 'keyword_model'
     predict_type: str = 'author_name'
     start_time: datetime = "2020-01-01 00:00:00"
-    end_time: datetime = "2020-12-31 23:59:59"
+    end_time: datetime = "2021-01-01 00:00:00"
     target_schema: str = os.getenv('INPUT_SCHEMA')
     target_table: str = "ts_page_content"
     date_info: bool = True

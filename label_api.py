@@ -10,7 +10,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
-from celery_worker import label_data, generate_production, testing
+from celery_worker import label_data
 from settings import CreateLabelRequestBody, CreateGenerateTaskRequestBody, SampleResultRequestBody, \
     TaskListRequestBody, DatabaseInfo, SOURCE
 from utils.database_core import scrap_data_to_df, get_create_task_query, get_count_query, get_tasks_query, \

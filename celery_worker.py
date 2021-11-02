@@ -70,13 +70,16 @@ def label_data(task_id, **kwargs):
     start_date = kwargs.get('date_info_dict').get('start_time')
     end_date = kwargs.get('date_info_dict').get('end_time')
 
+    start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
+    end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+
     table_set = set()
     count = 0
     row_number = 0
     for idx, element in enumerate(get_batch_by_timedelta(kwargs.get('target_schema'),
                                                          kwargs.get('predict_type'),
                                                          kwargs.get('target_table'),
-                                                         start_date, end_date)):
+                                                         start_date_d, end_date_d)):
 
         _logger.info(f'Start calculating task {task_id} {kwargs.get("target_table")}_batch_{idx} ...')
         pred = "author_name" if kwargs.get('predict_type') == "author" else kwargs.get('predict_type')

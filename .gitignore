@@ -145,5 +145,11 @@ save.db
 # excel
 *.xlsx
 
+# json
+rules/source_id.json
 
+# drop tables
+clean_up.py
 
+# all logs
+/logs
