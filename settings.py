@@ -797,7 +797,7 @@ class CreateLabelRequestBody(BaseModel):
     end_time: datetime = "2021-01-01 00:00:00"
     target_schema: str = os.getenv('INPUT_SCHEMA')
     target_table: str = "ts_page_content"
-    date_info: bool = True
+    # date_info: bool = True
     queue_name: str = "queue1"
     # prod_generate_config: Optional[CreateGenerateTaskRequestBody] = None
 

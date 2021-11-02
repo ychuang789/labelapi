@@ -68,8 +68,8 @@ async def create_task(create_request_body: CreateLabelRequestBody):
                      "predict_type": create_request_body.predict_type,
                      "date_range": f"{create_request_body.start_time} - {create_request_body.end_time}",
                      "target_schema": create_request_body.target_schema,
-                     "target_table": create_request_body.target_table,
-                     "date_info": create_request_body.date_info
+                     "target_table": create_request_body.target_table
+                     # "date_info": create_request_body.date_info
                      # "chunk_by_source": create_request_body.chunk_by_source,
                      # "target_source": create_request_body.target_source
                      }
