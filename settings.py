@@ -789,8 +789,8 @@ class CreateGenerateTaskRequestBody(BaseModel):
 
 class CreateLabelRequestBody(BaseModel):
     # labeling
-    # do_label_task: bool = False
-    # do_prod_generate_task: bool = False
+    do_label_task: bool = False
+    do_prod_generate_task: bool = False
     model_type: str = 'keyword_model'
     predict_type: str = 'author_name'
     start_time: datetime = "2020-01-01 00:00:00"
@@ -799,7 +799,7 @@ class CreateLabelRequestBody(BaseModel):
     target_table: str = "ts_page_content"
     # date_info: bool = True
     queue_name: str = "queue1"
-    # prod_generate_config: Optional[CreateGenerateTaskRequestBody] = None
+    prod_generate_config: Optional[CreateGenerateTaskRequestBody] = None
 
 
 class TaskListRequestBody:

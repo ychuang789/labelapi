@@ -257,7 +257,8 @@ def create_state_table(logger: get_logger, schema=None):
                  f'`length_output_table` INT(11) NOT NULL,' \
                  f'`result` TEXT(1073741823)' \
                  f'`rate_of_label` INT(11),' \
-                 f'`run_time` FLOAT(10)' \
+                 f'`run_time` FLOAT(10) ' \
+                 f'`check_point` DATETIME' \
                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                  f'AUTO_INCREMENT=1 ;'
     func = connect_database
@@ -482,7 +483,7 @@ def add_column(schema, table, col_name, col_type, **kwargs):
         condition = ''
     connection = connect_database(schema=schema, output=True)
     q = f'ALTER TABLE {table} ' \
-        f'ADD COLUMN {col_name} {col_type}(10)'
+        f'ADD COLUMN {col_name} {col_type}'
 
     q += condition
     with connection.cursor() as cursor:
@@ -543,8 +544,9 @@ def get_timedelta_query(predict_type, table, start_time, end_time):
 
 def get_batch_by_timedelta(schema, predict_type, table,
                            begin_date: datetime, last_date: datetime,
-                           interval: timedelta = timedelta(hours=6)) -> pd.DataFrame:
+                           interval: timedelta = timedelta(hours=6)):
     while begin_date <= last_date:
+
         connection = connect_database(schema=schema)
 
         if begin_date + interval > last_date:
@@ -557,9 +559,8 @@ def get_batch_by_timedelta(schema, predict_type, table,
             result = to_dataframe(cursor.fetchall())
             begin_date += interval
 
-            yield result
+            yield result, begin_date
             connection.close()
-
 
 
 
