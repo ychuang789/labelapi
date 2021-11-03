@@ -132,7 +132,6 @@ async def create_task(create_request_body: CreateLabelRequestBody):
 
         param.update(date_info_dict)
 
-        # timer = threading.Timer(interval, generate_production.apply_async(), (setting.prod_generate_task_id,))
         generate_production.apply_async(args=(setting.prod_generate_task_id,),
                                         kwargs=param,
                                         countdown=interval,

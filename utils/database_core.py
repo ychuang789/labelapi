@@ -247,17 +247,19 @@ def create_state_table(logger: get_logger, schema=None):
     insert_sql = f'CREATE TABLE IF NOT EXISTS `state`(' \
                  f'`task_id` VARCHAR(32) NOT NULL,' \
                  f'`stat` VARCHAR(32) NOT NULL,' \
+                 f'`prod_stat` VARCHAR (10),' \
                  f'`model_type` VARCHAR(32) NOT NULL,' \
                  f'`predict_type` VARCHAR(32) NOT NULL,' \
                  f'`date_range` TEXT(1073741823),' \
                  f'`target_table` VARCHAR(32) NOT NULL,' \
                  f'`create_time` DATETIME NOT NULL,' \
                  f'`peak_memory` FLOAT(10),' \
-                 f'`length_receive_table` INT(11) NOT NULL,' \
-                 f'`length_output_table` INT(11) NOT NULL,' \
-                 f'`result` TEXT(1073741823)' \
+                 f'`length_receive_table` INT(11),' \
+                 f'`length_output_table` INT(11),' \
+                 f'`length_prod_table` INT(11),' \
+                 f'`result` TEXT(1073741823),' \
                  f'`rate_of_label` INT(11),' \
-                 f'`run_time` FLOAT(10) ' \
+                 f'`run_time` FLOAT(10),' \
                  f'`check_point` DATETIME' \
                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                  f'AUTO_INCREMENT=1 ;'
@@ -311,7 +313,9 @@ def insert2state(task_id, status, model_type, predict_type,
     except Exception as e:
         raise e
 
-def update2state(task_id, result, logger: get_logger, input_row_length = None, output_row_length = None, run_time=None, schema=None, success=True):
+def update2state(task_id, result, logger: get_logger, input_row_length = None,
+                 output_row_length = None, run_time=None, schema=None, success=True,
+                 check_point=None):
     config = {
         'host': DatabaseInfo.output_host,
         'port': DatabaseInfo.output_port,
@@ -332,7 +336,7 @@ def update2state(task_id, result, logger: get_logger, input_row_length = None, o
                      f'Where task_id = "{task_id}"'
     else:
         insert_sql = f'UPDATE state ' \
-                     f'SET stat = "FAILURE", result = "{result}" ' \
+                     f'SET stat = "FAILURE", result = "{result}", check_point = "{check_point}" ' \
                      f'Where task_id = "{task_id}"'
 
 
@@ -477,7 +481,7 @@ def add_column(schema, table, col_name, col_type, **kwargs):
 
     if kwargs:
         condition = ''
-        for k,v in kwargs:
+        for k,v in kwargs.items():
             condition += f' {k} {v}'
     else:
         condition = ''
@@ -490,36 +494,36 @@ def add_column(schema, table, col_name, col_type, **kwargs):
         cursor.execute(q)
         connection.close()
 
-def get_distinct_count(schema, tablename, condition=None, date_info=False, start_time=None, end_time=None):
+def get_distinct_count(schema, tablename, condition=None, start_time=None, end_time=None):
     info = f"mysql+pymysql://{os.getenv('INPUT_USER')}:{os.getenv('INPUT_PASSWORD')}@" \
            f"{os.getenv('INPUT_HOST')}:{os.getenv('INPUT_PORT')}/{schema}?charset=utf8mb4"
     connection = C(info).connect()
-    if date_info:
-        if not connection:
-            q = f'SELECT count(distinct s_id, author) ' \
-                f'FROM {tablename} ' \
-                f'WHERE author IS NOT NULL ' \
-                f'AND s_id IS NOT NULL ' \
-                f"AND post_time >= '{start_time}' " \
-                f"AND post_time <= '{end_time}';"
-        else:
-            q = f'SELECT count(distinct s_id, author) ' \
-                f'FROM {tablename} ' \
-                f'WHERE author IS NOT NULL ' \
-                f'AND s_id IS NOT NULL ' \
-                f'AND s_id in {condition} ' \
-                f"AND post_time >= '{start_time}' " \
-                f"AND post_time <= '{end_time}';"
+    # if date_info:
+    if not connection:
+        q = f'SELECT count(distinct s_id, author) ' \
+            f'FROM {tablename} ' \
+            f'WHERE author IS NOT NULL ' \
+            f'AND s_id IS NOT NULL ' \
+            f"AND post_time >= '{start_time}' " \
+            f"AND post_time <= '{end_time}';"
     else:
-        if not connection:
-            q = f'SELECT count(distinct s_id, author) ' \
-                f'FROM {tablename} ' \
-                f'WHERE author IS NOT NULL and s_id IS NOT NULL;'
-        else:
-            q = f'SELECT count(distinct s_id, author) ' \
-                f'FROM {tablename} ' \
-                f'WHERE author IS NOT NULL and s_id IS NOT NULL ' \
-                f'and s_id in {condition};'
+        q = f'SELECT count(distinct s_id, author) ' \
+            f'FROM {tablename} ' \
+            f'WHERE author IS NOT NULL ' \
+            f'AND s_id IS NOT NULL ' \
+            f'AND s_id in {condition} ' \
+            f"AND post_time >= '{start_time}' " \
+            f"AND post_time <= '{end_time}';"
+    # else:
+    #     if not connection:
+    #         q = f'SELECT count(distinct s_id, author) ' \
+    #             f'FROM {tablename} ' \
+    #             f'WHERE author IS NOT NULL and s_id IS NOT NULL;'
+    #     else:
+    #         q = f'SELECT count(distinct s_id, author) ' \
+    #             f'FROM {tablename} ' \
+    #             f'WHERE author IS NOT NULL and s_id IS NOT NULL ' \
+    #             f'and s_id in {condition};'
     count = connection.execute(q).fetchone()[0]
     connection.close()
 
