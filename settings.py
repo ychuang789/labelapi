@@ -783,7 +783,7 @@ class CreateGenerateTaskRequestBody(BaseModel):
     prod_generate_table: Optional[str] = None
     # prod_generate_date_info: bool = True
     prod_generate_start_time: datetime = "2020-01-01 00:00:00"
-    prod_generate_end_time: datetime = "2020-12-31 23:59:59"
+    prod_generate_end_time: datetime = "2021-01-01 00:00:00"
     prod_generate_queue_name: str = "queue1"
 
 

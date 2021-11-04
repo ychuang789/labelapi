@@ -24,6 +24,7 @@ class TaskGenerateOutput(object):
         return output_table_name, _row_number
 
     def scrap_success_data_to_df(self, task_id: str, schema: str, table: str ,logger: get_logger) -> pd.DataFrame:
+        logger.info(f'start scraping label data ...')
         _from_success_table = f'SELECT * FROM {table} WHERE task_id = "{task_id}"'
         try:
             connection = connect_database(schema, output=True)
@@ -44,7 +45,11 @@ class TaskGenerateOutput(object):
             if 'task_info' not in _exist_tables:
                 create_table(_table_name, logger, schema)
 
+            logger.info(f'start writing data into {_table_name}')
+
             df.to_sql(name=_table_name, con=_connection, if_exists='append', index=False)
+
+            logger.info(f'finish writing data into {_table_name}')
 
             return _table_name, len(df)
 

@@ -105,6 +105,8 @@ def generate_production(task_id, **kwargs):
     #                                                       kwargs.get('production_schema'),
     #                                                       kwargs.get('production_table'))):
 
+
+    _logger.info('start generating output ...')
     try:
         generate_production = TaskGenerateOutput(task_id,
                                                  kwargs.get('prod_generate_schema'),
@@ -116,18 +118,27 @@ def generate_production(task_id, **kwargs):
     except Exception as e:
         raise e
 
+    _logger.info('finish generating output')
+    _logger.info('start generating task validating info  ...')
+
     try:
+
         task_info_obj = TaskInfo(task_id,
                                  kwargs.get('prod_generate_schema'),
                                  kwargs.get('prod_generate_table'),
                                  kwargs.get('prod_generate_target_table'),
                                  row_num, _logger,
                                  date_info=kwargs.get('prod_generate_date_info'),
-                                 **kwargs.get('prod_generate_date_info_dict'))
+                                 **kwargs.get('date_info_dict'))
+
+        _logger.info('start calculating rate_of_label ...')
         task_info_obj.generate_output()
+        _logger.info('finish calculating rate_of_label')
 
     except Exception as e:
         raise e
+
+    _logger.info('finish generating task validating info')
 
     end_time = datetime.now()
 

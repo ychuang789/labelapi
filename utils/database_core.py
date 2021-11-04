@@ -567,6 +567,21 @@ def get_batch_by_timedelta(schema, predict_type, table,
             connection.close()
 
 
+def check_state_result_for_task_info(task_id: str, schema: str):
+    connection = connect_database(schema=schema, output=True)
+    sql = f"""select result,rate_of_label from state where task_id = "{task_id}";"""
+
+    cursor = connection.cursor()
+    cursor.execute(sql)
+    result = cursor.fetchone()
+    connection.close()
+
+    if ',' in result.get('result'):
+        return result.get('rate_of_label')
+    else:
+        return None
+
+
 
 
 

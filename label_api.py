@@ -122,8 +122,7 @@ async def create_task(create_request_body: CreateLabelRequestBody):
         param = {
             "prod_generate_schema": setting.prod_generate_schema,
             "prod_generate_table": setting.prod_generate_table,
-            "prod_generate_target_table": setting.prod_generate_target_table,
-            "prod_generate_date_info": setting.prod_generate_date_info
+            "prod_generate_target_table": setting.prod_generate_target_table
         }
         date_info_dict = {"date_info_dict":
                               {'start_time': setting.prod_generate_start_time,
