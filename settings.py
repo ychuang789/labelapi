@@ -774,6 +774,16 @@ class DatabaseInfo:
     # input_engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{input_schema}?charset=utf8mb4'
     output_engine_info = f'mysql+pymysql://{output_user}:{output_password}@{output_host}:{output_port}/{output_schema}?charset=utf8mb4'
 
+class CreateTaskRequestBody(BaseModel):
+    model_type: str = 'keyword_model'
+    predict_type: str = 'author_name'
+    start_time: datetime = "2020-01-01 00:00:00"
+    end_time: datetime = "2021-01-01 00:00:00"
+    target_schema: str = os.getenv('INPUT_SCHEMA')
+    target_table: str = "ts_page_content"
+    output_schema: str = os.getenv('OUTPUT_SCHEMA')
+    countdown: int = 10
+
 class CreateGenerateTaskRequestBody(BaseModel):
     # generate_production
     prod_generate_schedule: datetime = "2021-11-02 10:59:00"

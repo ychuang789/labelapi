@@ -258,6 +258,7 @@ def create_state_table(logger: get_logger, schema=None):
                  f'`length_output_table` INT(11),' \
                  f'`length_prod_table` INT(11),' \
                  f'`result` TEXT(1073741823),' \
+                 f'`uniq_source_author` VARCHAR(100),' \
                  f'`rate_of_label` INT(11),' \
                  f'`run_time` FLOAT(10),' \
                  f'`check_point` DATETIME' \
@@ -278,7 +279,7 @@ def create_state_table(logger: get_logger, schema=None):
 
 
 def insert2state(task_id, status, model_type, predict_type,
-                 date_range, target_table, time, result,
+                 date_range, target_table, time,
                  logger: get_logger, schema=None):
     config = {
         'host': DatabaseInfo.output_host,
@@ -293,7 +294,7 @@ def insert2state(task_id, status, model_type, predict_type,
     connection = pymysql.connect(**config, write_timeout=30)
 
     insert_sql = f'INSERT INTO state ' \
-                 f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
+                 f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time) ' \
                  f'VALUES (' \
                  f'"{task_id}", ' \
                  f'"{status}", ' \
@@ -301,8 +302,7 @@ def insert2state(task_id, status, model_type, predict_type,
                  f'"{predict_type}", ' \
                  f'"{date_range}", ' \
                  f'"{target_table}", ' \
-                 f'"{time}", ' \
-                 f'"{result}");'
+                 f'"{time}");'
     try:
         cursor = connection.cursor()
         logger.info('connecting to database...')
@@ -315,7 +315,7 @@ def insert2state(task_id, status, model_type, predict_type,
 
 def update2state(task_id, result, logger: get_logger, input_row_length = None,
                  output_row_length = None, run_time=None, schema=None, success=True,
-                 check_point=None):
+                 check_point=None, uniq_source_author=None):
     config = {
         'host': DatabaseInfo.output_host,
         'port': DatabaseInfo.output_port,
@@ -330,14 +330,15 @@ def update2state(task_id, result, logger: get_logger, input_row_length = None,
     if success:
         insert_sql = f'UPDATE state ' \
                      f'SET stat = "SUCCESS", result = "{result}", ' \
+                     f'uniq_source_author = "{uniq_source_author}", ' \
                      f'length_receive_table = {input_row_length}, ' \
                      f'length_output_table = {output_row_length}, ' \
                      f'run_time = {run_time} ' \
-                     f'Where task_id = "{task_id}"'
+                     f'where task_id = "{task_id}"'
     else:
         insert_sql = f'UPDATE state ' \
                      f'SET stat = "FAILURE", result = "{result}", check_point = "{check_point}" ' \
-                     f'Where task_id = "{task_id}"'
+                     f'where task_id = "{task_id}"'
 
 
     try:
@@ -366,7 +367,7 @@ def update_memory_time_to_state(task_id, time_data: float, memory_usage: int, lo
     insert_sql = f'UPDATE state ' \
                  f'SET run_time = {time_data}, ' \
                  f'peak_memory = {memory_usage} ' \
-                 f'Where task_id = "{task_id}"'
+                 f'where task_id = "{task_id}"'
 
     try:
         cursor = connection.cursor()
@@ -582,7 +583,12 @@ def check_state_result_for_task_info(task_id: str, schema: str):
         return None
 
 
-
+def check_state_exist(logger):
+    engine = create_engine(DatabaseInfo.output_engine_info).connect()
+    _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
+    if 'state' not in _exist_tables:
+        create_state_table(logger, schema=DatabaseInfo.output_schema)
+    engine.close()
 
 
 

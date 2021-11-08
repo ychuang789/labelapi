@@ -142,11 +142,18 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1).connect()
 
     exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-    result_table_list = []
+    # result_table_list = []
+    # create a dict that contains output table and source_author set
+    # (in which df isin correspond source id with specific table)
+    result_table_dict = {}
     output_number_row = 0
+    #
 
     for k,v in SOURCE.items():
         df_write = df_output[df_output['field_content'].isin(v)]
+
+        # for calculating label rate
+        temp_unique_source_author_total = set(_df_output[_df_output['field_content'].isin(v)])
 
         if df_write.empty:
             continue
@@ -156,7 +163,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         except Exception as e:
             raise e
 
-        _table_name= f'wh_panel_mapping_{k}'
+        # _table_name= f'wh_panel_mapping_{k}'
+        _table_name = k
         if _table_name not in exist_tables:
             create_table(_table_name, logger, schema=DatabaseInfo.output_schema)
 
@@ -169,11 +177,15 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
             logger.error(f'write dataframe to test failed!')
             raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
                                   f'additional error message {e}')
-        result_table_list.append(_table_name)
+        # result_table_list.append(_table_name)
+        result_table_dict.update({_table_name: temp_unique_source_author_total})
+
         output_number_row += len(_df_write)
     engine.close()
-    return result_table_list, output_number_row
 
+
+    # return result_table_list, output_number_row
+    return result_table_dict, output_number_row
 
 
 def generate_test():

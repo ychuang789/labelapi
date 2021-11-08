@@ -9,18 +9,18 @@ from utils.helper import get_logger
 class TaskInfo(object):
     def __init__(self, task_id: str, schema: str, table: str,
                  from_target_table: str, row_count: int,
-                 logger: get_logger, **kwargs):
+                 logger: get_logger):
         self.task_id = task_id
         self.schema = schema
-        # self.table = table
+        self.table = table
         self.from_target_table = from_target_table
         self.row_count = row_count
         self.logger = logger
         self.partial_table = table.split("_")[-1]
         self._from_schema = get_label_source_from_state(task_id)
         # self.date_info = date_info
-        self.start_time = kwargs.get('start_time')
-        self.end_time = kwargs.get('end_time')
+        # self.start_time = start_time
+        # self.end_time = end_time
 
         # connection = create_engine(DatabaseInfo.output_engine_info).connect()
         # _exist_tables = [i[0] for i in connection.execute('SHOW TABLES').fetchall()]
@@ -31,17 +31,28 @@ class TaskInfo(object):
 
     def generate_output(self):
 
-        _source_distinct_count = self.get_source_distinct_count(self._from_schema,
-                                                                self.from_target_table,
-                                                                self.partial_table,
-                                                                self.start_time,
-                                                                self.end_time)
+        _source_distinct_count = self.get_source_distinct_count(self.task_id,
+                                                                self.schema,
+                                                                self.logger)
+
+        table_source_distinct_count = None
+        if ',' in _source_distinct_count.get('uniq_source_author'):
+            for idx, item in enumerate(_source_distinct_count.get('result').split(',')):
+                if item == self.table:
+                    table_source_distinct_count = int(_source_distinct_count.get('uniq_source_author').split(',')[idx])
+                else:
+                    pass
+        else:
+            table_source_distinct_count = int(_source_distinct_count.get('uniq_source_author'))
+
+        assert table_source_distinct_count != None , 'table_source_distinct_count cannot be None'
+
         rate_of_label = check_state_result_for_task_info(self.task_id, self.schema)
 
         if rate_of_label:
-            new_rate_of_label = rate_of_label + ',' + str(round((self.row_count / _source_distinct_count)*100, 2))
+            new_rate_of_label = rate_of_label + ',' + str(round((self.row_count / table_source_distinct_count)*100, 2))
         else:
-            new_rate_of_label = str(round((self.row_count / _source_distinct_count)*100, 2))
+            new_rate_of_label = str(round((self.row_count / table_source_distinct_count)*100, 2))
 
         _task_info_statement = {
             'task_id' : self.task_id,
@@ -89,8 +100,6 @@ class TaskInfo(object):
 
     def update_task_info(self, schema, logger, **kwargs):
 
-        checking_query = f'SELECT result'
-
         task_id = kwargs.get('task_id')
         # input_data_size = kwargs.get('input_data_size')
         length_prod_table = kwargs.get('length_prod_table')
@@ -116,21 +125,39 @@ class TaskInfo(object):
             logger.error(e)
             raise e
 
-    def get_source_distinct_count(self, source_schema, table_name, partial_table,
-                                  start_time, end_time):
+    # def get_source_distinct_count(self, source_schema, table_name, partial_table,
+    #                               start_time, end_time):
+    #
+    #     target_source_list = SOURCE.get(partial_table)
+    #     if len(target_source_list) > 1:
+    #         condition = tuple(target_source_list)
+    #     else:
+    #         condition = f'("{target_source_list[0]}")'
+    #
+    #     source_distinct_count = get_distinct_count(source_schema, table_name,
+    #                                                condition=condition,
+    #                                                start_time=start_time,
+    #                                                end_time=end_time)
+    #
+    #     return source_distinct_count
 
-        target_source_list = SOURCE.get(partial_table)
-        if len(target_source_list) > 1:
-            condition = tuple(target_source_list)
-        else:
-            condition = f'("{target_source_list[0]}")'
+    def get_source_distinct_count(self, task_id, schema, logger):
 
-        source_distinct_count = get_distinct_count(source_schema, table_name,
-                                                   condition=condition,
-                                                   start_time=start_time,
-                                                   end_time=end_time)
+        q = f"""select result,uniq_source_author from state where task_id = "{task_id}";"""
 
-        return source_distinct_count
+        try:
+            _connection = connect_database(schema, output=True)
+            cursor = _connection.cursor()
+            cursor.execute(q)
+            source_distinct_count_str_wiht_result = cursor.fetchone()
+            _connection.close()
+            logger.info(f'successfully get uniq_source_author number from table state.')
+
+        except Exception as e:
+            logger.error(e)
+            raise e
+
+        return source_distinct_count_str_wiht_result
 
 
 

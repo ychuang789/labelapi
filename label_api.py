@@ -1,17 +1,18 @@
 import uuid
-import threading
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import List, Dict
 
+import kwargs as kwargs
 import uvicorn
 from fastapi import FastAPI, status, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
-from celery_worker import label_data, generate_production
-from settings import CreateLabelRequestBody, CreateGenerateTaskRequestBody, SampleResultRequestBody, \
+from celery import chain
+from celery_worker import label_data, generate_production, testing, testing_downstream
+from settings import CreateLabelRequestBody, CreateGenerateTaskRequestBody, CreateTaskRequestBody, SampleResultRequestBody, \
     TaskListRequestBody, DatabaseInfo, SOURCE
 from utils.database_core import scrap_data_to_df, get_create_task_query, get_count_query, get_tasks_query, \
     get_sample_query, create_state_table, insert2state, query_state
@@ -37,6 +38,98 @@ app = FastAPI(title="Audience API",
               description=description,
               version='2.0'
               )
+@app.post('/api/test/')
+async def test(create_request_body: CreateTaskRequestBody):
+    config = create_request_body.__dict__
+
+    # check the datetime request body
+    if config.get('start_time') >= config.get('end_time'):
+        err_info = {
+            "error_code": 400,
+            "error_message": "start_time must be earlier than end_time"
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    # create the tracking table `state` in `audience_result`
+    try:
+        engine = create_engine(DatabaseInfo.output_engine_info).connect()
+        _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
+        if 'state' not in _exist_tables:
+            create_state_table(_logger, schema=DatabaseInfo.output_schema)
+        engine.close()
+    except Exception as e:
+        err_info = {
+            "error_code": 503,
+            "error_message": f"Cannot connect to output schema, additional error message: {e}"
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    # read the pattern
+    try:
+        pattern = read_from_dir(config.get('model_type'), config.get('predict_type'))
+        config.update(
+            {'pattern': pattern}
+        )
+    except Exception as e:
+        err_info = {
+            "error_code": 500,
+            "error_message": f"Cannot read pattern file, probably unknown file path or file is not exist"
+                             f", additional error message: {e}"
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    # change `author_name` to `author` to fit database column name
+    if config.get('predict_type') == 'author_name':
+        config['predict_type'] = "author"
+    else:
+        pass
+
+    # run task
+    _logger.info('start labeling task flow ...')
+    try:
+        task_id = uuid.uuid1().hex
+
+        result = chain(
+            label_data.signature(
+                args=(task_id,), kwargs=config, task_id=task_id
+            )
+            | generate_production.signature(
+                args=(task_id,), kwargs=config, countdown=config.get('countdown')
+
+            )
+        )()
+
+        config.update({"date_range": f"{config.get('start_time')} - {config.get('end_time')}"})
+
+        insert2state(task_id, result.state, config.get('model_type'), config.get('predict_type'),
+                     config.get('date_range'), config.get('target_schema'), datetime.now(),
+                     _logger, schema=DatabaseInfo.output_schema)
+
+    except Exception as e:
+        err_info = {
+            "error_code": 500,
+            "error_message": f"failed to start a labeling task, additional error message: {e}"
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    config.update({"task_id": task_id})
+    config.pop('pattern')
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
+
+    # result = chain(
+    #     testing.signature(
+    #         args=(task_id,), kwargs=config, task_id=task_id
+    #     )
+    #     | testing_downstream.signature(
+    #         args=(task_id,), kwargs=config, countdown=config.get('countdown')
+    #
+    #     )
+    # )()
+
 
 @app.post('/api/tasks/', description='Create lableing task, '
                                      'edit the request body to fit your requirement. '
@@ -94,10 +187,9 @@ async def create_task(create_request_body: CreateLabelRequestBody):
                                             kwargs=param,
                                             task_id=task_id,
                                             expires=datetime.now() + timedelta(days=7), queue=create_request_body.queue_name)
-            res = ""
             insert2state(task_id, result.state, setting.get('model_type'), setting.get('predict_type'),
                          setting.get('date_range'), setting.get('target_schema'), datetime.now(),
-                         res, _logger, schema=DatabaseInfo.output_schema)
+                         _logger, schema=DatabaseInfo.output_schema)
 
         except Exception as e:
             _logger.error(f'cannot execute the task since {e}')
