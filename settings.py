@@ -89,6 +89,9 @@ SOURCE: Dict = {
     "fbkol": [
         "WH_F0071"
     ],
+    "fbpm": [
+        "WH_F0072"
+    ],
     "fbprivategroup": [
         "WH_F0167"
     ],
@@ -739,6 +742,9 @@ SOURCE: Dict = {
     ],
     "plurk": [
         "WH_F0038"
+    ],
+    "video": [
+        "wh_v001"
     ]
 }
 
