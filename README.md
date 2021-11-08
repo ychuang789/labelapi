@@ -373,7 +373,6 @@ Or modify following parts:
 | 500        | Internal Server Error | Probably due to the database or worker problem or server die |
 
 
-
 ## System Requirement
 
 Testing system information : 
@@ -386,10 +385,9 @@ RAM : 16G
 
 Baseline Performance
 
-+ Testing database : Forum data 16,018,794 rows
-+ Testing model : keyword_base model
++ Data size : 2,376,186 rows
++ Predict model : keyword_base model  
++ Finished time : 23.26 minutes  
 
-+ Finished time : 40.95 minutes
++ Max memory usage :   201.80 Mb
 
-+ Max memory usage :   6255.77 Mb
-+ Rate of labeled (numbers of result labeled data / number of distinct s_id, author) : 20 %
