@@ -153,7 +153,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         df_write = df_output[df_output['field_content'].isin(v)]
 
         # for calculating label rate
-        temp_unique_source_author_total = set(_df_output[_df_output['field_content'].isin(v)])
+        temp_unique_source_author_total = set(_df_output[_df_output['field_content'].isin(v)]['source_author'])
 
         if df_write.empty:
             continue
@@ -188,12 +188,3 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     return result_table_dict, output_number_row
 
 
-def generate_test():
-    temp = 0
-    b = 1
-    for i in range(100000):
-        a = temp
-        b += a
-        temp = b
-
-    return temp

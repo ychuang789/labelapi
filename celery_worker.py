@@ -1,17 +1,13 @@
-import os
 from typing import List
 
 from dotenv import load_dotenv
 from datetime import datetime
-from itertools import chain
 
 import pandas as pd
 from celery import Celery
-from sqlalchemy import create_engine
 
 from settings import CeleryConfig, DatabaseInfo
-from utils.database_core import update2state, get_data_by_batch, get_count, get_label_data_by_batch, \
-    get_label_data_count, get_batch_by_timedelta
+from utils.database_core import update2state, get_batch_by_timedelta
 from utils.helper import get_logger
 from utils.run_label_task import labeling
 from utils.task_generate_production_core import TaskGenerateOutput
@@ -68,6 +64,9 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 
         element, date_checkpoint = elements
 
+        if element.empty:
+            continue
+
         count += len(element)
 
         try:
@@ -77,11 +76,10 @@ def label_data(task_id: str, **kwargs) -> List[str]:
             row_number += row_num
             for k,v in _output.items():
                 if table_dict.get(k):
-                    table_dict.get(k).update(v)
+                    table_dict[k] = table_dict.get(k).union(v)
                 else:
                     table_dict.update({k:v})
 
-                # table_set.add(k)
 
             _logger.info(f'task {task_id} {kwargs.get("target_schema")}.'
                          f'{kwargs.get("target_table")}_batch_{idx} finished labeling...')
@@ -99,7 +97,7 @@ def label_data(task_id: str, **kwargs) -> List[str]:
             err_msg = f'task {task_id} failed at {kwargs.get("target_schema")}.' \
                       f'{kwargs.get("target_table")}_batch_{idx}, additional error message {e}'
             _logger.error(err_msg)
-            raise err_msg
+            raise e
 
     finish_time = (datetime.now() - start_time).total_seconds() / 60
     _logger.info(f'task {task_id} {kwargs.get("target_schema")}.'
@@ -155,30 +153,6 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
 
-
-@celery_app.task(name=f'{name}.testing', track_started=True)
-def testing(t_id, **kwargs):
-    if len(t_id) != 32:
-        raise ValueError('t_id wrong format')
-    a = kwargs.get('target_table')
-    b = kwargs.get('predict_type')
-    a += '_pass'
-    b += '_pass'
-    return [a,b]
-
-
-@celery_app.task(name=f'{name}.testing_downstream', track_started=True)
-def testing_downstream(lst, t_id, **kwargs):
-    d = {"id": t_id}
-    for i in lst:
-        d.update({
-            i:i
-        })
-
-    for k,v in kwargs.items():
-        d.update({k:v})
-
-    return d
 
 
 

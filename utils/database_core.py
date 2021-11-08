@@ -279,7 +279,7 @@ def create_state_table(logger: get_logger, schema=None):
 
 
 def insert2state(task_id, status, model_type, predict_type,
-                 date_range, target_table, time,
+                 date_range, target_table, time, result,
                  logger: get_logger, schema=None):
     config = {
         'host': DatabaseInfo.output_host,
@@ -294,7 +294,7 @@ def insert2state(task_id, status, model_type, predict_type,
     connection = pymysql.connect(**config, write_timeout=30)
 
     insert_sql = f'INSERT INTO state ' \
-                 f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time) ' \
+                 f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
                  f'VALUES (' \
                  f'"{task_id}", ' \
                  f'"{status}", ' \
@@ -302,7 +302,8 @@ def insert2state(task_id, status, model_type, predict_type,
                  f'"{predict_type}", ' \
                  f'"{date_range}", ' \
                  f'"{target_table}", ' \
-                 f'"{time}");'
+                 f'"{time}", ' \
+                 f'"{result}");'
     try:
         cursor = connection.cursor()
         logger.info('connecting to database...')
