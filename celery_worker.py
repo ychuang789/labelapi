@@ -31,26 +31,19 @@ celery_app.conf.update(task_track_started=True)
 @memory_usage_tracking
 def label_data(task_id: str, **kwargs) -> List[str]:
     _logger = get_logger('label_data')
-
     load_dotenv()
     start_time = datetime.now()
-    cpu_info_df = pd.DataFrame(columns=['task_id', 'batch', 'cpu_percent', 'cpu_freq', 'cpu_load_avg'])
-
-
-    # start_date = kwargs.get('date_info_dict').get('start_time')
-    # end_date = kwargs.get('date_info_dict').get('end_time')
+    # cpu_info_df = pd.DataFrame(columns=['task_id', 'batch', 'cpu_percent', 'cpu_freq', 'cpu_load_avg'])
 
     start_date = kwargs.get('start_time')
     end_date = kwargs.get('end_time')
-
     start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
     end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
 
     table_dict = {}
-    # table_set = set()
-    # source_author_set = set()
     count = 0
     row_number = 0
+
     for idx, elements in enumerate(get_batch_by_timedelta(kwargs.get('target_schema'),
                                                          kwargs.get('predict_type'),
                                                          kwargs.get('target_table'),
@@ -74,6 +67,7 @@ def label_data(task_id: str, **kwargs) -> List[str]:
                                pred, kwargs.get('pattern'), _logger)
 
             row_number += row_num
+
             for k,v in _output.items():
                 if table_dict.get(k):
                     table_dict[k] = table_dict.get(k).union(v)
@@ -84,9 +78,9 @@ def label_data(task_id: str, **kwargs) -> List[str]:
             _logger.info(f'task {task_id} {kwargs.get("target_schema")}.'
                          f'{kwargs.get("target_table")}_batch_{idx} finished labeling...')
 
-            cpu_track = track_cpu_usage()
-            cpu_track.update({'task_id': task_id, 'batch': idx})
-            cpu_info_df = cpu_info_df.append(cpu_track, ignore_index=True)
+            # cpu_track = track_cpu_usage()
+            # cpu_track.update({'task_id': task_id, 'batch': idx})
+            # cpu_info_df = cpu_info_df.append(cpu_track, ignore_index=True)
 
         except Exception as e:
             update2state(task_id, '', _logger,
@@ -108,7 +102,7 @@ def label_data(task_id: str, **kwargs) -> List[str]:
                  schema=DatabaseInfo.output_schema,
                  uniq_source_author=','.join([str(len(i)) for i in table_dict.values()]))
 
-    cpu_info_df.to_csv(f'save_file/{task_id}_cpu_info.csv', encoding='utf-8-sig', index=False)
+    # cpu_info_df.to_csv(f'save_file/{task_id}_cpu_info.csv', encoding='utf-8-sig', index=False)
 
     return list(table_dict.keys())
 
@@ -116,12 +110,6 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 def generate_production(output_table: List[str], task_id: str, **kwargs) -> None:
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
-
-    # start_date = kwargs.get('start_time')
-    # end_date = kwargs.get('end_time')
-    #
-    # start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
-    # end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
 
     for tb in output_table:
         _logger.info(f'start generating output for table {tb}...')
@@ -131,7 +119,6 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
                                                  tb, _logger)
         _output_table_name, row_num = generate_production.clean()
 
-        # row_number += row_num
 
         _logger.info(f'finish generating output for table {tb}')
         _logger.info(f'start generating task validation for table {tb} ...')

@@ -746,6 +746,23 @@ SOURCE: Dict = {
     ]
 }
 
+class APIConfig:
+    local_host = '127.0.0.1'
+    remote_host = '0.0.0.0'
+    title = 'Audience API'
+    version = 2.1
+    description = """
+    This service is created by department of Research and Development 2 to help Audience labeling.    
+    #### Item   
+    1. create_task : a post api which create a labeling task via the information in the request body.   
+    2. task_list : return the recent tasks and tasks information.    
+    3. check_status : return a single task status and results if success via task_id.  
+    4. sample_result : return the labeling results from database via task_id and table information.    
+    #### Users  
+    For eland staff only. 
+    """
+
+
 class CeleryConfig:
     name = 'celery_worker'
     sql_uri = 'sqlite:///save.db'

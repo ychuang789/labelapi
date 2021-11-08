@@ -11,8 +11,7 @@ from sqlalchemy import create_engine
 
 from celery import chain
 from celery_worker import label_data, generate_production
-from settings import CreateTaskRequestBody, SampleResultRequestBody, \
-    TaskListRequestBody, DatabaseInfo
+from settings import APIConfig, CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo
 from utils.database_core import scrap_data_to_df, get_tasks_query, \
     get_sample_query, create_state_table, insert2state, query_state
 from utils.helper import get_logger
@@ -22,21 +21,7 @@ from utils.selections import SampleResulTable
 
 _logger = get_logger('label_API')
 
-description = """
-This service is created by department of Research and Development 2 to help Audience labeling.    
-#### Item   
-1. create_task : a post api which create a labeling task via the information in the request body.   
-2. task_list : return the recent tasks and tasks information.    
-3. check_status : return a single task status and results if success via task_id.  
-4. sample_result : return the labeling results from database via task_id and table information.    
-#### Users  
-For eland staff only. 
-"""
-
-app = FastAPI(title="Audience API",
-              description=description,
-              version='2.0'
-              )
+app = FastAPI(title=APIConfig.title, description=APIConfig.description, version=APIConfig.version)
 
 @app.post('/api/tasks/', description='Create lableing task, '
                                      'edit the request body to fit your requirement. '
@@ -204,6 +189,6 @@ async def sample_result(task_id: str,
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='127.0.0.1', debug=True)
+    uvicorn.run(app, host=APIConfig.local_host, debug=True)
 
 
