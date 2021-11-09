@@ -47,7 +47,7 @@ async def create_task(create_request_body: CreateTaskRequestBody):
     except Exception as e:
         err_info = {
             "error_code": 503,
-            "error_message": f"Cannot connect to output schema, additional error message: {e}"
+            "error_message": f"cannot connect to output schema, additional error message: {e}"
         }
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
@@ -59,8 +59,8 @@ async def create_task(create_request_body: CreateTaskRequestBody):
         )
     except Exception as e:
         err_info = {
-            "error_code": 500,
-            "error_message": f"Cannot read pattern file, probably unknown file path or file is not exist"
+            "error_code": 501,
+            "error_message": f"cannot read pattern file, probably unknown file path or file is not exist"
                              f", additional error message: {e}"
         }
         _logger.error(err_info)
@@ -128,7 +128,7 @@ async def tasks_list():
 
         err_info = {
             "error_code": 500,
-            "error_message": "Cannot connect to state table",
+            "error_message": "cannot connect to state table",
             "content": e
         }
         _logger.error(f"{e}")
@@ -143,6 +143,7 @@ async def check_status(task_id):
             "error_code": 200,
             "error_message": "OK",
             "status": result.get('stat'),
+            "prod_status": result.get('prod_stat'),
             "result": result.get('result')
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
@@ -152,6 +153,7 @@ async def check_status(task_id):
             "error_code": 400,
             "error_message": f'task id is not exist, plz re-check the task id. Addition error message:{e}',
             "status": None,
+            "prod_status": None,
             "result": None
         }
         _logger.error(f'{e}')
@@ -160,14 +162,13 @@ async def check_status(task_id):
 @app.get('/api/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
                                                      'If you have no clue of task_id or table_names check the  '
                                                      '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
-async def sample_result(task_id: str,
-                        table_name: List[SampleResulTable] = Query(..., description='press Ctrl/Command with '
+async def sample_result(task_id: str, table_name: List[SampleResulTable] = Query(..., description='press Ctrl/Command with '
                                                                                     'right key of mouse to '
                                                                                     'choose multiple tables')):
     if len(task_id) != 32:
         err_info = {
             "error_code": 400,
-            "error_message": f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits.'
+            "error_message": f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits'
         }
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
@@ -187,8 +188,9 @@ async def sample_result(task_id: str,
 
         if len(result) == 0:
             err_info = {
-                "error_code": 400,
-                "error_message": "empty result, probably wrong combination of task_id and table_name"
+                "error_code": 404,
+                "error_message": "empty result, probably wrong combination of task_id and table_name, "
+                                 "please check table state or use /api/tasks/{task_id} first"
             }
             return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
         else:
@@ -201,7 +203,7 @@ async def sample_result(task_id: str,
     except Exception as e:
         err_info = {
             "error_code": 500,
-            "error_message": f"Cannot scrape data from result tables. Additional error message {e}"
+            "error_message": f"Cannot scrape data from result tables. Additional error message: {e}"
         }
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))

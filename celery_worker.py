@@ -27,7 +27,7 @@ celery_app.conf.update(task_track_started=True)
 
 
 @celery_app.task(name=f'{name}.label_data', track_started=True)
-@memory_usage_tracking
+# @memory_usage_tracking
 def label_data(task_id: str, **kwargs) -> List[str]:
     _logger = get_logger('label_data')
     load_dotenv()

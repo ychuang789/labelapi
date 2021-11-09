@@ -1,6 +1,6 @@
-# Audience API v 2.0
+# Audience API v 2.1
 
-###### created by Weber Huang at 2021-10-07
+###### v2.0 created by Weber Huang at 2021-10-07; v2.1 updated by Weber Huang at 2021-11-09 
 
 #### Table of content
 
@@ -14,18 +14,36 @@
   + [Initialize the worker](#initialize-the-worker)
   + [Run the API](#run-the-api)
 + [Usage](#usage)
+  + [create_task](#create_task)
+  + [task_list](#task_list)
+  + [check_status](#check_status)
+  + [sample_result](#sample_result)
 + [Error code](#error-code)
++ [System Requirement](#system-requirement)
+
 
 
 ## Description
 
-此 WEB API 專案是基於協助 RD2 進行貼標任務而建立，支援使用者選擇貼標模型與規則，並且可以呼叫 API 回傳抽象結果。
+此 WEB API 專案基於協助 RD2 站台進行貼標任務而建立，支援使用者選擇貼標模型與規則，並且可以呼叫 API 回傳抽樣結果檢查貼概況。此專案共有四個 API 服務:
 
-貼標專案大體流程為，從使用者定義之情況建立貼標任務 (如 日期資訊、資料庫資訊等) ，訪問資料庫擷取相關資料進行貼標，貼標完資料根據來源ID分別儲存至不同的結果資料表。過程的任務資訊 (如 任務開始時間、任務狀態、貼標時間) 和驗證資訊 (如 接收資料、產出資料、上架資料筆數、貼標率) 會儲存於使用者預先定義的結果資料庫中的 state 資料表。
+1. create_task : 依據使用者定義之情況，建立任務流程 (貼標 -> 上架)，並執行任務
+2. task_list : 回傳近期執行之任務與之相關資訊
+3. check_status : 輸入任務ID，檢查任務進度與任務結果(資料表名稱)
+4. sample_result : 輸入任務ID與結果資料表名稱，回傳抽樣之上架資料
+
+貼標專案流程為，從使用者定義之情況建立貼標任務 (如 日期資訊、資料庫資訊等) ，訪問資料庫擷取相關資料進行貼標，貼標完資料根據來源分別儲存至不同的結果資料表。過程的任務資訊 (如 任務開始時間、任務狀態、貼標時間) 和驗證資訊 (如 接收資料長度、產出資料長度、上架資料筆數、貼標率等) 會儲存於使用者預先定義的結果資料庫中的 state 資料表。最後使用者可以透過
 
 使用者可以透過`tasks_list`, `check_status`, `sample_result`等 API 查詢任務狀態和取得抽樣貼標完結果，或是透過任務ID直接查詢 state 資料表來來取得相關資訊。
 
-These APIs is built for the usage of RD2 data labeling tasks supporting users selecting models and rules to labeling the target range of data, and result sampling. 
+---
+
+These WEB APIs is built for the usage of RD2 data labeling tasks supporting users selecting models and rules to labeling the target range of data, and result sampling. There are four API in this project:
+
+1. create_task : According to the user defined condition, set up a task flow (labeling and generate production) and execute the flow
+2. task_list : return the recent executed tasks with tasks' information
+3. check_status : Input a task id to check the status and result (result table name) of the task
+4. sample_result : Input a task id with result table name, return a sampling dataset back.
 
 The total flow in brief of `create_task` is that the API will query the database via conditions and information which place by users, label those data, and output the data to a target database storing by `source_id` . The progress and validation information will be stored in the table, name `state`, inside the user define output schema which will be automatically created at the first time that user call `create_task` API.
 
@@ -54,8 +72,6 @@ Users can track the progress and result sampling data by calling the rest of API
 ## Quick Start
 
 #### Set up docker
-
-此專案預設使用者已經有初步了解如何使用 Docker。若不清楚使用方法，可以參考 [Docker Guides](https://docs.docker.com/get-started/) 。
 
 If you are already using docker, skip this part.
 
@@ -136,24 +152,24 @@ Before running the celery worker, edit the `CeleryConfig` in `settings.py` to sp
 $ celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P solo
 ```
 
-> Noted that if you only want to specify a single task, add the task name after it in the command, like celery_worker.label_data While in this project it is not suggested since we use the celery canvas to design the total work flow. Users don't have to edit any celery command manually.
+`-l` means loglevel; `-P` have to be setup as `solo` in the windows environment. About other pool configurations, see [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) , [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) ; `-n` represents the worker name; `-Q` means queue name, see official document [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) for more in depth explanations. 
 
-`-l` means loglevel; `-P` have to be setup as `solo` in the windows environment. About other pool configurations, see [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) , [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) ; `-n` represents the worker name; `-Q` means queue name, see official document [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) for more in depth explanations.
+> Noted that if you only want to specify a single task, add the task name after it in the command, like `celery_worker.label_data` While in this project it is not suggested since we use the celery canvas to design the total work flow. Users **DON'T** have to edit any celery command manually.
 
-> See [windows issue](https://stackoverflow.com/a/27358974/16810727),  [for command line interface](https://docs.celeryproject.org/en/latest/reference/cli.html) to gain more information. Windows 10 only support -P solo, while solo pool taking each task as a core process (you can only pass another task if one is done), it isn't always being recommended, since it doesn't not support remote control ([see docs](https://docs.celeryproject.org/en/stable/userguide/workers.html#remote-control)) and it can sometimes blocking your task flow.
+> See [windows issue](https://stackoverflow.com/a/27358974/16810727),  [for command line interface](https://docs.celeryproject.org/en/latest/reference/cli.html) to gain more information. Windows 10 only support `-P solo`, while solo pool taking each task as a core process (you can only pass another task if one is done), `-P solo` isn't always being recommended, since it doesn't not support remote control ([see docs](https://docs.celeryproject.org/en/stable/userguide/workers.html#remote-control)) and it can sometimes blocking your task flow.
 
 **Ubuntu**
 
 ```bash
 # if you wanna run the task with coroutine
-# make sure installing the gevent before, `pip install gevent`
+# make sure installing the gevent before `pip install gevent`
 $ celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P gevent --concurrency=500
 
 # or run it with threads
 $ celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P threads
 ```
 
-According to [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) , <u>it is suggested to configure the worker with **coroutine**</u> <u>(-P gevent or eventlet) used as I/O bound task like HTTP restfulAPI</u> :
+According to [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) , it is suggested to configure the worker with **coroutine** (`-P gevent` or `-P eventlet`) used as I/O bound task like HTTP restful API :
 
 > Let’s say you need to execute thousands of HTTP GET requests to fetch data from external REST APIs. The time it takes to complete a single GET request depends almost entirely on the time it takes the server to handle that request. Most of the time, your tasks wait for the server to send the response, not using any CPU.
 
@@ -175,235 +191,336 @@ If you have done the quick start and you want to test the API functions or expec
 
 Otherwise modify following parts via curl to calling API:
 
-+ `/api/tasks` POST (create_task) :  Input the task information for example model type, predict type, date info, etc., and return task_id with task configuration.
+#### create_task
 
-  **input example (default) :**
+Input the task information for example model type, predict type, date info, etc., and return task_id with task configuration.
 
-  ```shell
-  curl -X 'POST' \
-    'http://<api address>:<api port>/api/tasks/' \
-    -H 'accept: application/json' \
-    -H 'Content-Type: application/json' \
-    -d '{
-    "model_type": "keyword_model",
-    "predict_type": "author_name",
-    "start_time": "2020-01-01 00:00:00",
-    "end_time": "2021-01-01 00:00:00",
-    "target_schema": "wh_fb_pm",
-    "target_table": "ts_page_content",
-    "output_schema": "audience_result",
-    "countdown": 5
-  }'
-  ```
++ **request example :**
 
-  + Replace your own API address with port
-  + For each configuration in request body (feel free to edit them to fit your task): 
-    + model_type: labeling model, default is keyword_model
-    + predict_type: predicting target, default is author_name
-    + start_time and end_time : the query date range
-    + target_schema : the target schema where the data you want to label from
-    + target_table : the target table under the target schema, where the data you want to label from
-    + output_schema : where you want to store the output result
-    + countdown : the countdown second between label task and generate_production task
-  + Noted that the default values of database are generated from the environment variables from `.env`
+```shell
+curl -X 'POST' \
+  'http://<api address>:<api port>/api/tasks/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "model_type": "keyword_model",
+  "predict_type": "author_name",
+  "start_time": "2020-01-01 00:00:00",
+  "end_time": "2021-01-01 00:00:00",
+  "target_schema": "wh_fb_pm",
+  "target_table": "ts_page_content",
+  "output_schema": "audience_result",
+  "countdown": 5
+}'
+```
 
-  **output example :**
+​	Replace your own API address with port
 
-  ```json
-  {
-      "model_type":"keyword_model",
-       "predict_type":"author",
-       "start_time":"2020-0101T00:00:00",
-       "end_time":"20210101T00:00:00",
-       "target_schema":"wh_fb_pm",
-       "target_table":"ts_page_content",
-       "output_schema":"audience_result",
-       "queue":"queue1",
-       "countdown":5,
-       "date_range":"2020-01-01 00:00:00 - 2021-01-01 00:00:00",
-       "task_id":"3a5c4e72410611ecb688d45d6456a14d"
-  }
-  ```
+​	For each configuration in request body (feel free to edit them to fit your task): 
 
-  Save the `task_id` if you want to directly query the task status or result after.
+| name                    | description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| model_type              | labeling model, default is keyword_model                     |
+| predict_type            | predicting target, default is author_name                    |
+| start_time and end_time | the query date range                                         |
+| target_schema           | the target schema where the data you want to label from      |
+| target_table            | the target table under the target schema, where the data you want to label from |
+| output_schema           | where you want to store the output result                    |
+| countdown               | the countdown second between label task and generate_production task |
 
-  
+​	Noted that the default values of database are generated from the environment variables from `.env`
 
-+ `/api/tasks` GET (task_list) : Return the recent created tasks' id and tasks' information (task configuration with result if it was finished).
++ **response example :**
 
-  **input example :**
+```json
+{
+    "error_code":200,
+     "error_message":{
+         "model_type":"keyword_model",
+         "predict_type":"author",
+         "start_time":"2020-01-01T00:00:00",
+         "end_time":"2021-01-01T00:00:00",
+         "target_schema":"wh_fb_ex_02",
+         "target_table":"ts_page_content",
+         "output_schema":"audience_result",
+         "countdown":5,"queue":"queue1",
+         "date_range":"2020-01-01 00:00:00 - 2021-01-01 00:00:00",
+         "task_id":"8fec5762412c11ec836d04ea56825baa"
+ }
+}
+```
 
-  ```shell
-  curl -X 'GET' \
-    'http://127.0.0.1:8000/api/tasks/' \
-    -H 'accept: application/json'
-  ```
+Save the `task_id` if you want to directly query the task status or result after.
 
-  **output example :**
 
-  ```json
-  {
-    "988b791b32d911eca68704ea56825bad": {
-      "status": "SUCCESS",
+
+#### task_list
+
+Return the recent created tasks' id with some tasks' information.
+
+Request example :
+
+```shell
+curl -X 'GET' \
+  'http://<api address>:<api port>/api/tasks/' \
+  -H 'accept: application/json'
+```
+
+Replace your own API address with port
+
+Response example :
+
+```json
+{
+  "error_code": 200,
+  "error_message": "OK",
+  "content": [
+    {
+      "task_id": "8fec5762412c11ec836d04ea56825baa",
+      "stat": "PENDING",
+      "prod_stat": null,
       "model_type": "keyword_model",
-      "predict_type": "author_name",
-      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
-      "target_table": "ts_page_content",
-      "create_time": "2021-10-22T09:44:29",
-      "result": "forum,Dcard"
+      "predict_type": "author",
+      "date_range": "2020-01-01 00:00:00 - 2021-01-01 00:00:00",
+      "target_table": "wh_fb_ex_02",
+      "create_time": "2021-11-09T15:13:39",
+      "peak_memory": null,
+      "length_receive_table": null,
+      "length_output_table": null,
+      "length_prod_table": null,
+      "result": "",
+      "uniq_source_author": null,
+      "rate_of_label": null,
+      "run_time": null,
+      "check_point": null
     },
-    "b773c786320c11eca0ca04ea56825bad": {
-      "status": "SUCCESS",
+    {
+      "task_id": "7c7bd38c410a11ecb688d45d6456a14d",
+      "stat": "SUCCESS",
+      "prod_stat": "finish",
       "model_type": "keyword_model",
-      "predict_type": "author_name",
-      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
-      "target_table": "ts_page_content",
-      "create_time": "2021-10-21T09:17:54",
-      "result": "wh_panel_mapping_Dcard,wh_panel_mapping_forum"
+      "predict_type": "author",
+      "date_range": "2020-01-01 00:00:00 - 2021-01-01 00:00:00",
+      "target_table": "wh_fb_ex",
+      "create_time": "2021-11-09T11:09:43",
+      "peak_memory": null,
+      "length_receive_table": 16992036,
+      "length_output_table": 2030847,
+      "length_prod_table": 236705,
+      "result": "fbfans",
+      "uniq_source_author": "1672893",
+      "rate_of_label": "14.15",
+      "run_time": 170.345,
+      "check_point": null
     },
-    "509f463f318611ecbb6a04ea56825bad": {
-      "status": "SUCCESS",
+    {
+      "task_id": "3a5c4e72410611ecb688d45d6456a14d",
+      "stat": "SUCCESS",
+      "prod_stat": "finish",
       "model_type": "keyword_model",
-      "predict_type": "author_name",
-      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
-      "target_table": "ts_page_content",
-      "create_time": "2021-10-20T17:15:49",
-      "result": "wh_panel_mapping_forum,wh_panel_mapping_Dcard"
+      "predict_type": "author",
+      "date_range": "2020-01-01 00:00:00 - 2021-01-01 00:00:00",
+      "target_table": "wh_fb_pm",
+      "create_time": "2021-11-09T10:39:14",
+      "peak_memory": null,
+      "length_receive_table": 92491,
+      "length_output_table": 19687,
+      "length_prod_table": 10725,
+      "result": "fbpm",
+      "uniq_source_author": "50216",
+      "rate_of_label": "21.36",
+      "run_time": 1.63621,
+      "check_point": null
     },
-    "0ecd3774318611ec9ecd04ea56825bad": {
-      "status": "PENDING",
-      "model_type": "keyword_model",
-      "predict_type": "author_name",
-      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
-      "target_table": "ts_page_content",
-      "create_time": "2021-10-20T17:13:58",
-      "result": ""
-    },
-    "d135e614317c11ec9f9c04ea56825bad": {
-      "status": "SUCCESS",
-      "model_type": "keyword_model",
-      "predict_type": "author_name",
-      "date_range": "2018-01-01 00:00:00 - 2018-12-31 23:59:59",
-      "target_table": "ts_page_content",
-      "create_time": "2021-10-20T16:07:50",
-      "result": "wh_panel_mapping_forum,wh_panel_mapping_Dcard"
-    }
-  }
-  ```
-
-  
-
-+ `/api/tasks/{task_id}` GET (check_status) : Return the task status (*PENDING, SUCCESS, FAILURE*) via task id, if the task is *SUCCESS* return result too.
-
-  **input example :**
-
-  ```shell
-  curl -X 'GET' \
-    'http://127.0.0.1:8000/api/tasks/b773c786320c11eca0ca04ea56825bad' \
-    -H 'accept: application/json'
-  ```
-
-  **output example :**
-
-  ````json
-  {
-    "SUCCESS": "wh_panel_mapping_Dcard,wh_panel_mapping_forum"
-  }
-  ````
-
-  
-
-+ `/api/tasks/{task_id}/sample/` GET (sample_result) : Input task id and result (table_name), return the sampling results from result tables.
-
-  **input example :**
-
-  ```shell
-  curl -X 'GET' \
-    'http://127.0.0.1:8000/api/tasks/988b791b32d911eca68704ea56825bad/sample/?table_name=wh_panel_mapping_Dcard&table_name=wh_panel_mapping_forum' \
-    -H 'accept: application/json'
-  ```
-
-  **output example :**
-
-  ````json
-  [
-    {
-      "id": "1514778057509_F02",
-      "task_id": "988b791b32d911eca68704ea56825bad",
-      "source_author": "WH_F0116_女神 雅典娜warmman07/M",
-      "panel": "/female",
-      "create_time": "2018-01-01T11:27:30",
-      "field_content": "WH_F0116",
-      "match_content": "女神 雅典娜warmman07/M"
-    },
-    {
-      "id": "1514793390003_F02",
-      "task_id": "988b791b32d911eca68704ea56825bad",
-      "source_author": "WH_F0116_偶4克萊爾爾爾🙈iamclaire926/F",
-      "panel": "/female",
-      "create_time": "2018-01-01T15:41:48",
-      "field_content": "WH_F0116",
-      "match_content": "偶4克萊爾爾爾🙈iamclaire926/F"
-    },
-    {
-      "id": "1514795231214_F02",
-      "task_id": "988b791b32d911eca68704ea56825bad",
-      "source_author": "WH_F0116_生者akaii/M",
-      "panel": "/male",
-      "create_time": "2018-01-01T16:12:39",
-      "field_content": "WH_F0116",
-      "match_content": "生者akaii/M"
-    },
-    {
-      "id": "1514799613632_F02",
-      "task_id": "988b791b32d911eca68704ea56825bad",
-      "source_author": "WH_F0116_馬偕妹ㄓcatherine900117/F",
-      "panel": "/female",
-      "create_time": "2018-01-01T17:33:31",
-      "field_content": "WH_F0116",
-      "match_content": "馬偕妹ㄓcatherine900117/F"
-    },
-    {
-      "id": "1514813950284_1_F02",
-      "task_id": "988b791b32d911eca68704ea56825bad",
-      "source_author": "WH_F0116_思考未來的女子rin00467/F",
-      "panel": "/female",
-      "create_time": "2018-01-01T21:18:52",
-      "field_content": "WH_F0116",
-      "match_content": "思考未來的女子rin00467/F"
-    },
-    {
-      "id": "1514829464318_F02",
-      "task_id": "988b791b32d911eca68704ea56825bad",
-      "source_author": "WH_F0116_Amy Tsais6013104/F",
-      "panel": "/female",
-      "create_time": "2018-01-02T01:52:34",
-      "field_content": "WH_F0116",
-      "match_content": "Amy Tsais6013104/F"
-    }
+      .
+      .
+      .
+      .
   ]
-  ````
+}
+```
 
-  | Column        | Description                            |
-  | ------------- | -------------------------------------- |
-  | id            | Row id from original data              |
-  | task_id       | Labeling task id                       |
-  | source_author | Combine the s_id with author_name      |
-  | panel         | Result of labeling                     |
-  | create_time   | Post_time                              |
-  | field_content | s_id                                   |
-  | match_content | The content which is used to labeling. |
+| name                 | description                                                  |
+| -------------------- | ------------------------------------------------------------ |
+| task_id              | task id                                                      |
+| stat                 | status of labeling task (PENDING, SUCCESS, FAILURE)          |
+| prod_stat            | status of generate production task (finish or null)          |
+| model_type           | model used by labeling                                       |
+| predict_type         | predict target                                               |
+| date_range           | users define date range of create_task                       |
+| target_table         | target schema which query for labeling                       |
+| create_time          | task starting datetime                                       |
+| ~~peak_memory~~      | ~~trace the max memory of each labeling task~~ *This function is expired and out of usage in this version* |
+| length_receive_table | the number of data from target_table                         |
+| length_output_table  | the number of result after labeling                          |
+| length_prod_table    | the number of result after generate production               |
+| result               | the temp result table of labeling task                       |
+| uniq_source_author   | for each task, the unique `source_id` , `author` from their data source (only use for calculating rate_of_label) |
+| rate_of_label        | percentage of length of result generated by generate_production divided by uniq_source_author |
+| check_point          | if the labeling task is failed, save the batch number (datetime) for last execution |
 
-  
 
-## Error code
 
-| Error code | Error message         | Note                                                         |
-| ---------- | --------------------- | ------------------------------------------------------------ |
-| 200        | OK                    | Successful response                                          |
-| 400        | Bad request           | Probably wrong format of API input                           |
-| 404        | Not found             | Task id is not exist                                         |
-| 500        | Internal Server Error | Probably due to the database or worker problem or server die |
+#### check_status
+
+`/api/tasks/{task_id}` 
+
+Return the task status (*PENDING, SUCCESS, FAILURE*) via task id, if the task is *SUCCESS* return result (temp result table_name) too.
+
+Request example :
+
+```shell
+curl -X 'GET' \
+  'http://<api address>:<api port>/api/tasks/<task_id>' \
+  -H 'accept: application/json'
+```
+
+Response example :
+
+````json
+{
+  "error_code": 200,
+  "error_message": "OK",
+  "status": "SUCCESS",
+  "prod_status": "finish",
+  "result": "fbfans"
+}
+````
+
+| name        | description                                                  |
+| ----------- | ------------------------------------------------------------ |
+| status      | status of label task                                         |
+| prod_status | status of generate production task                           |
+| result      | temp result table name of label task in output schema, if generate production is finished the result will be store in `wh_panel_mapping_{result}` in the same output schema |
+
+
+
+#### sample_result
+
+`/api/tasks/{task_id}/sample/` 
+
+Input task id and generate_production task's result (table_name from table state with `wh_panel_mapping_` prefix, IF <u>prod_stat</u> is finish), return the sampling results from result tables.
+
+Request example :
+
+```shell
+curl -X 'GET' \
+  'http://<api address>:<api port>/api/tasks/<task_id>/sample/?table_name=wh_panel_mapping_fbfans' \
+  -H 'accept: application/json'
+```
+
+Response example :
+
+````json
+{
+  "error_code": 200,
+  "error_message": [
+    {
+      "id": "1577818324915_FBEXUB",
+      "task_id": "7c7bd38c410a11ecb688d45d6456a14d",
+      "source_author": "WH_F0045_Kuan Vera",
+      "panel": "/female",
+      "create_time": "2020-01-01T00:00:03",
+      "field_content": "WH_F0045",
+      "match_content": "Kuan Vera"
+    },
+    {
+      "id": "1577829993490_FBEXUA",
+      "task_id": "7c7bd38c410a11ecb688d45d6456a14d",
+      "source_author": "WH_F0045_Tommy T J Tan",
+      "panel": "/male",
+      "create_time": "2020-01-01T00:00:06",
+      "field_content": "WH_F0045",
+      "match_content": "Tommy T J Tan"
+    },
+    {
+      "id": "1577830450425_FBEXUA",
+      "task_id": "7c7bd38c410a11ecb688d45d6456a14d",
+      "source_author": "WH_F0045_Clarice Ooi",
+      "panel": "/female",
+      "create_time": "2020-01-01T00:00:57",
+      "field_content": "WH_F0045",
+      "match_content": "Clarice Ooi"
+    },
+    {
+      "id": "1577830451940_FBEXUA",
+      "task_id": "7c7bd38c410a11ecb688d45d6456a14d",
+      "source_author": "WH_F0045_林超哥",
+      "panel": "/male",
+      "create_time": "2020-01-01T00:01:15",
+      "field_content": "WH_F0045",
+      "match_content": "林超哥"
+    },
+      .
+      .
+      .
+      .
+  ]
+}
+````
+
+| Column        | Description                               |
+| ------------- | ----------------------------------------- |
+| id            | Row id from original data                 |
+| task_id       | Labeling task id                          |
+| source_author | Combine the s_id with author_name         |
+| panel         | Result of labeling                        |
+| create_time   | Post_time                                 |
+| field_content | s_id                                      |
+| match_content | The content which is matched to labeling. |
+
+
+
+## Error code 
+
++ create_task
+
+  code 200 represent successful
+
+  | error_code | error_message                                                |
+  | ---------- | ------------------------------------------------------------ |
+  | 200        | task configuration with `task_id`                            |
+  | 400        | start_time must be earlier than end_time                     |
+  | 500        | failed to start a labeling task, additional error message: <Exception> |
+  | 501        | Cannot read pattern file, probably unknown file path or file is not exist, additional error message: <Exception> |
+  | 503        | Cannot connect to output schema, additional error message: <Exception> |
+
++ tasks_list
+
+  code 200 represent successful
+
+  | error_code | error_message                 |
+  | ---------- | ----------------------------- |
+  | 200        | OK                            |
+  | 500        | cannot connect to state table |
+
++ check_status
+
+  code 200 represent successful
+
+  | error_code | error_message                                                |
+  | ---------- | ------------------------------------------------------------ |
+  | 200        | OK                                                           |
+  | 400        | task id is not exist, plz re-check the task id. Addition error message: <Exception> |
+
++ sample_result
+
+  code 200 represent successful
+
+  | error_code | error_message                                                |
+  | ---------- | ------------------------------------------------------------ |
+  | 200        | sampling result                                              |
+  | 400        | <task_id> is not in proper format, expect 32 digits get <length of task_id> digits |
+  | 404        | empty result, probably wrong combination of task_id and table_name, please check table state or use /api/tasks/<task_id> first |
+  | 500        | Cannot scrape data from result tables. Additional error message: <Exception> |
+
++ error code for Open API
+
+  | Error code | error_message       |
+  | ---------- | ------------------- |
+  | 200        | Successful Response |
+  | 422        | Validation Error    |
+
 
 
 ## System Requirement
