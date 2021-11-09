@@ -45,6 +45,7 @@ class SampleResulTable(str, Enum):
     fbfans = 'wh_panel_mapping_fbfans'
     fbgroup = 'wh_panel_mapping_fbgroup'
     fbkol = 'wh_panel_mapping_fbkol'
+    fbpm = 'wh_panel_mapping_fbpm'
     fbprivategroup = 'wh_panel_mapping_fbprivategroup'
     forum = 'wh_panel_mapping_forum'
     Instagram = 'wh_panel_mapping_Instagram'
@@ -53,6 +54,7 @@ class SampleResulTable(str, Enum):
     Ptt = 'wh_panel_mapping_Ptt'
     Tiktok = 'wh_panel_mapping_Tiktok'
     Twitter = 'wh_panel_mapping_Twitter'
+    video = 'wh_panel_mapping_video'
     Youtube = 'wh_panel_mapping_Youtube'
 
 

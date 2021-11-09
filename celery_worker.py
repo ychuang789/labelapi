@@ -3,7 +3,6 @@ from typing import List
 from dotenv import load_dotenv
 from datetime import datetime
 
-import pandas as pd
 from celery import Celery
 
 from settings import CeleryConfig, DatabaseInfo

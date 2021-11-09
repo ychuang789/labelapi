@@ -747,20 +747,24 @@ SOURCE: Dict = {
 }
 
 class APIConfig:
-    local_host = '127.0.0.1'
-    remote_host = '0.0.0.0'
+    host = '127.0.0.1'
+    # host = '0.0.0.0'
     title = 'Audience API'
     version = 2.1
     description = """
-    This service is created by department of Research and Development 2 to help Audience labeling.    
-    #### Item   
-    1. create_task : a post api which create a labeling task via the information in the request body.   
-    2. task_list : return the recent tasks and tasks information.    
-    3. check_status : return a single task status and results if success via task_id.  
-    4. sample_result : return the labeling results from database via task_id and table information.    
-    #### Users  
-    For eland staff only. 
-    """
+This service is created by department of Research and Development 2 to help Audience labeling.    
+
+#### Item    
+
+1. create_task : a post api which create a labeling task via the information in the request body.    
+2. task_list : return the recent tasks and tasks information.     
+3. check_status : return a single task status and results if success via task_id.   
+4. sample_result : return the labeling results from database via task_id and table information.     
+
+#### Users   
+For eland staff only.  
+"""
+
 
 
 class CeleryConfig:
@@ -769,6 +773,7 @@ class CeleryConfig:
     backend = 'db+sqlite:///save.db'
     # backend = f'db+mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
     broker = 'redis://localhost'
+    # broker = 'redis://0.0.0.0'
     timezone = 'Asia/Taipei'
     enable_utc = False
     result_expires = None
@@ -798,6 +803,7 @@ class CreateTaskRequestBody(BaseModel):
     target_table: str = "ts_page_content"
     output_schema: str = os.getenv('OUTPUT_SCHEMA')
     countdown: int = 5
+    queue: str = "queue1"
 
 class TaskListRequestBody:
     load_dotenv()

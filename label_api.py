@@ -1,7 +1,7 @@
 import uuid
 from collections import OrderedDict
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 
 import uvicorn
 from fastapi import FastAPI, status, Query
@@ -12,11 +12,12 @@ from sqlalchemy import create_engine
 from celery import chain
 from celery_worker import label_data, generate_production
 from settings import APIConfig, CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo
-from utils.database_core import scrap_data_to_df, get_tasks_query, \
-    get_sample_query, create_state_table, insert2state, query_state
+from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
+    get_sample_query, create_state_table, insert2state, query_state_by_id
 from utils.helper import get_logger
 from utils.run_label_task import read_from_dir
 from utils.selections import SampleResulTable
+
 
 
 _logger = get_logger('label_API')
@@ -29,7 +30,6 @@ app = FastAPI(title=APIConfig.title, description=APIConfig.description, version=
 async def create_task(create_request_body: CreateTaskRequestBody):
     config = create_request_body.__dict__
 
-    # check the datetime request body
     if config.get('start_time') >= config.get('end_time'):
         err_info = {
             "error_code": 400,
@@ -38,7 +38,6 @@ async def create_task(create_request_body: CreateTaskRequestBody):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    # create the tracking table `state` in `audience_result`
     try:
         engine = create_engine(DatabaseInfo.output_engine_info).connect()
         _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
@@ -53,7 +52,6 @@ async def create_task(create_request_body: CreateTaskRequestBody):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    # read the pattern
     try:
         pattern = read_from_dir(config.get('model_type'), config.get('predict_type'))
         config.update(
@@ -68,23 +66,22 @@ async def create_task(create_request_body: CreateTaskRequestBody):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    # change `author_name` to `author` to fit database column name
+    # since the source database author column name is `author`
     if config.get('predict_type') == 'author_name':
         config['predict_type'] = "author"
     else:
         pass
 
-    # run task
     _logger.info('start labeling task flow ...')
     try:
         task_id = uuid.uuid1().hex
 
         result = chain(
             label_data.signature(
-                args=(task_id,), kwargs=config, task_id=task_id
+                args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('queue')
             )
             | generate_production.signature(
-                args=(task_id,), kwargs=config, countdown=config.get('countdown')
+                args=(task_id,), kwargs=config, countdown=config.get('countdown'), queue=config.get('queue')
 
             )
         )()
@@ -105,57 +102,60 @@ async def create_task(create_request_body: CreateTaskRequestBody):
 
     config.update({"task_id": task_id})
     config.pop('pattern')
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
+
+    err_info = {
+        "error_code": 200,
+        "error_message": config
+    }
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @app.get('/api/tasks/', description="Return a subset of task_id and task_info, "
                                     "you can pick a 'SUCCESS' task_id and get it's ")
 async def tasks_list():
     try:
-        engine = create_engine(TaskListRequestBody.engine_info)
-        query = get_tasks_query(TaskListRequestBody.table,
-                                TaskListRequestBody.order_column,
-                                TaskListRequestBody.number)
-        result = engine.execute(query).fetchall()
+        result = get_tasks_query_recent(TaskListRequestBody.order_column,
+                                       TaskListRequestBody.number)
+        err_info = {
+            "error_code": 200,
+            "error_message": "OK",
+            "content": result
+        }
 
-        _dict = OrderedDict()
-        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time",
-               "peak_memory", "length_receive_table", "length_output_table", "result", "rate_of_label"]
-        for i in result:
-            temp = dict(zip(col, list(i)))
-            _dict.update({
-                temp.get("task_id"): {i: temp[i] for i in temp if i != 'task_id'}
-            })
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(_dict))
     except Exception as e:
-        _logger.error(f"cannot connect to server since {e}")
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(e))
+
+        err_info = {
+            "error_code": 500,
+            "error_message": "Cannot connect to state table",
+            "content": e
+        }
+        _logger.error(f"{e}")
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @app.get('/api/tasks/{task_id}', description='Input a task_id and output status. If the task is successed, '
                                              'return the result tables for querying sample results')
 async def check_status(task_id):
     try:
-        engine = create_engine(DatabaseInfo.output_engine_info)
-        _r = engine.execute(query_state(task_id)).fetchone()
-
-        col = ["task_id", "status", "model_type", "predict_type", "date_range", "target_table", "create_time",
-               "peak_memory", "length_receive_table", "length_output_table", "result", "rate_of_label"]
-
-        _result = dict(zip(col, list(_r)))
-
-
-        if _result.get('status') == 'SUCCESS':
-            result_content = {
-                _result.get('status'): _result.get('result')
-            }
-            return JSONResponse(status_code=status.HTTP_200_OK, content=result_content)
-        else:
-            return JSONResponse(status_code=status.HTTP_200_OK, content=_result.get('status'))
+        result = query_state_by_id(task_id)
+        err_info = {
+            "error_code": 200,
+            "error_message": "OK",
+            "status": result.get('stat'),
+            "result": result.get('result')
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     except Exception as e:
-        err_msg = f'task id is not exist, plz re-check the task id.'
-        _logger.error({"status_code": status.HTTP_404_NOT_FOUND, "content": f'{err_msg} Addition :{e}'})
-        return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=e)
+        err_info = {
+            "error_code": 400,
+            "error_message": f'task id is not exist, plz re-check the task id. Addition error message:{e}',
+            "status": None,
+            "result": None
+        }
+        _logger.error(f'{e}')
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @app.get('/api/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
                                                      'If you have no clue of task_id or table_names check the  '
@@ -165,9 +165,12 @@ async def sample_result(task_id: str,
                                                                                     'right key of mouse to '
                                                                                     'choose multiple tables')):
     if len(task_id) != 32:
-        err_msg = f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits.'
-        _logger.error({"status_code": status.HTTP_400_BAD_REQUEST, "content": f'{err_msg}'})
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg}')
+        err_info = {
+            "error_code": 400,
+            "error_message": f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits.'
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     q = ''
     for i in range(len(table_name)):
@@ -180,15 +183,31 @@ async def sample_result(task_id: str,
             pass
 
     try:
-        result = scrap_data_to_df(_logger, q, schema=SampleResultRequestBody.schema_name, _to_dict=True)
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+        result = scrap_data_to_dict(q, SampleResultRequestBody.schema_name)
+
+        if len(result) == 0:
+            err_info = {
+                "error_code": 400,
+                "error_message": "empty result, probably wrong combination of task_id and table_name"
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+        else:
+            err_info = {
+                "error_code": 200,
+                "error_message": result
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
     except Exception as e:
-        err_msg = f'invalid query, plz re-check it.'
-        _logger.error({"status_code": status.HTTP_400_BAD_REQUEST, "content": f'{err_msg} Addition :{e}'})
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=f'{err_msg} Addition :{e}')
+        err_info = {
+            "error_code": 500,
+            "error_message": f"Cannot scrape data from result tables. Additional error message {e}"
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host=APIConfig.local_host, debug=True)
+    uvicorn.run(app, host=APIConfig.host, debug=True)
 
 

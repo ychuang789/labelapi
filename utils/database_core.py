@@ -12,7 +12,7 @@ from tqdm import tqdm
 from definition import SCRAP_FOLDER, SAVE_FOLDER
 from utils.helper import get_logger
 from utils.selections import QueryStatements
-from settings import DatabaseInfo, SOURCE, CreateLabelRequestBody
+from settings import DatabaseInfo, SOURCE
 
 
 def create_db(db_path, config_db):
@@ -79,24 +79,13 @@ def scrap_data_to_csv(logger):
 
     return file_list
 
-def scrap_data_to_df(logger: get_logger, query: str, schema: str, _to_dict: bool = False):
-    func = connect_database
-    try:
-        with func(schema=schema).cursor() as cursor:
-            logger.info('connecting to database...')
-            cursor.execute(query)
-            if not _to_dict:
-                result = to_dataframe(cursor.fetchall())
-                func().close()
-                return result
-            else:
-                result = cursor.fetchall()
-                func().close()
-                return result
-
-    except Exception as e:
-        logger.error(e)
-        raise e
+def scrap_data_to_dict(query: str, schema: str):
+    connection = connect_database(schema=schema, output=True)
+    cur = connection.cursor()
+    cur.execute(query)
+    result = cur.fetchall()
+    connection.close()
+    return result
 
 def get_count(enging_info, **kwargs):
     engine = C(enging_info).connect()
@@ -458,12 +447,18 @@ def get_create_task_query(target_table, predict_type, start_time, end_time, get_
 def get_count_query():
     return 'SELECT COUNT(task_id) FROM celery_taskmeta'
 
-def get_tasks_query(table, order_column, number):
-    q = f'SELECT * FROM {table} ' \
+def get_tasks_query_recent(order_column, number):
+    q = f'SELECT * FROM state ' \
         f'ORDER BY {order_column} DESC ' \
         f'LIMIT {number} '
-
-    return q
+    schema = DatabaseInfo.output_schema
+    connection = connect_database(schema, output=True)
+    cur = connection.cursor()
+    # cursor.executescript(sql_as_string)
+    cur.execute(q)
+    r = cur.fetchall()
+    connection.close()
+    return r
 
 def get_sample_query(_id, tablename, number):
     q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
@@ -471,9 +466,17 @@ def get_sample_query(_id, tablename, number):
         f"LIMIT {number})"
     return q
 
-def query_state(_id):
+def query_state_by_id(_id):
     q = f"SELECT * FROM state WHERE task_id = '{_id}'"
-    return q
+    schema = DatabaseInfo.output_schema
+    connection = connect_database(schema, output=True)
+    cur = connection.cursor()
+    # cursor.executescript(sql_as_string)
+    cur.execute(q)
+    r = cur.fetchone()
+    connection.close()
+    return r
+
 
 def get_result_query(_id, tablename):
     q = f"SELECT * FROM {tablename} WHERE task_id = '{_id} '"
