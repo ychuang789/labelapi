@@ -187,7 +187,7 @@ $ python label_api.py
 
 If you have done the quick start and you want to test the API functions or expect a web-based user-interface, you can type `<api address>:<api port>/docs` in the browser (for example http://127.0.0.1:8000/docs) to open a Open API user-interface. It is very simple that you just have to choose `try it out` in top-right bottom of each API and replace the request body or query parameter to execute it.
 
-<img src="OpenAPI.png">
+<img src="OpenAPI.PNG">
 
 Otherwise modify following parts via curl to calling API:
 
