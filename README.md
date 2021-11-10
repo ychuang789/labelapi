@@ -114,13 +114,22 @@ $ pip install -r requirements.txt
 
 ```bash
 # clone the project
-$ git clone -b 14-optimize-audience-task-flow --single-branch https://ychuang:weber1812eland@gitting.eland.com.tw/rd2/audience/audience-api.git\
+$ git clone -b 14-optimize-audience-task-flow --single-branch https://ychuang:weber1812eland@gitting.eland.com.tw/rd2/audience/audience-api.git
 
 # get into the project folder
 $ cd <your project dir>
 
 # set up the environment
-$ bash setup.sh
+$ virtualenv venv -p $(which python3.8)
+
+# get in environment
+$ source venv/bin/activate
+
+# check the interpreter
+$ which python
+
+# install packages
+$ pip install -r requirements.txt
 ```
 
 #### Set up database information
