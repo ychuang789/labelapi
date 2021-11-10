@@ -153,3 +153,6 @@ clean_up.py
 
 # all logs
 /logs
+
+# tracing file with finish task_id
+tracing_task_id.txt
