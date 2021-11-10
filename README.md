@@ -19,7 +19,7 @@
   + [check_status](#check_status)
   + [sample_result](#sample_result)
 + [Error code](#error-code)
-+ [System Requirement](#system-requirement)
++ [System Recommendation and Baseline Performance](#system-recommendation-and-baseline-performance)
 
 
 
@@ -53,7 +53,7 @@ Users can track the progress and result sampling data by calling the rest of API
 
 ## Work Flow
 
-<img src="workflow.png">
+<img src="workflow_chain.PNG">
 
 ## Built With
 
@@ -67,7 +67,10 @@ Users can track the progress and result sampling data by calling the rest of API
   + FastAPI 0.68.1
 + Test with
   + Windows 10 Python 3.8
+  
   + Ubuntu 18.04.5 LTS Python 3.8
+  
+    
 
 ## Quick Start
 
@@ -185,11 +188,13 @@ $ python label_api.py
 
 ## Usage
 
-If you have done the quick start and you want to test the API functions or expect a web-based user-interface, you can type `<api address>:<api port>/docs` in the browser (for example http://127.0.0.1:8000/docs) to open a Open API user-interface. It is very simple that you just have to choose `try it out` in top-right bottom of each API and replace the request body or query parameter to execute it.
+If you have done the quick start and you want to test the API functions or expect a web-based user-interface, you can type `<api address>:<api port>/docs` in the browser (for example http://127.0.0.1:8000/docs) to open a Swagger user-interface, for more information see [Swagger](https://swagger.io/). It is very simple that you just have to choose `try it out` in top-right bottom of each API and replace the request body or query parameter to execute it.
 
 <img src="OpenAPI.PNG">
 
-Otherwise modify following parts via curl to calling API:
+Otherwise modify following parts via curl to calling API
+
+
 
 #### create_task
 
@@ -335,7 +340,6 @@ Response example :
       .
       .
       .
-      .
   ]
 }
 ```
@@ -454,7 +458,6 @@ Response example :
       .
       .
       .
-      .
   ]
 }
 ````
@@ -523,15 +526,15 @@ Response example :
 
 
 
-## System Requirement
+## System Recommendation and Baseline Performance
 
-Testing system information : 
+Recommend System : Ubuntu 18.04.5 LTS (Recommended) or Windows 10 (Noted the multiprocessing issue of celery in WIN10 )
 
-System : Windows 10
+Recommend python environment : Python 3.8
 
-Processor : Intel(R) Core(TM) i5-8259U
+Recommend processor : Intel(R) Core(TM) i5-8259U + or other processor with same efficiency
 
-RAM : 16G
+RAM : 16G +
 
 Baseline Performance
 
