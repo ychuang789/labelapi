@@ -54,7 +54,7 @@ Users can track the progress and result sampling data by calling the rest of API
 
 ## Work Flow
 
-<img src="graph/workflow_chain.PNG">
+<img src="graph/workflow_chain.png">
 
 ## Built With
 
@@ -199,15 +199,15 @@ If you have done the quick start and you want to test the API functions or expec
 
 + Open the API you want to test: 
 
-<img src="graph/s1_d.PNG">
+<img src="graph/s1_d.png">
 
 + Edit the information
 
-<img src="graph/s2_d.PNG">
+<img src="graph/s2_d.png">
 
 + View the result
 
-<img src="graph/s3_d.PNG">
+<img src="graph/s3_d.png">
 
 Otherwise modify  curl to calling API. Follow below parts :  
 
