@@ -165,7 +165,7 @@ Before running the celery worker, edit the `CeleryConfig` in `settings.py` to sp
 $ celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P solo
 ```
 
-`-l` means loglevel; `-P` have to be setup as `solo` in the windows environment. About other pool configurations, see [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) , [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) ; `-n` represents the worker name; `-Q` means queue name, see official document [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) for more in depth explanations. 
+`-l` means loglevel; `-P` have to be setup as `solo` in the windows environment. About other pool configurations, see [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) , [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) ; `-n` represents the worker name; `-Q` means queue name, see official document [workers](https://docs.celeryproject.org/en/stable/userguide/workers.html) for more in depth explanations. Noted that in this project we assume the users will only run a single worker and single queue, if you want to run multiple workers or multiple queues, you may add it manually add the second, third, etc.
 
 > Noted that if you only want to specify a single task, add the task name after it in the command, like `celery_worker.label_data` While in this project it is not suggested since we use the celery canvas to design the total work flow. Users **DON'T** have to edit any celery command manually.
 
@@ -185,6 +185,8 @@ $ celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P threads
 According to [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) , it is suggested to configure the worker with **coroutine** (`-P gevent` or `-P eventlet`) used as I/O bound task like HTTP restful API :
 
 > Let’s say you need to execute thousands of HTTP GET requests to fetch data from external REST APIs. The time it takes to complete a single GET request depends almost entirely on the time it takes the server to handle that request. Most of the time, your tasks wait for the server to send the response, not using any CPU.
+
+
 
 #### Run the API
 
@@ -243,9 +245,11 @@ curl -X 'POST' \
 }'
 ```
 
-​	Replace your own API address with port
+Replace your own API address with port.
 
-​	For each configuration in request body (feel free to edit them to fit your task): 
+Since in the demonstration of this document we only run single queue, noted that If you have multiple queues, you may add `"queue": "<your queue name>"` at the end of the request body to execute multiple tasks in the same time.
+
+For each configuration in request body (feel free to edit them to fit your task): 
 
 | name                    | description                                                  |
 | ----------------------- | ------------------------------------------------------------ |
@@ -541,10 +545,10 @@ Error code in this project is group by <u>API task error code</u> and <u>HTTP er
 
 **HTTP error code**
 
-| Error code | error_message       |
-| ---------- | ------------------- |
-| 200        | Successful Response |
-| 422        | Validation Error    |
+| Error code | error_message       | description                                                  |
+| ---------- | ------------------- | ------------------------------------------------------------ |
+| 200        | Successful Response | API successfully receive the required information            |
+| 422        | Validation Error    | API doesn't receive the proper information. This problem usually occurs in <u>wrong format of request body</u> at users post a create_task API |
 
 
 
