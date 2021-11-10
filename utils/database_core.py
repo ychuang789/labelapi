@@ -245,7 +245,7 @@ def create_state_table(logger: get_logger, schema=None):
                  f'`peak_memory` FLOAT(10),' \
                  f'`length_receive_table` INT(11),' \
                  f'`length_output_table` INT(11),' \
-                 f'`length_prod_table` INT(11),' \
+                 f'`length_prod_table` VARCHAR (100),' \
                  f'`result` TEXT(1073741823),' \
                  f'`uniq_source_author` VARCHAR(100),' \
                  f'`rate_of_label` INT(11),' \
@@ -586,6 +586,20 @@ def check_state_result_for_task_info(task_id: str, schema: str):
     else:
         return None
 
+def check_state_prod_length_for_task_info(task_id: str, schema: str):
+    connection = connect_database(schema=schema, output=True)
+    sql = f"""select result,length_prod_table from state where task_id = "{task_id}";"""
+
+    cursor = connection.cursor()
+    cursor.execute(sql)
+    result = cursor.fetchone()
+    connection.close()
+
+    if ',' in result.get('result'):
+        return result.get('length_prod_table')
+    else:
+        return None
+
 
 def check_state_exist(logger):
     engine = create_engine(DatabaseInfo.output_engine_info).connect()
@@ -593,6 +607,13 @@ def check_state_exist(logger):
     if 'state' not in _exist_tables:
         create_state_table(logger, schema=DatabaseInfo.output_schema)
     engine.close()
+
+def alter_column_type(schema: str, table_name: str, column_name: str, datatype: str) -> None:
+    q = f"""ALTER TABLE {table_name} MODIFY {column_name} {datatype};"""
+    connection = connect_database(schema, output=True)
+    cur = connection.cursor()
+    cur.execute(q)
+    connection.close()
 
 
 
