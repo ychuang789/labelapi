@@ -2,7 +2,7 @@
 
 ###### v2.0 created by Weber Huang at 2021-10-07; v2.1 updated by Weber Huang at 2021-11-09 =
 
-中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pptx)
+中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pdf)
 
 #### Table of content
 
