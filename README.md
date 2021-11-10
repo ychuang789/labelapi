@@ -21,9 +21,7 @@
   + [sample_result](#sample_result)
 + [Error code](#error-code)
 + [System Recommendation and Baseline Performance](#system-recommendation-and-baseline-performance)
-+ 
-
-
++ [Appendix](#appendix)
 
 ## Description
 
@@ -69,10 +67,7 @@ Users can track the progress and result sampling data by calling the rest of API
   + FastAPI 0.68.1
 + Test with
   + Windows 10 Python 3.8
-  
   + Ubuntu 18.04.5 LTS Python 3.8
-  
-    
 
 ## Quick Start
 
@@ -587,7 +582,7 @@ The problem is due to the memory tracking decorator from `utils/worker_core.py` 
 def label_data(task_id: str, **kwargs) -> List[str]:
 ```
 
-It seems that the problem is cause by the python memory tracing module, `memory_profiler`, which use the build-in python multiprocessing module. While in local environment (windows10) configure the pooling strategy with celery command `-P solo`, it is fine. The problem occurs when deploys the project to remote Linux using multiprocessing default pooling `-P prefork`.
+It seems that the problem is cause by the python memory tracing module, `memory_profiler`, which uses the build-in python multiprocessing module. While in local environment (windows10) configure the pooling strategy with celery command `-P solo`, it is fine. The problem occurs when deploys the project to remote Linux using multiprocessing default pooling `-P prefork`.
 
 In [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) it says : 
 
