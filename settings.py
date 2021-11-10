@@ -766,7 +766,6 @@ For eland staff only.
 """
 
 
-
 class CeleryConfig:
     name = 'celery_worker'
     sql_uri = 'sqlite:///save.db'

@@ -1,6 +1,6 @@
 # Audience API v 2.1
 
-###### v2.0 created by Weber Huang at 2021-10-07; v2.1 updated by Weber Huang at 2021-11-09 =
+###### v2.0 created by Weber Huang at 2021-10-07; v2.1 updated by Weber Huang at 2021-11-09
 
 中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pdf)
 
@@ -148,6 +148,8 @@ OUTPUT_USER=<database user info where you want to save output>
 OUTPUT_PASSWORD=<database password where you want to save output>
 OUTPUT_SCHEMA=<database schema where you want to save output>
 ```
+
+> Make sure to modify the `APIConfig.host` and `CeleryConfig.broker` in `settings.py` to your own address before get to the next part
 
 #### Initialize the worker
 
