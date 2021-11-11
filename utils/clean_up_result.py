@@ -2,13 +2,13 @@ from typing import List, Union
 import pandas as pd
 from sqlalchemy import create_engine
 
-from settings import DatabaseInfo
+from settings import DatabaseConfig
 from utils.database_core import connect_database, get_result_query, to_dataframe, create_table, drop_table
 from utils.helper import get_logger
 
 
 def scrap_result(_id: str, table_name: str) -> pd.DataFrame:
-    connection = connect_database(schema=DatabaseInfo.output_schema, output=True)
+    connection = connect_database(schema=DatabaseConfig.OUTPUT_SCHEMA, output=True)
     q = get_result_query(_id, table_name)
     with connection.cursor() as cursor:
         cursor.execute(q)
@@ -52,9 +52,9 @@ def run_cleaning(df: pd.DataFrame) -> pd.DataFrame:
 def write_results_back_to_database(df: pd.DataFrame ,table_name: str, logger: get_logger):
 
 
-    create_table(table_name, logger, schema=DatabaseInfo.output_schema)
+    create_table(table_name, logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
 
-    engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
+    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, pool_size=0, max_overflow=-1)
     connection = engine.connect()
 
     _table_name = f'wh_panel_mapping_{table_name}'

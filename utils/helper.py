@@ -4,10 +4,13 @@ import time
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from tqdm import tqdm
-from typing import Any, Iterable, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
+from dotenv import load_dotenv
 
 import pandas as pd
 from definition import LOGS_DIR
+from settings import DevelopConfig, ProductionConfig
+
 
 def get_error_file_handler(logger_name) -> Any:
     log_dir = os.path.join(LOGS_DIR, logger_name)
@@ -82,3 +85,8 @@ def create_keyword_dict(df: pd.DataFrame, label: str, keyword: Dict = None) -> D
     keyword_patterns.update(temp)
 
     return keyword_patterns
+
+def get_config():
+    load_dotenv()
+    configuration = DevelopConfig() if os.getenv('ENV') == "development" else ProductionConfig()
+    return configuration

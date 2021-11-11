@@ -1,7 +1,7 @@
 import pandas as pd
 from sqlalchemy import create_engine
 
-from settings import DatabaseInfo
+from settings import DatabaseConfig
 from utils.database_core import connect_database, to_dataframe, create_table
 from utils.clean_up_result import run_cleaning
 from utils.helper import get_logger
@@ -39,7 +39,7 @@ class TaskGenerateOutput(object):
         # _table_name = f"wh_panel_mapping_{table_name}_production"
         _table_name = f"wh_panel_mapping_{table_name}"
         try:
-            _connection = create_engine(DatabaseInfo.output_engine_info).connect()
+            _connection = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
             _exist_tables = [i[0] for i in _connection.execute('SHOW TABLES').fetchall()]
             if _table_name not in _exist_tables:
                 create_table(_table_name, logger, schema)

@@ -10,7 +10,7 @@ from models.rule_model import RuleModel
 from models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
-from settings import DatabaseInfo, SOURCE
+from settings import DatabaseConfig, SOURCE
 from utils.clean_up_result import run_cleaning
 from utils.database_core import create_table
 from utils.helper import get_logger
@@ -139,7 +139,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
 
     logger.info(f'write the output into database ...')
 
-    engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1).connect()
+    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, pool_size=0, max_overflow=-1).connect()
 
     exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
     # result_table_list = []
@@ -166,16 +166,16 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         # _table_name= f'wh_panel_mapping_{k}'
         _table_name = k
         if _table_name not in exist_tables:
-            create_table(_table_name, logger, schema=DatabaseInfo.output_schema)
+            create_table(_table_name, logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
 
         try:
 
             _df_write.to_sql(name=_table_name, con=engine, if_exists='append', index=False)
-            logger.info(f'successfully write data into {DatabaseInfo.output_schema}.{_table_name}')
+            logger.info(f'successfully write data into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}')
 
         except Exception as e:
             logger.error(f'write dataframe to test failed!')
-            raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
+            raise ConnectionError(f'failed to write output into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}... '
                                   f'additional error message {e}')
         # result_table_list.append(_table_name)
         result_table_dict.update({_table_name: temp_unique_source_author_total})

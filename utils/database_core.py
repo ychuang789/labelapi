@@ -7,12 +7,9 @@ import pymysql
 import pandas as pd
 from sqlmodel import SQLModel, create_engine
 from sqlalchemy import create_engine as C
-from tqdm import tqdm
 
-from definition import SCRAP_FOLDER, SAVE_FOLDER
 from utils.helper import get_logger
-from utils.selections import QueryStatements
-from settings import DatabaseInfo, SOURCE
+from settings import DatabaseConfig
 
 
 def create_db(db_path, config_db):
@@ -25,20 +22,20 @@ def create_db(db_path, config_db):
 def connect_database(schema = None, output = False):
     if not output:
         _config = {
-            'host': DatabaseInfo.host,
-            'port': DatabaseInfo.port,
-            'user': DatabaseInfo.user,
-            'password': DatabaseInfo.password,
+            'host': DatabaseConfig.INPUT_HOST,
+            'port': DatabaseConfig.INPUT_PORT,
+            'user': DatabaseConfig.INPUT_USER,
+            'password': DatabaseConfig.INPUT_PASSWORD,
             'db': schema,
             'charset': 'utf8mb4',
             'cursorclass': pymysql.cursors.DictCursor
         }
     else:
         _config = {
-            'host': DatabaseInfo.output_host,
-            'port': DatabaseInfo.output_port,
-            'user': DatabaseInfo.output_user,
-            'password': DatabaseInfo.output_password,
+            'host': DatabaseConfig.OUTPUT_HOST,
+            'port': DatabaseConfig.OUTPUT_PORT,
+            'user': DatabaseConfig.OUTPUT_USER,
+            'password': DatabaseConfig.OUTPUT_PASSWORD,
             'db': schema,
             'charset': 'utf8mb4',
             'cursorclass': pymysql.cursors.DictCursor
@@ -55,31 +52,6 @@ def connect_database(schema = None, output = False):
 def to_dataframe(data):
     return pd.DataFrame.from_dict(data)
 
-
-def scrap_data_to_csv(logger):
-    func = connect_database
-    file_list = []
-    for query in QueryStatements:
-        try:
-            date_time = datetime.now().strftime("%Y%m%d%H%M%S")
-
-            with func().cursor() as cursor:
-                logger.info('connecting to database...')
-                cursor.execute(query.value)
-                result = to_dataframe(cursor.fetchall())
-                print(len(result))
-                logger.info('saving results...')
-                result.to_csv(f"{SCRAP_FOLDER}/data_{str(query.name).lower()}_{date_time}.csv", encoding='utf-8-sig', index=None)
-                logger.info(f'successfully saving file data_{str(query.name).lower()}_{date_time}.csv to {SCRAP_FOLDER}')
-                file_list.append(f'data_{str(query.name).lower()}_{date_time}.csv')
-                func().close()
-
-        except:
-            logger.error(f'fail to scrap data')
-            return
-
-    return file_list
-
 def scrap_data_to_dict(query: str, schema: str):
     connection = connect_database(schema=schema, output=True)
     cur = connection.cursor()
@@ -88,125 +60,47 @@ def scrap_data_to_dict(query: str, schema: str):
     connection.close()
     return result
 
-def get_count(enging_info, **kwargs):
-    engine = C(enging_info).connect()
-
-    if not kwargs.get('date_info'):
-        # if not kwargs.get('chunk_by_source'):
-        count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
-                               f"WHERE {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
-        engine.close()
-        return count
-
-        # else:
-        #     assert condition != None, f'chunk_by_source is set to True ' \
-        #                               f'while source_array is not found.'
-        #
-        #     count = engine.execute(f"SELECT COUNT(*) FROM {kwargs.get('target_table')} "
-        #                            f"WHERE s_id in {condition} "
-        #                            f"AND {kwargs.get('predict_type')} IS NOT NULL").fetchone()[0]
-        #     engine.close()
-        #     return count
-    else:
-        # if not kwargs.get('chunk_by_source'):
-        count = engine.execute(f"SELECT COUNT(*) "
-                               f"FROM {kwargs.get('target_table')} "
-                               f"WHERE {kwargs.get('predict_type')} IS NOT NULL " 
-                               f"AND post_time BETWEEN '{kwargs.get('date_info_dict').get('start_time')}' "
-                               f"AND '{kwargs.get('date_info_dict').get('end_time')}'"
-                               ).fetchone()[0]
-        engine.close()
-        return count
-        # else:
-        #     assert condition != None, f'chunk_by_source is set to True ' \
-        #                               f'while source_array is not found.'
-        #
-        #     count = engine.execute(f"SELECT COUNT(*) "
-        #                            f"FROM {kwargs.get('target_table')} "
-        #                            f"WHERE s_id in {condition} "
-        #                            f"AND {kwargs.get('predict_type')} IS NOT NULL "
-        #                            f"AND post_time >= '{kwargs.get('date_info_dict').get('start_time')}' "
-        #                            f"AND post_time <= '{kwargs.get('date_info_dict').get('end_time')}'"
-        #                            ).fetchone()[0]
-        #     engine.close()
-        #     return count
-
-def get_label_data_count(task_id):
-    connection = C(DatabaseInfo.output_engine_info).connect()
-    q = f'SELECT length_output_table FROM state where task_id = "{task_id}";'
-    _count = connection.execute(q).fetchone()[0]
-    connection.close()
-    return _count
 
 
-def get_data_by_batch(count, predict_type, batch_size,
-                      schema, table, date_info = False, **kwargs) -> pd.DataFrame:
+# def get_label_data_count(task_id):
+#     connection = C(Database.OUTPUT_ENGINE_INFO).connect()
+#     q = f'SELECT length_output_table FROM state where task_id = "{task_id}";'
+#     _count = connection.execute(q).fetchone()[0]
+#     connection.close()
+#     return _count
 
-    if not date_info:
-        # if not chunk_by_source:
-        for offset in range(0, count, batch_size):
-            func = connect_database
-            with func(schema=schema).cursor() as cursor:
-                q = f"SELECT * FROM {table} " \
-                    f"WHERE {predict_type} IS NOT NULL " \
-                    f"LIMIT {batch_size} OFFSET {offset}"
-                cursor.execute(q)
-                result = to_dataframe(cursor.fetchall())
-                yield result
-                func(schema=schema).close()
-        # else:
-        #     assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
-        #     for offset in range(0, count, batch_size):
-        #         func = connect_database
-        #         with func(schema=schema).cursor() as cursor:
-        #             q = f"SELECT * FROM {table} " \
-        #                 f"WHERE s_id in {condition} " \
-        #                 f"AND {predict_type} IS NOT NULL " \
-        #                 f"LIMIT {batch_size} OFFSET {offset}"
-        #             cursor.execute(q)
-        #             result = to_dataframe(cursor.fetchall())
-        #             yield result
-        #             func(schema=schema).close()
-    else:
-        # if not chunk_by_source:
-        for offset in range(0, count, batch_size):
-            func = connect_database
-            with func(schema=schema).cursor() as cursor:
-                q = f"SELECT * FROM {table} " \
-                    f"WHERE {predict_type} IS NOT NULL " \
-                    f"AND post_time >= '{kwargs.get('start_time')}' " \
-                    f"AND post_time <= '{kwargs.get('end_time')}' "\
-                    f"LIMIT {batch_size} OFFSET {offset}"
-                cursor.execute(q)
-                result = to_dataframe(cursor.fetchall())
-                yield result
-                func(schema=schema).close()
-        # else:
-        #     assert condition != None, f'chunk_by_source is set to True while source_array is not found.'
-        #     for offset in range(0, count, batch_size):
-        #         func = connect_database
-        #         with func(schema=schema).cursor() as cursor:
-        #             q = f"SELECT * FROM {table} " \
-        #                 f"WHERE s_id in {condition} " \
-        #                 f"AND {predict_type} IS NOT NULL " \
-        #                 f"AND post_time >= '{kwargs.get('start_time')}' " \
-        #                 f"AND post_time <= '{kwargs.get('end_time')}' "\
-        #                 f"LIMIT {batch_size} OFFSET {offset}"
-        #             cursor.execute(q)
-        #             result = to_dataframe(cursor.fetchall())
-        #             yield result
-        #             func(schema=schema).close()
 
-def get_label_data_by_batch(task_id, count, batch_size, schema, table):
-    for offset in range(0, count, batch_size):
-        connection = connect_database(schema=schema, output=True)
-        with connection.cursor() as cursor:
-            q = f"SELECT * FROM {table} " \
-                f"WHERE task_id = '{task_id}' " \
-                f"LIMIT {batch_size} OFFSET {offset}"
-            cursor.execute(q)
-            result = to_dataframe(cursor.fetchall())
-            yield result
+# def get_data_by_batch(count, predict_type, batch_size,
+#                       schema, table, date_info = False, **kwargs) -> pd.DataFrame:
+#
+#     if not date_info:
+#         # if not chunk_by_source:
+#         for offset in range(0, count, batch_size):
+#             func = connect_database
+#             with func(schema=schema).cursor() as cursor:
+#                 q = f"SELECT * FROM {table} " \
+#                     f"WHERE {predict_type} IS NOT NULL " \
+#                     f"LIMIT {batch_size} OFFSET {offset}"
+#                 cursor.execute(q)
+#                 result = to_dataframe(cursor.fetchall())
+#                 yield result
+#                 func(schema=schema).close()
+#
+#     else:
+#         # if not chunk_by_source:
+#         for offset in range(0, count, batch_size):
+#             func = connect_database
+#             with func(schema=schema).cursor() as cursor:
+#                 q = f"SELECT * FROM {table} " \
+#                     f"WHERE {predict_type} IS NOT NULL " \
+#                     f"AND post_time >= '{kwargs.get('start_time')}' " \
+#                     f"AND post_time <= '{kwargs.get('end_time')}' "\
+#                     f"LIMIT {batch_size} OFFSET {offset}"
+#                 cursor.execute(q)
+#                 result = to_dataframe(cursor.fetchall())
+#                 yield result
+#                 func(schema=schema).close()
+
 
 
 def create_table(table_ID: str, logger: get_logger, schema=None):
@@ -271,17 +165,8 @@ def create_state_table(logger: get_logger, schema=None):
 def insert2state(task_id, status, model_type, predict_type,
                  date_range, target_table, time, result,
                  logger: get_logger, schema=None):
-    config = {
-        'host': DatabaseInfo.output_host,
-        'port': DatabaseInfo.output_port,
-        'user': DatabaseInfo.output_user,
-        'password': DatabaseInfo.output_password,
-        'db': schema,
-        'charset': 'utf8mb4',
-        'cursorclass': pymysql.cursors.DictCursor,
-    }
 
-    connection = pymysql.connect(**config, write_timeout=30)
+    connection = connect_database(schema=schema, output=True)
 
     insert_sql = f'INSERT INTO state ' \
                  f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
@@ -307,17 +192,8 @@ def insert2state(task_id, status, model_type, predict_type,
 def update2state(task_id, result, logger: get_logger, input_row_length = None,
                  output_row_length = None, run_time=None, schema=None, success=True,
                  check_point=None, uniq_source_author=None):
-    config = {
-        'host': DatabaseInfo.output_host,
-        'port': DatabaseInfo.output_port,
-        'user': DatabaseInfo.output_user,
-        'password': DatabaseInfo.output_password,
-        'db': schema,
-        'charset': 'utf8mb4',
-        'cursorclass': pymysql.cursors.DictCursor,
-    }
 
-    connection = pymysql.connect(**config, write_timeout=30)
+    connection = connect_database(schema=schema, output=True)
     if success:
         insert_sql = f'UPDATE state ' \
                      f'SET stat = "SUCCESS", result = "{result}", ' \
@@ -342,61 +218,6 @@ def update2state(task_id, result, logger: get_logger, input_row_length = None,
     except Exception as e:
         raise e
 
-def update_memory_time_to_state(task_id, time_data: float, memory_usage: int, logger: get_logger, schema=None):
-    config = {
-        'host': DatabaseInfo.output_host,
-        'port': DatabaseInfo.output_port,
-        'user': DatabaseInfo.output_user,
-        'password': DatabaseInfo.output_password,
-        'db': schema,
-        'charset': 'utf8mb4',
-        'cursorclass': pymysql.cursors.DictCursor,
-    }
-
-    connection = pymysql.connect(**config)
-
-    insert_sql = f'UPDATE state ' \
-                 f'SET run_time = {time_data}, ' \
-                 f'peak_memory = {memory_usage} ' \
-                 f'where task_id = "{task_id}"'
-
-    try:
-        cursor = connection.cursor()
-        logger.info('connecting to database...')
-        cursor.execute(insert_sql)
-        logger.info(f'successfully write resource statement into table.')
-        connection.commit()
-        connection.close()
-    except Exception as e:
-        raise e
-
-
-def insert_table(table_ID: str, logger: get_logger, df):
-    if SOURCE.get(table_ID):
-        logger.info('connect to database...')
-        engine = create_engine(DatabaseInfo.output_engine_info.value).connect()
-        exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-        engine.close()
-
-        if SOURCE.get(table_ID) in exist_tables:
-            pass
-        else:
-            logger.info(f'no table {SOURCE.get(table_ID)} in schema {DatabaseInfo.output_schema}, '
-                        f'start creating one...')
-            create_table(table_ID, logger)
-
-        logger.info(f'write dataframe into table {SOURCE.get(table_ID)}')
-        try:
-            connection = engine.connect()
-            df.to_sql(name=SOURCE.get(table_ID), con=connection, if_exists='append', index=False)
-            logger.info(f'success, plz check {SOURCE.get(table_ID)}')
-            connection.close()
-        except:
-            logger.error(f'write dataframe to {SOURCE.get(table_ID)} failed!')
-
-    else:
-        logger.error('table_name is not found')
-        return
 
 def drop_table(table_name: str, logger: get_logger, schema=None) :
     """drop table name"""
@@ -413,24 +234,6 @@ def drop_table(table_name: str, logger: get_logger, schema=None) :
         logger.error('Cannot drop the table')
         raise e
 
-def result_to_db(save_dir: SAVE_FOLDER, file_name: str, logger: get_logger):
-    file_path = Path(save_dir / file_name)
-    df = pd.read_csv(file_path, encoding='utf-8')
-
-    for k in tqdm(SOURCE.keys()):
-        start = datetime.now()
-        temp = df[df['source_id'] == k]
-        if len(temp) == 0:
-            continue
-        else:
-            logger.info(f'start inserting data to table {SOURCE.get(k)}')
-            insert_table(k, logger, temp)
-            logger.info(f'complete inserting data to table {SOURCE.get(k)}')
-            now = datetime.now()
-            difference = now - start
-            logger.info(f'writing table {SOURCE.get(k)} into db cost {difference.seconds} second')
-
-    return f'Output file {file_name} is write into {DatabaseInfo.output_schema}'
 
 def get_create_task_query(target_table, predict_type, start_time, end_time, get_all = False):
 
@@ -452,7 +255,7 @@ def get_tasks_query_recent(order_column, number):
     q = f'SELECT * FROM state ' \
         f'ORDER BY {order_column} DESC ' \
         f'LIMIT {number} '
-    schema = DatabaseInfo.output_schema
+    schema = DatabaseConfig.OUTPUT_SCHEMA
     connection = connect_database(schema, output=True)
     cur = connection.cursor()
     # cursor.executescript(sql_as_string)
@@ -466,7 +269,7 @@ def get_table_info(id):
     FROM state WHERE 
     task_id = '{id}'
     """
-    connection = connect_database(schema=DatabaseInfo.output_schema, output=True)
+    connection = connect_database(schema=DatabaseConfig.OUTPUT_SCHEMA, output=True)
     cur = connection.cursor()
     cur.execute(q)
     result = cur.fetchone()
@@ -481,7 +284,7 @@ def get_sample_query(_id, tablename, number):
 
 def query_state_by_id(_id):
     q = f"SELECT * FROM state WHERE task_id = '{_id}'"
-    schema = DatabaseInfo.output_schema
+    schema = DatabaseConfig.OUTPUT_SCHEMA
     connection = connect_database(schema, output=True)
     cur = connection.cursor()
     # cursor.executescript(sql_as_string)
@@ -548,7 +351,7 @@ def get_distinct_count(schema, tablename, condition=None, start_time=None, end_t
     return count
 
 def get_label_source_from_state(task_id):
-    connection = C(DatabaseInfo.output_engine_info).connect()
+    connection = C(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
     q = f'SELECT target_table FROM state WHERE task_id = "{task_id}"; '
     source_name = connection.execute(q).fetchone()[0]
     connection.close()
@@ -615,10 +418,10 @@ def check_state_prod_length_for_task_info(task_id: str, schema: str):
 
 
 def check_state_exist(logger):
-    engine = create_engine(DatabaseInfo.output_engine_info).connect()
+    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
     _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
     if 'state' not in _exist_tables:
-        create_state_table(logger, schema=DatabaseInfo.output_schema)
+        create_state_table(logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
     engine.close()
 
 def alter_column_type(schema: str, table_name: str, column_name: str, datatype: str) -> None:

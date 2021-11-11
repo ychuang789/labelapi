@@ -5,28 +5,28 @@ from datetime import datetime
 
 from celery import Celery
 
-from settings import CeleryConfig, DatabaseInfo
+from settings import DatabaseConfig
 from utils.database_core import update2state, get_batch_by_timedelta
-from utils.helper import get_logger
+from utils.helper import get_logger, get_config
 from utils.run_label_task import labeling
 from utils.task_generate_production_core import TaskGenerateOutput
 from utils.task_info_core import TaskInfo
 from utils.worker_core import memory_usage_tracking, track_cpu_usage
 
 
+configuration = get_config()
 
-name = CeleryConfig.name
-celery_app = Celery(name=name,
-                    backend=CeleryConfig.backend,
-                    broker=CeleryConfig.broker)
+celery_app = Celery(name=configuration.CELERY_NAME,
+                    backend=configuration.CELERY_BACKEND,
+                    broker=configuration.CELERY_BROKER)
 
-celery_app.conf.update(enable_utc=CeleryConfig.enable_utc)
-celery_app.conf.update(timezone=CeleryConfig.timezone)
-celery_app.conf.update(result_extended=True)
-celery_app.conf.update(task_track_started=True)
+celery_app.conf.update(enable_utc=configuration.CELERY_ENABLE_UTC)
+celery_app.conf.update(timezone=configuration.CELERY_TIMEZONE)
+celery_app.conf.update(result_extended=configuration.CELERY_RESULT_EXTENDED)
+celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTED)
 
 
-@celery_app.task(name=f'{name}.label_data', track_started=True)
+@celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking
 def label_data(task_id: str, **kwargs) -> List[str]:
     _logger = get_logger('label_data')
@@ -34,8 +34,8 @@ def label_data(task_id: str, **kwargs) -> List[str]:
     start_time = datetime.now()
     # cpu_info_df = pd.DataFrame(columns=['task_id', 'batch', 'cpu_percent', 'cpu_freq', 'cpu_load_avg'])
 
-    start_date = kwargs.get('start_time')
-    end_date = kwargs.get('end_time')
+    start_date = kwargs.get('START_TIME')
+    end_date = kwargs.get('END_TIME')
     start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
     end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
 
@@ -43,16 +43,16 @@ def label_data(task_id: str, **kwargs) -> List[str]:
     count = 0
     row_number = 0
 
-    for idx, elements in enumerate(get_batch_by_timedelta(kwargs.get('target_schema'),
-                                                         kwargs.get('predict_type'),
-                                                         kwargs.get('target_table'),
+    for idx, elements in enumerate(get_batch_by_timedelta(kwargs.get('INPUT_SCHEMA'),
+                                                         kwargs.get('PREDICT_TYPE'),
+                                                         kwargs.get('INPUT_TABLE'),
                                                          start_date_d, end_date_d)):
 
-        _logger.info(f'Start calculating task {task_id} {kwargs.get("target_schema")}.'
-                     f'{kwargs.get("target_table")}_batch_{idx} ...')
+        _logger.info(f'Start calculating task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
+                     f'{kwargs.get("INPUT_TABLE")}_batch_{idx} ...')
 
         # change the `author` back to `author_name` to fit the label modeling
-        pred = "author_name" if kwargs.get('predict_type') == "author" else kwargs.get('predict_type')
+        pred = "author_name" if kwargs.get('PREDICT_TYPE') == "author" else kwargs.get('PREDICT_TYPE')
 
         element, date_checkpoint = elements
 
@@ -62,7 +62,7 @@ def label_data(task_id: str, **kwargs) -> List[str]:
         count += len(element)
 
         try:
-            _output, row_num = labeling(task_id, element, kwargs.get('model_type'),
+            _output, row_num = labeling(task_id, element, kwargs.get('MODEL_TYPE'),
                                pred, kwargs.get('pattern'), _logger)
 
             row_number += row_num
@@ -74,8 +74,8 @@ def label_data(task_id: str, **kwargs) -> List[str]:
                     table_dict.update({k:v})
 
 
-            _logger.info(f'task {task_id} {kwargs.get("target_schema")}.'
-                         f'{kwargs.get("target_table")}_batch_{idx} finished labeling...')
+            _logger.info(f'task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
+                         f'{kwargs.get("INPUT_TABLE")}_batch_{idx} finished labeling...')
 
             # cpu_track = track_cpu_usage()
             # cpu_track.update({'task_id': task_id, 'batch': idx})
@@ -83,29 +83,29 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 
         except Exception as e:
             update2state(task_id, '', _logger,
-                         schema=DatabaseInfo.output_schema,
+                         schema=DatabaseConfig.OUTPUT_SCHEMA,
                          success=False,
                          check_point=date_checkpoint)
 
-            err_msg = f'task {task_id} failed at {kwargs.get("target_schema")}.' \
-                      f'{kwargs.get("target_table")}_batch_{idx}, additional error message {e}'
+            err_msg = f'task {task_id} failed at {kwargs.get("INPUT_SCHEMA")}.' \
+                      f'{kwargs.get("INPUT_TABLE")}_batch_{idx}, additional error message {e}'
             _logger.error(err_msg)
             raise e
 
     finish_time = (datetime.now() - start_time).total_seconds() / 60
-    _logger.info(f'task {task_id} {kwargs.get("target_schema")}.'
-                 f'{kwargs.get("target_table")} done, total time is '
+    _logger.info(f'task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
+                 f'{kwargs.get("INPUT_TABLE")} done, total time is '
                  f'{finish_time} minutes')
 
     update2state(task_id, ','.join(table_dict.keys()), _logger, count, row_number, finish_time,
-                 schema=DatabaseInfo.output_schema,
+                 schema=DatabaseConfig.OUTPUT_SCHEMA,
                  uniq_source_author=','.join([str(len(i)) for i in table_dict.values()]))
 
     # cpu_info_df.to_csv(f'save_file/{task_id}_cpu_info.csv', encoding='utf-8-sig', index=False)
 
     return list(table_dict.keys())
 
-@celery_app.task(name=f'{name}.generate_production', track_started=True)
+@celery_app.task(name=f'{configuration.CELERY_NAME}.generate_production', track_started=True)
 def generate_production(output_table: List[str], task_id: str, **kwargs) -> None:
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
@@ -114,7 +114,7 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
         _logger.info(f'start generating output for table {tb}...')
 
         generate_production = TaskGenerateOutput(task_id,
-                                                 kwargs.get('output_schema'),
+                                                 kwargs.get('OUTPUT_SCHEMA'),
                                                  tb, _logger)
         _output_table_name, row_num = generate_production.clean()
 
@@ -123,9 +123,9 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
         _logger.info(f'start generating task validation for table {tb} ...')
 
         task_info_obj = TaskInfo(task_id,
-                                 kwargs.get('output_schema'),
+                                 kwargs.get('OUTPUT_SCHEMA'),
                                  tb,
-                                 kwargs.get('target_table'),
+                                 kwargs.get('INPUT_TABLE'),
                                  row_num, _logger)
 
         _logger.info(f'start calculating rate_of_label for table {tb}...')

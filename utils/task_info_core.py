@@ -1,7 +1,5 @@
 from typing import Dict
-from sqlalchemy import create_engine
-from settings import DatabaseInfo, SOURCE
-from utils.database_core import connect_database, get_distinct_count, get_label_source_from_state, \
+from utils.database_core import connect_database, get_label_source_from_state, \
     check_state_result_for_task_info, check_state_prod_length_for_task_info
 from utils.helper import get_logger
 

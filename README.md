@@ -132,6 +132,8 @@ $ which python
 $ pip install -r requirements.txt
 ```
 
+> 
+
 #### Set up database information
 
 Set the database environment variables information in your project root directory. Create a file, name `.env` , with some important info inside:
@@ -147,6 +149,7 @@ OUTPUT_PORT=<database port where you want to save output>
 OUTPUT_USER=<database user info where you want to save output>
 OUTPUT_PASSWORD=<database password where you want to save output>
 OUTPUT_SCHEMA=<database schema where you want to save output>
+ENV=<choose between "development" or "production">
 ```
 
 > Make sure to modify the `APIConfig.host` and `CeleryConfig.broker` in `settings.py` to your own address before get to the next part
@@ -567,10 +570,10 @@ Error code in this project is group by <u>API task error code</u> and <u>HTTP er
 
 **Baseline Performance**
 
-+ Data size : 2,376,186 rows
++ Data size : 39,291,336 row
 + Predict model : keyword_base model  
-+ Finished time : 23.26 minutes  
-+ Max memory usage :   201.80 Mb
++ Finished time : 149.378 minutes  
++ Max memory usage(maximum resident set size ) :   812.38 Mb
 
 
 
@@ -608,7 +611,7 @@ In [Celery Execution Pools: What is it all about?](https://www.distributedpython
 
 > The prefork pool implementation is based on Python’s [multiprocessing](https://docs.python.org/dev/library/multiprocessing.html#module-multiprocessing) package. It allows your Celery worker to side-step [Python’s Global Interpreter Lock](https://docs.python.org/dev/glossary.html#term-global-interpreter-lock) and fully leverage multiple processors on a given machine.
 
-Some cases of similar issues with celery multiprocessing at official github : 
+Some cases of similar issues with celery multiprocessing at official Git hub : 
 
 [Tasks are not allowed to start sub processes](https://github.com/celery/celery/issues/1709) 
 
