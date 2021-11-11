@@ -427,7 +427,7 @@ Response example :
 
 `/api/tasks/{task_id}/sample/` 
 
-Input task id (execute this only if <u>prod_status</u> is finish, otherwise you will receive task error code `500` with error message `table not is exist`), return the sampling results from result tables.
+Input task id (execute this only if <u>prod_status</u> is finish, otherwise you will receive task error code `500` with error message `table is not exist`), return the sampling results from result tables.
 
 Request example :
 
