@@ -460,6 +460,18 @@ def get_tasks_query_recent(order_column, number):
     connection.close()
     return r
 
+def get_table_info(id):
+    q = f"""SELECT result 
+    FROM state WHERE 
+    task_id = '{id}'
+    """
+    connection = connect_database(schema=DatabaseInfo.output_schema, output=True)
+    cur = connection.cursor()
+    cur.execute(q)
+    result = cur.fetchone()
+    return result.get('result').split(',')
+
+
 def get_sample_query(_id, tablename, number):
     q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
         f"AND rand() <= 0.2 " \

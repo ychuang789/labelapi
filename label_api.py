@@ -13,7 +13,7 @@ from celery import chain
 from celery_worker import label_data, generate_production
 from settings import APIConfig, CreateTaskRequestBody, SampleResultRequestBody, TaskListRequestBody, DatabaseInfo
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
-    get_sample_query, create_state_table, insert2state, query_state_by_id
+    get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info
 from utils.helper import get_logger
 from utils.run_label_task import read_from_dir
 from utils.selections import SampleResulTable
@@ -162,9 +162,7 @@ async def check_status(task_id):
 @app.get('/api/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
                                                      'If you have no clue of task_id or table_names check the  '
                                                      '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
-async def sample_result(task_id: str, table_name: List[SampleResulTable] = Query(..., description='press Ctrl/Command with '
-                                                                                    'right key of mouse to '
-                                                                                    'choose multiple tables')):
+async def sample_result(task_id: str):
     if len(task_id) != 32:
         err_info = {
             "error_code": 400,
@@ -173,12 +171,16 @@ async def sample_result(task_id: str, table_name: List[SampleResulTable] = Query
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
+
+    tb_list = get_table_info(task_id)
+
     q = ''
-    for i in range(len(table_name)):
-        query = get_sample_query(task_id,table_name[i],
+    for i in range(len(tb_list)):
+        output_tb_name = f'wh_panel_mapping_{tb_list[i]}'
+        query = get_sample_query(task_id,output_tb_name,
                                  SampleResultRequestBody.number)
         q += query
-        if i != len(table_name)-1:
+        if i != len(tb_list)-1:
             q += ' UNION ALL '
         else:
             pass
