@@ -152,15 +152,13 @@ OUTPUT_SCHEMA=<database schema where you want to save output>
 ENV=<choose between `development` or `production`>
 ```
 
-> Make sure to modify the `APIConfig.host` and `CeleryConfig.broker` in `settings.py` to your own address before get to the next part
+> For ENV, development is set default as localhost (127.0.0.1) while you can edit the`ProductionConfig` in `settings.py` 
 
 #### Initialize the worker
 
 ###### Run the worker
 
 Make sure the redis is running beforehand or you should fail to initialize celery.
-
-Before running the celery worker, edit the `CeleryConfig` in `settings.py` to specify the broker and backend, see [Backends and Brokers](https://docs.celeryproject.org/en/stable/getting-started/backends-and-brokers/index.html) for more details configuration.
 
 **Windows**
 
