@@ -373,8 +373,8 @@ Response example :
 | name                 | description                                                  |
 | -------------------- | ------------------------------------------------------------ |
 | task_id              | task id                                                      |
-| stat                 | status of labeling task (PENDING, SUCCESS, FAILURE)          |
-| prod_stat            | status of generate production task (finish or null)          |
+| stat                 | status of labeling task (*PENDING, SUCCESS, FAILURE*)        |
+| prod_stat            | status of generate production task (*finish* or *null*)      |
 | model_type           | model used by labeling                                       |
 | predict_type         | predict target                                               |
 | date_range           | users define date range of create_task                       |
@@ -393,7 +393,7 @@ Response example :
 
 `/api/tasks/{task_id}` 
 
-Return the task status (*PENDING, SUCCESS, FAILURE*) via task id, if the task is *SUCCESS* return result (temp result table_name) too.
+Return the task status (*PENDING, SUCCESS, FAILURE*) and prod_status (*finish* or *Null*) via task id, if the task is *SUCCESS* return result (temp result table_name) too.
 
 Request example :
 
@@ -417,8 +417,8 @@ Response example :
 
 | name        | description                                                  |
 | ----------- | ------------------------------------------------------------ |
-| status      | status of label task                                         |
-| prod_status | status of generate production task                           |
+| status      | status of label task (*PENDING, SUCCESS, FAILURE*)           |
+| prod_status | status of generate production task (*finish* or *null*)      |
 | result      | temp result table name of label task in output schema, if generate production is finished the result will be store in `wh_panel_mapping_{result}` in the same output schema |
 
 #### sample_result
@@ -556,15 +556,16 @@ Error code in this project is group by <u>API task error code</u> and <u>HTTP er
 
 ## System Recommendation and Baseline Performance
 
-Recommend System : Ubuntu 18.04.5 LTS (Recommended) or Windows 10 (Noted the multiprocessing issue of celery in WIN10 )
+**System Recommendation**
 
-Recommend python environment : Python 3.8
++ System : Ubuntu 18.04.5 LTS (Recommended) or Windows 10 (Noted the multiprocessing issue of celery in WIN10 )
++ Python environment : Python 3.8
 
-Recommend processor : Intel(R) Core(TM) i5-8259U + or other processor with same efficiency
++ Processor : Intel(R) Core(TM) i5-8259U + or other processor with same efficiency
 
-RAM : 16G +
++ RAM : 16G +
 
-Baseline Performance
+**Baseline Performance**
 
 + Data size : 2,376,186 rows
 + Predict model : keyword_base model  

@@ -24,31 +24,32 @@ def create_db(db_path, config_db):
 
 def connect_database(schema = None, output = False):
     if not output:
-        config = {
+        _config = {
             'host': DatabaseInfo.host,
             'port': DatabaseInfo.port,
             'user': DatabaseInfo.user,
             'password': DatabaseInfo.password,
             'db': schema,
             'charset': 'utf8mb4',
-            'cursorclass': pymysql.cursors.DictCursor,
+            'cursorclass': pymysql.cursors.DictCursor
         }
     else:
-        config = {
+        _config = {
             'host': DatabaseInfo.output_host,
             'port': DatabaseInfo.output_port,
             'user': DatabaseInfo.output_user,
             'password': DatabaseInfo.output_password,
             'db': schema,
             'charset': 'utf8mb4',
-            'cursorclass': pymysql.cursors.DictCursor,
+            'cursorclass': pymysql.cursors.DictCursor
         }
     try:
-        connection = pymysql.connect(**config)
+        connection = pymysql.connect(**_config)
         return connection
 
-    except:
+    except Exception as e:
         logging.error('Fail to connect to database.')
+        raise e
 
 
 def to_dataframe(data):

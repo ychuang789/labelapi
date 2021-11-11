@@ -1,5 +1,4 @@
 import os
-import json
 
 
 from dotenv import load_dotenv
@@ -811,11 +810,6 @@ class TaskListRequestBody:
     user = os.getenv('OUTPUT_USER')
     password = os.getenv('OUTPUT_PASSWORD')
     output_schema = os.getenv('OUTPUT_SCHEMA')
-    # order_column: str = 'date_done'
-    # number: int = 10
-    # offset: int = 1000
-    # sql_schema: str = 'sqlite:///save.db'
-    # table: str = 'celery_taskmeta'
     order_column: str = 'create_time'
     number: int = 5
     offset: int = 1000

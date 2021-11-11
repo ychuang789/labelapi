@@ -88,7 +88,7 @@ class TaskInfo(object):
 
         update_sql = f'UPDATE state ' \
                      f'SET prod_stat = "finish", ' \
-                     f'length_prod_table = {length_prod_table}, ' \
+                     f'length_prod_table = "{length_prod_table}", ' \
                      f'rate_of_label = "{rate_of_label}" ' \
                      f'where task_id = "{task_id}"'
 
