@@ -1,6 +1,6 @@
 # Audience API v 2.1
 
-###### v2.0 created by Weber Huang at 2021-10-07; v2.1 updated by Weber Huang at 2021-11-09
+###### v2.0 created by Weber Huang at 2021-10-07; v2.1 last updated by Weber Huang at 2021-11-11
 
 中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pdf)
 
@@ -132,7 +132,7 @@ $ which python
 $ pip install -r requirements.txt
 ```
 
-> 
+> You can use `tmux` to build a background session in Linux system to deploy the celery worker, see [tmux shortcuts & cheatsheet](https://gist.github.com/MohamedAlaa/2961058), [Getting started with Tmux](https://linuxize.com/post/getting-started-with-tmux/) or [linux tmux terminal multiplexer tutorial](https://blog.gtwang.org/linux/linux-tmux-terminal-multiplexer-tutorial/) to gain more information.
 
 #### Set up database information
 
@@ -149,7 +149,7 @@ OUTPUT_PORT=<database port where you want to save output>
 OUTPUT_USER=<database user info where you want to save output>
 OUTPUT_PASSWORD=<database password where you want to save output>
 OUTPUT_SCHEMA=<database schema where you want to save output>
-ENV=<choose between "development" or "production">
+ENV=<choose between `development` or `production`>
 ```
 
 > Make sure to modify the `APIConfig.host` and `CeleryConfig.broker` in `settings.py` to your own address before get to the next part
@@ -189,8 +189,6 @@ According to [Celery Execution Pools: What is it all about?](https://www.distrib
 
 > Let’s say you need to execute thousands of HTTP GET requests to fetch data from external REST APIs. The time it takes to complete a single GET request depends almost entirely on the time it takes the server to handle that request. Most of the time, your tasks wait for the server to send the response, not using any CPU.
 
-
-
 #### Run the API
 
 Configure the API address in `settings.py`, default address is localhost
@@ -198,8 +196,6 @@ Configure the API address in `settings.py`, default address is localhost
 ```bash
 $ python label_api.py
 ```
-
-
 
 ## Usage
 
@@ -498,8 +494,6 @@ Response example :
 | create_time   | Post_time                                 |
 | field_content | s_id                                      |
 | match_content | The content which is matched to labeling. |
-
-
 
 ## Error code 
 
