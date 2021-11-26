@@ -230,7 +230,8 @@ def get_last_production(logger: get_logger, **kwargs):
             drop_table(temp_table_to_delete, get_logger("scrap_data"), schema=schema)
 
     logger.info('start generating audience production ZIP ...')
-    generate_zip(list(production_dict.keys()))
+    last_table = ['wh_panel_mapping_' + i for i in list(production_dict.keys())]
+    generate_zip(last_table)
 
 
 
