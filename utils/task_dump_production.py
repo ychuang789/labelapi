@@ -117,7 +117,8 @@ def generate_zip(table_name: List, production_path = AUDIENCE_PRODUCTION_PATH):
     password = DatabaseConfig.OUTPUT_PASSWORD
     schema = DatabaseConfig.OUTPUT_SCHEMA
     today =datetime.now().strftime("%Y_%m_%d")
-    path = f'{production_path}/{today}'
+    # path = f'{production_path}/{today}'
+    path = f'{production_path}/{today}/temp'
 
     for tb in table_name:
 
