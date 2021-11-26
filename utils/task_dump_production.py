@@ -1,6 +1,7 @@
 import os
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Optional
 
 import pandas as pd
@@ -118,7 +119,8 @@ def generate_zip(table_name: List, production_path = AUDIENCE_PRODUCTION_PATH):
     schema = DatabaseConfig.OUTPUT_SCHEMA
     today =datetime.now().strftime("%Y_%m_%d")
     # path = f'{production_path}/{today}'
-    path = f'{production_path}/{today}/temp'
+    path = f'{production_path}/temp'
+
 
     for tb in table_name:
 
