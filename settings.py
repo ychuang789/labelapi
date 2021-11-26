@@ -743,10 +743,16 @@ SOURCE: Dict = {
     ]
 }
 
-# load_dotenv()
-# OUTPUT_ENGINE_INFO: str = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
-#                           f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
-#                           f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
+TABLE_GROUPS_FOR_INDEX = {
+    'fb': ['fbfans', 'fbgroup', 'fbkol', 'fbpm', 'fbprivategroup'],
+    'forum': ['forum', 'Dcard'],
+    'bbs': ['Ptt'],
+    'social': ['Instagram', 'Tiktok', 'Twitter', 'plurk'],
+    'comment': ['Comment'],
+    'youtube': ['Youtube'],
+    'news': ['news'],
+    'Blog': ['blog']
+}
 
 
 class DevelopConfig(BaseSettings):

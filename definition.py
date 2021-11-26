@@ -13,5 +13,8 @@ Path(SAVE_FOLDER).mkdir(exist_ok=True)
 RULE_FOLDER = Path(ROOT_DIR / "rules")
 Path(RULE_FOLDER).mkdir(exist_ok=True)
 
+# only use this in lab machine
+AUDIENCE_PRODUCTION_PATH = '/home/deeprd2/audience_production'
+
 DEEPNLP_POS_API = "http://127.0.0.1/segment"
 DEEPNLP_POS_API_TOKEN = ""

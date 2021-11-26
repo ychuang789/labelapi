@@ -9,6 +9,7 @@ from settings import DatabaseConfig
 from utils.database_core import update2state, get_batch_by_timedelta
 from utils.helper import get_logger, get_config
 from utils.run_label_task import labeling
+from utils.task_dump_production import get_last_production
 from utils.task_generate_production_core import TaskGenerateOutput
 from utils.task_info_core import TaskInfo
 from utils.worker_core import memory_usage_tracking, track_cpu_usage
@@ -138,6 +139,19 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
 
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
+
+    _logger.info(f'start dumping the result to ZIP from task {task_id}...')
+
+    dump_info_kwargs = {
+        'schema': kwargs.get('OUTPUT_SCHEMA'),
+        'table_name': 'state',
+        'task_id': task_id
+    }
+
+    get_last_production(_logger, **dump_info_kwargs)
+
+    _logger.info(f'finish dumping the result to ZIP from task {task_id}...')
+
 
 
 

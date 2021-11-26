@@ -40,7 +40,7 @@ class TestAPIs(object):
         assert response.status_code == 200
 
     def test_sample_result(self):
-        response = self.client.get(f"/api/tasks/e138514e307a11eca07b04ea56825bad/sample/?table_name=wh_panel_mapping_Dcard&table_name=wh_panel_mapping_forum")
+        response = self.client.get(f"/api/tasks/e138514e307a11eca07b04ea56825bad/sample")
         assert response.status_code == 200
 
 

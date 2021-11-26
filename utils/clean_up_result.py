@@ -39,6 +39,7 @@ def clean_data(df: pd.DataFrame) -> Union[pd.DataFrame, None]:
     return group
 
 def run_cleaning(df: pd.DataFrame) -> pd.DataFrame:
+    df['source_author'] = df['source_author'].str.strip()
     remove_duplicates_df = clean_data(df) if clean_data(df) else None
     uniq_df = df.sort_values(by='create_time').drop_duplicates(subset=['source_author', 'panel'], keep='last')
 
@@ -46,8 +47,8 @@ def run_cleaning(df: pd.DataFrame) -> pd.DataFrame:
         return uniq_df
 
     output = pd.merge(uniq_df, remove_duplicates_df, on=['source_author', 'panel']).drop(['counts'], axis=1)
-
-    return output.sort_values(by='create_time')
+    # o = output.drop_duplicates(subset=['source_author', 'panel'], keep='last')
+    return o.sort_values(by='create_time')
 
 def write_results_back_to_database(df: pd.DataFrame ,table_name: str, logger: get_logger):
 
