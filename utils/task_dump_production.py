@@ -79,13 +79,13 @@ def get_dump_info(**kwargs) -> Dict[str, str]:
     connection = connect_database(schema=schema, output=True)
     return get_data(connection, get_query(**kwargs).get('dump_info'), _fetchone=True)
 
-def check_table_exist(table_name: str, **kwargs) -> Optional[Dict[str, str]]:
+def check_table_exist(_table_name: str, **kwargs) -> Optional[Dict[str, str]]:
     query_dict = get_query(**kwargs)
     if not query_dict.get('check_table_exist'):
         raise QueryNotFoundError('Query not found, cannot check if dump tables are exist')
 
     schema = kwargs.get('schema')
-    kwargs.update({'table_name': table_name})
+    kwargs.update({'table_name': _table_name})
     connection = connect_database(schema=schema, output=True)
 
     return get_data(connection, get_query(**kwargs).get('check_table_exist'), _fetchone=True)
@@ -177,11 +177,14 @@ def get_last_production(logger: get_logger, **kwargs):
                 raise TableMissingError(f'table {_table_name} not found!')
 
             kwargs.update({'table_name': _table_name})
+            connection = connect_database(schema=schema, output=True)
+            is_duplicated = get_data(connection,
+                                     get_query(**kwargs).get('check_duplicate_data'))
 
             connection = connect_database(schema=schema, output=True)
-            is_duplicated = get_data(connection,get_query(**kwargs).get('check_duplicate_data'))
+            result = get_data(connection,
+                              get_query(**kwargs).get('get_production_data'))
 
-            result = get_data(connection, get_query(**kwargs).get('get_production_data'))
             df = to_dataframe(result)
 
             if is_duplicated:
@@ -200,9 +203,13 @@ def get_last_production(logger: get_logger, **kwargs):
 
         production_table_name = f"wh_panel_mapping_{key}"
         if check_table_exist(production_table_name, **kwargs):
-            kwargs.update({'table_name': production_table_name})
-            connection = connect_database(schema=schema, output=True)
-            alter_table(connection, get_query(**kwargs).get('change_table_name'))
+            temp_production_table_name = f'{production_table_name}_old'
+            if check_table_exist(temp_production_table_name, **kwargs):
+                drop_table(temp_production_table_name, logger, schema=schema)
+                kwargs.update({'table_name': production_table_name})
+                connection = connect_database(schema=schema, output=True)
+                alter_table(connection,
+                            get_query(**kwargs).get('change_table_name'))
 
         create_table(production_table_name, get_logger('scrap_data'), schema=schema)
 
@@ -220,8 +227,8 @@ def get_last_production(logger: get_logger, **kwargs):
             logger.info(f'start dropping old table {temp_table_to_delete} ...')
             drop_table(temp_table_to_delete, get_logger("scrap_data"), schema=schema)
 
-    # logger.info('start generating audience production ZIP ...')
-    # generate_zip(list(production_dict.keys()))
+    logger.info('start generating audience production ZIP ...')
+    generate_zip(list(production_dict.keys()))
 
 
 
