@@ -37,8 +37,8 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 
     start_date = kwargs.get('START_TIME')
     end_date = kwargs.get('END_TIME')
-    start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
-    end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+    start_date_d = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+    end_date_d = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
 
     table_dict = {}
     count = 0
