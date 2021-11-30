@@ -111,6 +111,9 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
 
+    if len(output_table) == 0:
+        return
+
     for tb in output_table:
         _logger.info(f'start generating output for table {tb}...')
 
