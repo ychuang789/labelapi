@@ -37,8 +37,8 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 
     start_date = kwargs.get('START_TIME')
     end_date = kwargs.get('END_TIME')
-    start_date_d = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-    end_date_d = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+    start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
+    end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
 
     table_dict = {}
     count = 0
@@ -110,6 +110,9 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 def generate_production(output_table: List[str], task_id: str, **kwargs) -> None:
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
+
+    if len(output_table) == 0:
+        return
 
     for tb in output_table:
         _logger.info(f'start generating output for table {tb}...')
