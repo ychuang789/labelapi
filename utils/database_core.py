@@ -2,6 +2,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional, Dict
 
 import pymysql
 import pandas as pd
@@ -19,27 +20,44 @@ def create_db(db_path, config_db):
         engine = create_engine(f'{config_db}', encoding='utf-8')
         SQLModel.metadata.create_all(engine)
 
-def connect_database(schema = None, output = False):
-    if not output:
-        _config = {
-            'host': DatabaseConfig.INPUT_HOST,
-            'port': DatabaseConfig.INPUT_PORT,
-            'user': DatabaseConfig.INPUT_USER,
-            'password': DatabaseConfig.INPUT_PASSWORD,
-            'db': schema,
-            'charset': 'utf8mb4',
+def connect_database(schema = None, output = False, site_input: Optional[Dict] = None):
+    if site_input:
+        _config = site_input
+        _config.update({
             'cursorclass': pymysql.cursors.DictCursor
-        }
+        })
+        # _config = {
+        #     'host': site_input.get('host'),
+        #     'port': site_input.get('port'),
+        #     'user': site_input.get('username'),
+        #     'password': site_input.get('password'),
+        #     'db': site_input.get('schema'),
+        #     'charset': 'utf8mb4',
+        #     'cursorclass': pymysql.cursors.DictCursor
+        # }
     else:
-        _config = {
-            'host': DatabaseConfig.OUTPUT_HOST,
-            'port': DatabaseConfig.OUTPUT_PORT,
-            'user': DatabaseConfig.OUTPUT_USER,
-            'password': DatabaseConfig.OUTPUT_PASSWORD,
-            'db': schema,
-            'charset': 'utf8mb4',
-            'cursorclass': pymysql.cursors.DictCursor
-        }
+        if not output:
+            _config = {
+                'host': DatabaseConfig.INPUT_HOST,
+                'port': DatabaseConfig.INPUT_PORT,
+                'user': DatabaseConfig.INPUT_USER,
+                'password': DatabaseConfig.INPUT_PASSWORD,
+                'db': schema,
+                'charset': 'utf8mb4',
+                'cursorclass': pymysql.cursors.DictCursor
+            }
+        else:
+            _config = {
+                'host': DatabaseConfig.OUTPUT_HOST,
+                'port': DatabaseConfig.OUTPUT_PORT,
+                'user': DatabaseConfig.OUTPUT_USER,
+                'password': DatabaseConfig.OUTPUT_PASSWORD,
+                'db': schema,
+                'charset': 'utf8mb4',
+                'cursorclass': pymysql.cursors.DictCursor
+            }
+
+
     try:
         connection = pymysql.connect(**_config)
         return connection
@@ -369,10 +387,11 @@ def get_timedelta_query(predict_type, table, start_time, end_time):
 
 def get_batch_by_timedelta(schema, predict_type, table,
                            begin_date: datetime, last_date: datetime,
-                           interval: timedelta = timedelta(hours=6)):
+                           interval: timedelta = timedelta(hours=6),
+                           site_input: Optional[Dict] = None):
     while begin_date <= last_date:
 
-        connection = connect_database(schema=schema)
+        connection = connect_database(schema=schema, site_input=site_input)
 
         if begin_date + interval > last_date:
             break

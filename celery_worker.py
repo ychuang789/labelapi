@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 from dotenv import load_dotenv
 from datetime import datetime
@@ -37,17 +37,21 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 
     start_date = kwargs.get('START_TIME')
     end_date = kwargs.get('END_TIME')
-    start_date_d = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-    end_date_d = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+    start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
+    end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+
+    site_connection_info: Dict = kwargs.get('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
 
     table_dict = {}
     count = 0
     row_number = 0
 
     for idx, elements in enumerate(get_batch_by_timedelta(kwargs.get('INPUT_SCHEMA'),
-                                                         kwargs.get('PREDICT_TYPE'),
-                                                         kwargs.get('INPUT_TABLE'),
-                                                         start_date_d, end_date_d)):
+                                                          kwargs.get('PREDICT_TYPE'),
+                                                          kwargs.get('INPUT_TABLE'),
+                                                          start_date_d,
+                                                          end_date_d,
+                                                          site_input=site_connection_info)):
 
         _logger.info(f'Start calculating task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
                      f'{kwargs.get("INPUT_TABLE")}_batch_{idx} ...')

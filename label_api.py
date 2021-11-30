@@ -43,6 +43,12 @@ app = FastAPI(title=configuration.API_TITLE, description=description, version=co
 async def create_task(create_request_body: TaskConfig):
     config = create_request_body.__dict__
 
+    # if config.get('SITE_CONFIG'):
+    #     target_connection_info = config['SITE_CONFIG']
+    # else:
+    #     target_connection_info = config['SITE_CONFIG']
+    # err_info = target_connection_info
+
     if config.get('START_TIME') >= config.get('END_TIME'):
         err_info = {
             "error_code": 400,

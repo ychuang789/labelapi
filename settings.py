@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, BaseSettings
-from typing import Dict
+from typing import Dict, Optional
 
 SOURCE: Dict = {
     "Comment": [
@@ -794,13 +794,14 @@ class TaskConfig(BaseModel):
     load_dotenv()
     MODEL_TYPE: str = 'keyword_model'
     PREDICT_TYPE: str = 'author_name'
-    START_TIME: datetime = "2020-01-01 00:00:00"
-    END_TIME: datetime = "2021-01-01 00:00:00"
+    START_TIME: date = "2020-01-01"
+    END_TIME: date = "2021-01-01"
     INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
     INPUT_TABLE: str = os.getenv('INPUT_TABLE')
     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
     COUNTDOWN: int = 5
     QUEUE: str = "queue1"
+    SITE_CONFIG: Optional[Dict] = None
 
 class TaskList:
     load_dotenv()
