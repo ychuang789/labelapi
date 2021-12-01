@@ -145,5 +145,20 @@ save.db
 # excel
 *.xlsx
 
+# json
+rules/source_id.json
 
+# drop tables
+clean_up.py
 
+# all logs
+/logs
+
+# tracing file with finish task_id
+tracing_task_id.txt
+tracing_task_id_2.txt
+
+# get the multi-state
+get_multi_state.py
+generate_prod_multi.py
+output_29.json

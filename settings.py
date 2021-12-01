@@ -1,77 +1,10 @@
 import os
-import json
 from dotenv import load_dotenv
 from datetime import datetime
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, BaseSettings
+from typing import Dict
 
-
-
-class CeleryConfig:
-    # load_dotenv()
-    # host = os.getenv('HOST')
-    # port = int(os.getenv('PORT'))
-    # user = os.getenv('USER')
-    # password = os.getenv('PASSWORD')
-    # output_schema = os.getenv('OUTPUT_SCHEMA')
-    name = 'celery_worker'
-    sql_uri = 'sqlite:///save.db'
-    backend = 'db+sqlite:///save.db'
-    # backend = f'db+mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
-    broker = 'redis://localhost'
-    timezone = 'Asia/Taipei'
-    enable_utc = False
-    result_expires = None
-
-class DatabaseInfo:
-    load_dotenv()
-    host = os.getenv('HOST')
-    port = int(os.getenv('PORT'))
-    user = os.getenv('USER')
-    password = os.getenv('PASSWORD')
-    input_schema = os.getenv('INPUT_SCHEMA')
-    output_schema = os.getenv('OUTPUT_SCHEMA')
-    rule_schemas = os.getenv('RULE_SHEMAS')
-    input_engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{input_schema}?charset=utf8mb4'
-    output_engine_info = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
-
-class CreateTaskRequestBody(BaseModel):
-    model_type: str = 'keyword_model'
-    predict_type: str = 'author_name'
-    start_time: datetime = "2018-01-01 00:00:00"
-    end_time: datetime = "2018-12-31 23:59:59"
-    target_schema: str = "forum_data"
-    target_table: str = "ts_page_content"
-    date_info: bool = False if os.getenv('DATE_INFO') else True
-    batch_size: int = 1000000
-
-class TaskListRequestBody:
-    load_dotenv()
-    host = os.getenv('HOST')
-    port = int(os.getenv('PORT'))
-    user = os.getenv('USER')
-    password = os.getenv('PASSWORD')
-    output_schema = os.getenv('OUTPUT_SCHEMA')
-    # order_column: str = 'date_done'
-    # number: int = 10
-    # offset: int = 1000
-    # sql_schema: str = 'sqlite:///save.db'
-    # table: str = 'celery_taskmeta'
-    order_column: str = 'create_time'
-    number: int = 5
-    offset: int = 1000
-    engine_info: str = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
-    table: str = 'state'
-
-
-class SampleResultRequestBody:
-    order_column: str = "create_time"
-    number: int = 50
-    offset: int = 1000
-    schema_name: str = 'audience_result'
-
-
-SOURCE = {
+SOURCE: Dict = {
     "Comment": [
         "WH_F0183",
         "WH_F0198",
@@ -150,6 +83,9 @@ SOURCE = {
     ],
     "fbkol": [
         "WH_F0071"
+    ],
+    "fbpm": [
+        "WH_F0072"
     ],
     "fbprivategroup": [
         "WH_F0167"
@@ -801,5 +737,137 @@ SOURCE = {
     ],
     "plurk": [
         "WH_F0038"
+    ],
+    "video": [
+        "wh_v001"
     ]
 }
+
+TABLE_GROUPS_FOR_INDEX = {
+    'fb': ['fbfans', 'fbgroup', 'fbkol', 'fbpm', 'fbprivategroup'],
+    'forum': ['forum', 'Dcard'],
+    'bbs': ['Ptt'],
+    'social': ['Instagram', 'Tiktok', 'Twitter', 'plurk'],
+    'comment': ['Comment'],
+    'youtube': ['Youtube'],
+    'news': ['news'],
+    'Blog': ['blog']
+}
+
+
+class DevelopConfig(BaseSettings):
+    API_HOST: str = '127.0.0.1'
+    API_TITLE: str  = 'Audience API'
+    API_VERSION: float = 2.1
+    CELERY_NAME: str  = 'celery_worker'
+    CELERY_SQL_URI: str  = 'sqlite:///save.db'
+    CELERY_BACKEND: str  = 'db+sqlite:///save.db'
+    CELERY_BROKER: str  = 'redis://localhost'
+    CELERY_TIMEZONE: str  = 'Asia/Taipei'
+    CELERY_ENABLE_UTC: bool = False
+    CELERY_RESULT_EXPIRES: int = 7
+    CELERY_RESULT_EXTENDED: bool = True
+    CELERY_TASK_TRACK_STARTED: bool = True
+
+class ProductionConfig(DevelopConfig):
+    API_HOST: str = '0.0.0.0'
+    CELERY_BROKER: str = 'redis://0.0.0.0'
+
+class DatabaseConfig:
+    load_dotenv()
+    INPUT_HOST: str = os.getenv('INPUT_HOST')
+    INPUT_PORT: int = int(os.getenv('INPUT_PORT'))
+    INPUT_USER: str = os.getenv('INPUT_USER')
+    INPUT_PASSWORD: str = os.getenv('INPUT_PASSWORD')
+    INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
+    INPUT_TABLE: str = os.getenv('INPUT_TABLE')
+    OUTPUT_HOST: str = os.getenv('OUTPUT_HOST')
+    OUTPUT_PORT: int = int(os.getenv('OUTPUT_PORT'))
+    OUTPUT_USER: str = os.getenv('OUTPUT_USER')
+    OUTPUT_PASSWORD: str = os.getenv('OUTPUT_PASSWORD')
+    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+    OUTPUT_ENGINE_INFO: str = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
+                              f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
+                              f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
+
+class TaskConfig(BaseModel):
+    load_dotenv()
+    MODEL_TYPE: str = 'keyword_model'
+    PREDICT_TYPE: str = 'author_name'
+    START_TIME: datetime = "2020-01-01 00:00:00"
+    END_TIME: datetime = "2021-01-01 00:00:00"
+    INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
+    INPUT_TABLE: str = os.getenv('INPUT_TABLE')
+    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+    COUNTDOWN: int = 5
+    QUEUE: str = "queue1"
+
+class TaskList:
+    load_dotenv()
+    OUTPUT_HOST: str = os.getenv('OUTPUT_HOST')
+    OUTPUT_PORT: int = int(os.getenv('OUTPUT_PORT'))
+    OUTPUT_USER: str = os.getenv('OUTPUT_USER')
+    OUTPUT_PASSWORD: str = os.getenv('OUTPUT_PASSWORD')
+    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+    ORDER_COLUMN: str = 'create_time'
+    NUMBER: int = 5
+    OFFSET: int = 1000
+    OUTPUT_ENGINE_INFO = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
+                         f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
+                         f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
+    TABLE: str = 'state'
+
+class TaskSampleResult:
+    load_dotenv()
+    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+    ORDER_COLUMN: str = 'create_time'
+    NUMBER: int = 50
+    OFFSET: int = 1000
+
+
+
+
+# class DatabaseInfo:
+#     load_dotenv()
+#     host = os.getenv('INPUT_HOST')
+#     port = int(os.getenv('INPUT_PORT'))
+#     user = os.getenv('INPUT_USER')
+#     password = os.getenv('INPUT_PASSWORD')
+#     output_host = os.getenv('OUTPUT_HOST')
+#     output_port = int(os.getenv('OUTPUT_PORT'))
+#     output_user = os.getenv('OUTPUT_USER')
+#     output_password = os.getenv('OUTPUT_PASSWORD')
+#     input_schema = os.getenv('INPUT_SCHEMA')
+#     output_schema = os.getenv('OUTPUT_SCHEMA')
+#     rule_schemas = os.getenv('RULE_SHEMAS')
+#     output_engine_info = f'mysql+pymysql://{output_user}:{output_password}@{output_host}:{output_port}/{output_schema}?charset=utf8mb4'
+
+# class CreateTaskRequestBody(BaseModel):
+#     model_type: str = 'keyword_model'
+#     predict_type: str = 'author_name'
+#     start_time: datetime = "2020-01-01 00:00:00"
+#     end_time: datetime = "2021-01-01 00:00:00"
+#     target_schema: str = os.getenv('INPUT_SCHEMA')
+#     target_table: str = "ts_page_content"
+#     output_schema: str = os.getenv('OUTPUT_SCHEMA')
+#     countdown: int = 5
+#     queue: str = "queue1"
+
+# class TaskListRequestBody:
+#     load_dotenv()
+#     host = os.getenv('OUTPUT_HOST')
+#     port = int(os.getenv('OUTPUT_PORT'))
+#     user = os.getenv('OUTPUT_USER')
+#     password = os.getenv('OUTPUT_PASSWORD')
+#     output_schema = os.getenv('OUTPUT_SCHEMA')
+#     order_column: str = 'create_time'
+#     number: int = 5
+#     offset: int = 1000
+#     engine_info: str = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
+#     table: str = 'state'
+
+# class SampleResultRequestBody:
+#     order_column: str = "create_time"
+#     number: int = 50
+#     offset: int = 1000
+#     schema_name: str = 'audience_result'

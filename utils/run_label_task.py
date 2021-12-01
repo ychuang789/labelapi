@@ -1,21 +1,18 @@
 import os
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Union, Tuple, List
 
 from sqlalchemy import create_engine
-from tqdm import tqdm
 import pandas as pd
 
-from definition import SAVE_FOLDER
 from models.rule_model import RuleModel
 from models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
-from settings import DatabaseInfo, SOURCE
+from settings import DatabaseConfig, SOURCE
 from utils.clean_up_result import run_cleaning
-from utils.database_core import connect_database, create_table
+from utils.database_core import create_table
 from utils.helper import get_logger
 from utils.selections import ModelType, PredictTarget, KeywordMatchType
 from utils.input_example import InputExample
@@ -29,7 +26,7 @@ def read_key_word_pattern(file_path: Optional[Union[str, Path]], _key: str) -> D
         return output_dict
 
 def read_from_dir(model_type: Union[ModelType, str],
-                  predict_type: Union[PredictTarget, str])-> Dict[str, List[Tuple[str, KeywordMatchType]]]:
+                  predict_type: Union[PredictTarget, str]) -> Dict[str, List[Tuple[str, KeywordMatchType]]]:
     _dict = {}
     for gender in os.listdir(f'{RULE_FOLDER}/{model_type}'):
         for file in os.listdir(f'{RULE_FOLDER}/{model_type}/{gender}'):
@@ -142,12 +139,21 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
 
     logger.info(f'write the output into database ...')
 
-    engine = create_engine(DatabaseInfo.output_engine_info, pool_size=0, max_overflow=-1)
+    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, pool_size=0, max_overflow=-1).connect()
+
     exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-    result_table_list = []
+    # result_table_list = []
+    # create a dict that contains output table and source_author set
+    # (in which df isin correspond source id with specific table)
+    result_table_dict = {}
+    output_number_row = 0
+    #
 
     for k,v in SOURCE.items():
         df_write = df_output[df_output['field_content'].isin(v)]
+
+        # for calculating label rate
+        temp_unique_source_author_total = set(_df_output[_df_output['field_content'].isin(v)]['source_author'])
 
         if df_write.empty:
             continue
@@ -157,30 +163,28 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         except Exception as e:
             raise e
 
-        _table_name= f'wh_panel_mapping_{k}'
+        # _table_name= f'wh_panel_mapping_{k}'
+        _table_name = k
         if _table_name not in exist_tables:
-            create_table(k,logger, schema=DatabaseInfo.output_schema)
+            create_table(_table_name, logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
 
         try:
-            connection = engine.connect()
-            _df_write.to_sql(name=_table_name, con=connection, if_exists='append', index=False)
-            logger.info(f'successfully write data into {DatabaseInfo.output_schema}.{_table_name}')
+
+            _df_write.to_sql(name=_table_name, con=engine, if_exists='append', index=False)
+            logger.info(f'successfully write data into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}')
+
         except Exception as e:
             logger.error(f'write dataframe to test failed!')
-            raise ConnectionError(f'failed to write output into {DatabaseInfo.output_schema}.{_table_name}... '
+            raise ConnectionError(f'failed to write output into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}... '
                                   f'additional error message {e}')
-        result_table_list.append(_table_name)
-    return result_table_list
+        # result_table_list.append(_table_name)
+        result_table_dict.update({_table_name: temp_unique_source_author_total})
+
+        output_number_row += len(_df_write)
+    engine.close()
 
 
+    # return result_table_list, output_number_row
+    return result_table_dict, output_number_row
 
 
-def generate_test():
-    temp = 0
-    b = 1
-    for i in range(100000):
-        a = temp
-        b += a
-        temp = b
-
-    return temp
