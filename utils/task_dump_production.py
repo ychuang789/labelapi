@@ -54,6 +54,7 @@ def alter_table(connection: pymysql.connect, query: str, condition: List[str] = 
 
     cur = connection.cursor()
     cur.execute(query)
+    connection.commit()
     connection.close()
 
 def get_data(connection: pymysql.connect, query: str, condition: List[str] = None, _fetchone: bool=False):
@@ -117,10 +118,8 @@ def generate_zip(table_name: List, production_path = AUDIENCE_PRODUCTION_PATH):
     user = DatabaseConfig.OUTPUT_USER
     password = DatabaseConfig.OUTPUT_PASSWORD
     schema = DatabaseConfig.OUTPUT_SCHEMA
-    today =datetime.now().strftime("%Y_%m_%d")
-    # path = f'{production_path}/{today}'
-    path = f'{production_path}/temp'
-
+    today = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+    path = f'{production_path}/{today}'
 
     for tb in table_name:
 

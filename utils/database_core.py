@@ -273,7 +273,10 @@ def get_table_info(id):
     cur = connection.cursor()
     cur.execute(q)
     result = cur.fetchone()
-    return result.get('result').split(',')
+    if len(result.get('result')) == 0:
+        return None
+    else:
+        return result.get('result').split(',')
 
 
 def get_sample_query(_id, tablename, number):

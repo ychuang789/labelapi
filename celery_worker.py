@@ -143,6 +143,7 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
 
+
     _logger.info(f'start dumping the result to ZIP from task {task_id}...')
 
     dump_info_kwargs = {
