@@ -39,7 +39,7 @@ do
   "OUTPUT_SCHEMA": "audience_result",
   "COUNTDOWN": 5,
   "QUEUE": "'$var'"
-}'
+  }'
   ((count=count+1))
 done
 
