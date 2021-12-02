@@ -152,22 +152,23 @@ async def tasks_list():
 async def check_status(task_id):
     try:
         result = query_state_by_id(task_id)
-        err_info = {
-            "error_code": 200,
-            "error_message": "OK",
-            "status": result.get('stat'),
-            "prod_status": result.get('prod_stat'),
-            "result": result.get('result')
-        }
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+        if result:
+            err_info = {
+                "error_code": 200,
+                "error_message": result
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+        else:
+            err_info = {
+                "error_code": 404,
+                "error_message": f"{task_id} status is not found, plz re-check the task_id"
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     except Exception as e:
         err_info = {
-            "error_code": 400,
-            "error_message": f'task id is not exist, plz re-check the task id. Addition error message:{e}',
-            "status": None,
-            "prod_status": None,
-            "result": None
+            "error_code": 500,
+            "error_message": f'Addition error message:{e}',
         }
         _logger.error(f'{e}')
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
@@ -186,6 +187,13 @@ async def sample_result(task_id: str):
 
 
     tb_list = get_table_info(task_id)
+
+    if not tb_list:
+        err_info = {
+            "error_code": 404,
+            "error_message": f"result table is not found, it is probably due to unfinished or failed task"
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     q = ''
     for i in range(len(tb_list)):

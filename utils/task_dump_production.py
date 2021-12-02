@@ -54,6 +54,7 @@ def alter_table(connection: pymysql.connect, query: str, condition: List[str] = 
 
     cur = connection.cursor()
     cur.execute(query)
+    connection.commit()
     connection.close()
 
 def get_data(connection: pymysql.connect, query: str, condition: List[str] = None, _fetchone: bool=False):
