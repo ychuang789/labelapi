@@ -121,6 +121,10 @@ def generate_zip(table_name: List, production_path = AUDIENCE_PRODUCTION_PATH):
     today = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     path = f'{production_path}/{today}'
 
+    check_path = path + '/'
+    if not os.path.isdir(check_path):
+        os.mkdir(check_path)
+
     for tb in table_name:
 
         command = f"""
@@ -128,7 +132,7 @@ def generate_zip(table_name: List, production_path = AUDIENCE_PRODUCTION_PATH):
         """
         os.system(command)
 
-    check_path = path + '/'
+
     for tb in table_name:
         if not os.path.isfile(check_path + f'{tb}.zip'):
             raise OutputZIPNotFoundError(f'table {tb} writing to ZIP failed...')
