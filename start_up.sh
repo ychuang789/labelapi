@@ -1,3 +1,4 @@
 #!/bin/bash
 
-source venv/bin/activate | which python
+source venv/bin/activate ; 
+which python
