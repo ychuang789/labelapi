@@ -11,7 +11,7 @@ do
   "PREDICT_TYPE": "author_name",
   "START_TIME": "2021-01-01 00:00:00",
   "END_TIME": "2022-01-01 00:00:00",
-  "INPUT_SCHEMA": '$db',
+  "INPUT_SCHEMA": "'$db'",
   "INPUT_TABLE": "ts_page_content",
   "OUTPUT_SCHEMA": "audience_result",
   "COUNTDOWN": 5,

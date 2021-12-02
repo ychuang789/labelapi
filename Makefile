@@ -11,6 +11,7 @@ python_path:
 	@eval "which $(PIP_NAME)"
 
 activate:
+	#!/bin/bash
 	@eval "source venv/bin/activate"
 	@eval "which $(PYTHON_NAME)"
 
