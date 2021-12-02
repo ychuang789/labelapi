@@ -10,11 +10,6 @@ python_path:
 	@eval "which $(PYTHON_NAME)"
 	@eval "which $(PIP_NAME)"
 
-activate:
-	#!/bin/bash
-	@eval "source venv/bin/activate"
-	@eval "which $(PYTHON_NAME)"
-
 run_queue_1:
 	@eval "celery -A celery_worker worker -n $(WORKER_NAME)@%n -Q queue1 -l INFO -P gevent --concurrency=$(CONCURRENCY)"
 
