@@ -11,7 +11,7 @@ python_path:
 	@eval "which $(PIP_NAME)"
 
 activate:
-	@source venv/bin/activate
+	@eval "source venv/bin/activate"
 	@eval "which $(PYTHON_NAME)"
 
 run_queue_1:
