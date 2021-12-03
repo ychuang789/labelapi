@@ -825,6 +825,9 @@ class TaskSampleResult:
     OFFSET: int = 1000
 
 
+class RulesDatabase:
+    load_dotenv()
+
 
 
 # class DatabaseInfo:
