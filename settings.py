@@ -797,6 +797,7 @@ class TaskConfig(BaseModel):
     PREDICT_TYPE: str = 'author_name'
     START_TIME: date = "2020-01-01"
     END_TIME: date = "2021-01-01"
+    PATTERN: Optional[Dict] = None
     INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
     INPUT_TABLE: str = os.getenv('INPUT_TABLE')
     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')

@@ -68,7 +68,7 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 
         try:
             _output, row_num = labeling(task_id, element, kwargs.get('MODEL_TYPE'),
-                               pred, kwargs.get('pattern'), _logger)
+                               pred, kwargs.get('PATTERN'), _logger)
 
             row_number += row_num
 
