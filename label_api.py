@@ -13,9 +13,7 @@ from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info
 from utils.helper import get_logger, get_config
-from utils.run_label_task import read_from_dir
-
-
+from utils.run_label_task import read_from_dir, read_rules_from_db
 
 configuration = get_config()
 
@@ -66,7 +64,8 @@ async def create_task(create_request_body: TaskConfig):
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     try:
-        pattern = read_from_dir(config.get('MODEL_TYPE'), config.get('PREDICT_TYPE'))
+        # pattern = read_from_dir(config.get('MODEL_TYPE'), config.get('PREDICT_TYPE'))
+        pattern = read_rules_from_db(config.get('RULE_NAME'),config.get('MODEL_TYPE'))
         config.update(
             {'pattern': pattern}
         )
@@ -197,7 +196,7 @@ async def sample_result(task_id: str):
 
     q = ''
     for i in range(len(tb_list)):
-        output_tb_name = f'wh_panel_mapping_{tb_list[i]}'
+        output_tb_name = f'{tb_list[i]}'
         query = get_sample_query(task_id, output_tb_name,
                                  TaskSampleResult.NUMBER)
         q += query

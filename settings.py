@@ -794,6 +794,7 @@ class TaskConfig(BaseModel):
     load_dotenv()
     MODEL_TYPE: str = 'keyword_model'
     PREDICT_TYPE: str = 'author_name'
+    RULE_NAME: str = 'married'
     START_TIME: datetime = "2020-01-01 00:00:00"
     END_TIME: datetime = "2021-01-01 00:00:00"
     INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')

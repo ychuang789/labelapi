@@ -38,6 +38,7 @@ def read_from_dir(model_type: Union[ModelType, str],
 
 
 
+
 def read_rules_from_db(rule_name, model_type, labeling_job_id: int = 21, schema='audience-toolkit-django', table='labeling_jobs_rule'):
     connection = connect_database(schema=schema ,output=True)
     sql = f"""SELECT * FROM {table} where labeling_job_id = {labeling_job_id};"""
