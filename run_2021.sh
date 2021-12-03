@@ -23,6 +23,26 @@ predict_type="author_name"
 
 declare -i count=0
 
+
+for var in "$@"
+do
+  curl -X 'POST' \
+  "http://0.0.0.0:8000/api/tasks/" \
+  -H "accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "MODEL_TYPE": "'$model_type'",
+  "PREDICT_TYPE": "'$predict_type'",
+  "START_TIME": "'$start_time'",
+  "END_TIME": "'$end_time'",
+  "INPUT_SCHEMA": "'${arr[count]}'",
+  "INPUT_TABLE": "ts_page_content",
+  "OUTPUT_SCHEMA": "audience_result",
+  "COUNTDOWN": 5,
+  "QUEUE": "'$var'"
+  }'
+  ((count=count+1))
+done
 #for var in "$@"
 #do
 #  curl -X 'POST' \
