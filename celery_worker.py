@@ -115,6 +115,9 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
 
+    if len(output_table) == 0:
+        return
+
     for tb in output_table:
         _logger.info(f'start generating output for table {tb}...')
 
@@ -144,17 +147,22 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
 
-    _logger.info(f'start dumping the result to ZIP from task {task_id}...')
+    if configuration.DUMP_ZIP:
 
-    dump_info_kwargs = {
-        'schema': kwargs.get('OUTPUT_SCHEMA'),
-        'table_name': 'state',
-        'task_id': task_id
-    }
+        _logger.info(f'start dumping the result to ZIP from task {task_id}...')
+        dump_info_kwargs = {
+            'schema': kwargs.get('OUTPUT_SCHEMA'),
+            'table_name': 'state',
+            'task_id': task_id
+        }
+        get_last_production(_logger, **dump_info_kwargs)
 
-    get_last_production(_logger, **dump_info_kwargs)
+        _logger.info(f'finish dumping the result to ZIP from task {task_id}...')
 
-    _logger.info(f'finish dumping the result to ZIP from task {task_id}...')
+    else:
+        _logger.info('Local testing will not generate ZIP mysql table backup...skip this part')
+        _logger.info(f'{task_id} done')
+
 
 
 

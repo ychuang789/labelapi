@@ -192,9 +192,11 @@ async def sample_result(task_id: str):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    tb_list = get_table_info(task_id)
+    tb_dict = get_table_info(task_id)
 
-    if not tb_list:
+    tb_list = tb_dict.get('result').split(',')
+
+    if tb_dict.get('result') == '':
         err_info = {
             "error_code": 404,
             "error_message": f"result table is not found, it is probably due to unfinished or failed task"
@@ -235,7 +237,7 @@ async def sample_result(task_id: str):
             "error_message": f"Cannot scrape data from result tables. Additional error message: {e}"
         }
         _logger.error(err_info)
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 
 if __name__ == '__main__':

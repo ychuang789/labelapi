@@ -291,7 +291,7 @@ def get_table_info(id):
     cur = connection.cursor()
     cur.execute(q)
     result = cur.fetchone()
-    return result.get('result').split(',')
+    return result
 
 
 def get_sample_query(_id, tablename, number):

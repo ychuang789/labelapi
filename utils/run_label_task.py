@@ -28,6 +28,7 @@ def read_key_word_pattern(file_path: Optional[Union[str, Path]], _key: str) -> D
 def read_from_dir(model_type: Union[ModelType, str],
                   predict_type: Union[PredictTarget, str]) -> Dict[str, List[Tuple[str, KeywordMatchType]]]:
     _dict = {}
+
     for gender in os.listdir(f'{RULE_FOLDER}/{model_type}'):
         for file in os.listdir(f'{RULE_FOLDER}/{model_type}/{gender}'):
             if file.endswith(".txt"):

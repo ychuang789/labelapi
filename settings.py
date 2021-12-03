@@ -754,7 +754,6 @@ TABLE_GROUPS_FOR_INDEX = {
     'Blog': ['blog']
 }
 
-
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
     API_TITLE: str  = 'Audience API'
@@ -768,10 +767,12 @@ class DevelopConfig(BaseSettings):
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
+    DUMP_ZIP: bool = False
 
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
+    DUMP_ZIP: bool = True
 
 class DatabaseConfig:
     load_dotenv()
