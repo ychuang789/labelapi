@@ -28,18 +28,15 @@ def read_key_word_pattern(file_path: Optional[Union[str, Path]], _key: str) -> D
 def read_from_dir(model_type: Union[ModelType, str],
                   predict_type: Union[PredictTarget, str]) -> Dict[str, List[Tuple[str, KeywordMatchType]]]:
     _dict = {}
+    for gender in os.listdir(f'{RULE_FOLDER}/{model_type}'):
+        for file in os.listdir(f'{RULE_FOLDER}/{model_type}/{gender}'):
+            if file.endswith(".txt"):
+                file_path = Path(RULE_FOLDER / model_type / gender / f'{predict_type}.txt')
+                _dict.update(read_key_word_pattern(file_path, gender))
 
-    if model_type == "keyword_model":
-        for gender in os.listdir(f'{RULE_FOLDER}/{model_type}'):
-            for file in os.listdir(f'{RULE_FOLDER}/{model_type}/{gender}'):
-                if file.endswith(".txt"):
-                    file_path = Path(RULE_FOLDER / model_type / gender / f'{predict_type}.txt')
-                    _dict.update(read_key_word_pattern(file_path, gender))
+    return _dict
 
-        return _dict
 
-    if model_type == "rule_model":
-        pass
 
 def read_rules_from_db(rule_name, model_type, labeling_job_id: int = 21, schema='audience-toolkit-django', table='labeling_jobs_rule'):
     connection = connect_database(schema=schema ,output=True)
