@@ -12,9 +12,9 @@ SOURCE: Dict = {
         "WH_F0199",
         "WH_F0500"
     ],
-    "Dcard": [
-        "WH_F0116"
-    ],
+    # "Dcard": [
+    #     "WH_F0116"
+    # ],
     "Instagram": [
         "WH_F0157"
     ],
