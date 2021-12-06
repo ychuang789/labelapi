@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from dotenv import load_dotenv
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from celery import Celery
 
 from settings import DatabaseConfig
-from utils.database_core import update2state, get_batch_by_timedelta
+from utils.database_core import update2state, get_batch_by_timedelta, check_break_status
 from utils.helper import get_logger, get_config
 from utils.run_label_task import labeling
 from utils.task_dump_production import get_last_production
@@ -29,8 +29,14 @@ celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTE
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking
-def label_data(task_id: str, **kwargs) -> List[str]:
+def label_data(task_id: str, **kwargs) -> Optional[List[str]]:
+
     _logger = get_logger('label_data')
+
+    if check_break_status(task_id) == 'BREAK':
+        _logger.info(f"task {task_id} is abort by the external user")
+        return None
+
     load_dotenv()
     start_time = datetime.now()
     # cpu_info_df = pd.DataFrame(columns=['task_id', 'batch', 'cpu_percent', 'cpu_freq', 'cpu_load_avg'])
@@ -56,10 +62,14 @@ def label_data(task_id: str, **kwargs) -> List[str]:
         _logger.info(f'Start calculating task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
                      f'{kwargs.get("INPUT_TABLE")}_batch_{idx} ...')
 
+        element, date_checkpoint = elements
+
+        if check_break_status(task_id) == 'BREAK':
+            _logger.info(f"task {task_id} is abort by the external user in checkpoint {date_checkpoint}")
+            return None
+
         # change the `author` back to `author_name` to fit the label modeling
         pred = "author_name" if kwargs.get('PREDICT_TYPE') == "author" else kwargs.get('PREDICT_TYPE')
-
-        element, date_checkpoint = elements
 
         if element.empty:
             continue
@@ -114,6 +124,10 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 def generate_production(output_table: List[str], task_id: str, **kwargs) -> None:
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
+
+    if check_break_status(task_id) == 'BREAK':
+        _logger.info(f"task {task_id} is abort by the external user, also skip generating production")
+        return None
 
     if len(output_table) == 0:
         return

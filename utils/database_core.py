@@ -451,4 +451,29 @@ def alter_column_type(schema: str, table_name: str, column_name: str, datatype: 
     connection.close()
 
 
+def send_break_signal_to_state(task_id: str, schema: str = 'audience_result') -> None:
+    connection = connect_database(schema=schema, output=True)
+    insert_sql = f'UPDATE state ' \
+                 f'SET stat = "BREAK" ' \
+                 f'where task_id = "{task_id}"'
 
+    try:
+        cursor = connection.cursor()
+        cursor.execute(insert_sql)
+        connection.commit()
+        connection.close()
+    except Exception as e:
+        raise e
+
+def check_break_status(task_id: str,
+                       schema: str = 'audience_result'):
+    connection = connect_database(schema=schema, output=True)
+    sql = f"""select stat from state where task_id = '{task_id}'"""
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        return result['stat']
+    except Exception as e:
+        raise e
