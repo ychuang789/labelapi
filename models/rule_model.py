@@ -60,18 +60,18 @@ class RuleModel(AudienceModel):
         else:
             return None, None
 
-def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT,
+def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT.value,
                          case_sensitive: bool = False) -> List[str]:
     return [_parse_predict_target(input_example, target=target, case_sensitive=case_sensitive)
             for input_example in input_examples]
 
-def _parse_predict_target(input_example: InputExample, target: PredictTarget = PredictTarget.CONTENT,
+def _parse_predict_target(input_example: InputExample, target: PredictTarget = PredictTarget.CONTENT.value,
                           case_sensitive: bool = False) -> str:
-    if target == PredictTarget.CONTENT:
+    if target == PredictTarget.CONTENT.value:
         return input_example.content if case_sensitive else input_example.content.lower()
-    elif target == PredictTarget.AUTHOR_NAME:
+    elif target == PredictTarget.AUTHOR_NAME.value:
         return input_example.author if case_sensitive else input_example.author.lower()
-    elif target == PredictTarget.S_AREA_ID:
+    elif target == PredictTarget.S_AREA_ID.value:
         return input_example.s_area_id if case_sensitive else input_example.s_area_id.lower()
     else:
         raise ValueError(Errors.UNKNOWN_PREDICT_TARGET_TYPE)

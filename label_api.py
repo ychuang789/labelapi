@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 
 from celery import chain
 from celery_worker import label_data, generate_production
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult
+from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config
@@ -119,7 +119,6 @@ async def create_task(create_request_body: TaskConfig):
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     config.update({"task_id": task_id})
-    config.pop('PATTERN')
 
     err_info = {
         "error_code": 200,
@@ -177,7 +176,6 @@ async def check_status(task_id):
         }
         _logger.error(f'{e}')
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-
 
 @app.get('/api/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
                                                      'If you have no clue of task_id or table_names check the  '
@@ -238,8 +236,19 @@ async def sample_result(task_id: str):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.get('/api/tasks/{task_id}/abort/', description='aborting a task no matter it is executing')
-async def abort_task(task_id: str):
+@app.post('/api/tasks/abort/', description='aborting a task no matter it is executing')
+async def abort_task(abort_request_body: AbortionConfig):
+    config = abort_request_body.__dict__
+    task_id = config.get('TASK_ID', None)
+
+    if len(task_id) != 32:
+        err_info = {
+            "error_code": 400,
+            "error_message": f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits'
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
     try:
         send_break_signal_to_state(task_id)
         err_info = {
@@ -253,6 +262,7 @@ async def abort_task(task_id: str):
         }
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
 
 
 if __name__ == '__main__':
