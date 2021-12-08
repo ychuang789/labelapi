@@ -119,12 +119,20 @@ def generate_zip(table_name: List, source_db_name: str, production_path = AUDIEN
     user = DatabaseConfig.OUTPUT_USER
     password = DatabaseConfig.OUTPUT_PASSWORD
     schema = DatabaseConfig.OUTPUT_SCHEMA
+    direction = datetime.now().strftime('%Y_%m_%d')
     today = datetime.now().strftime("%Y%m%d%H%M%S")
-    path = f'{production_path}/{source_db_name}_{today}'
+    base_path = f'{production_path}/{direction}'
+    path = f'{source_db_name}_{today}'
 
-    check_path = path + '/'
+    # check if parent path exist, make the parent dir first
+    check_path = base_path + '/'
     if not os.path.isdir(check_path):
         os.mkdir(check_path)
+
+    # make the child path
+    leaf_path = base_path + '/' + path + '/'
+    if not os.path.isdir(leaf_path):
+        os.mkdir(leaf_path)
 
     for tb in table_name:
 

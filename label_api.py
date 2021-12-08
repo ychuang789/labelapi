@@ -172,18 +172,18 @@ async def sample_result(task_id: str):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    tb_dict = get_table_info(task_id)
+    tb_list = get_table_info(task_id)
 
-    tb_list = tb_dict.get('result').split(',')
 
-    if not tb_list:
-        err_info = {
-            "error_code": 404,
-            "error_message": f"result table is not found, it is probably due to unfinished or failed task"
-        }
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     if not tb_list:
+        if query_state_by_id(task_id).get('prod_stat') == 'no_data':
+            err_info = {
+                "error_code": 404,
+                "error_message": f"there is no data processed in task {task_id}"
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
         err_info = {
             "error_code": 404,
             "error_message": f"result table is not found, it is probably due to unfinished or failed task"
