@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel, BaseSettings
-from typing import Dict
+from typing import Dict, Optional
 
 SOURCE: Dict = {
     "Comment": [
@@ -12,9 +12,9 @@ SOURCE: Dict = {
         "WH_F0199",
         "WH_F0500"
     ],
-    "Dcard": [
-        "WH_F0116"
-    ],
+    # "Dcard": [
+    #     "WH_F0116"
+    # ],
     "Instagram": [
         "WH_F0157"
     ],
@@ -754,7 +754,6 @@ TABLE_GROUPS_FOR_INDEX = {
     'Blog': ['blog']
 }
 
-
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
     API_TITLE: str  = 'Audience API'
@@ -768,10 +767,12 @@ class DevelopConfig(BaseSettings):
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
+    DUMP_ZIP: bool = False
 
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
+    DUMP_ZIP: bool = True
 
 class DatabaseConfig:
     load_dotenv()
@@ -794,13 +795,19 @@ class TaskConfig(BaseModel):
     load_dotenv()
     MODEL_TYPE: str = 'keyword_model'
     PREDICT_TYPE: str = 'author_name'
-    START_TIME: datetime = "2020-01-01 00:00:00"
-    END_TIME: datetime = "2021-01-01 00:00:00"
+    START_TIME: date = "2020-01-01"
+    END_TIME: date = "2021-01-01"
+    PATTERN: Optional[Dict] = None
     INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
     INPUT_TABLE: str = os.getenv('INPUT_TABLE')
     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
     COUNTDOWN: int = 5
     QUEUE: str = "queue1"
+    SITE_CONFIG: Optional[Dict] = None
+
+class AbortionConfig(BaseModel):
+    TASK_ID: str = 'string'
+
 
 class TaskList:
     load_dotenv()

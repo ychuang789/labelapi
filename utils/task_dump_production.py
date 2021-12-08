@@ -242,9 +242,7 @@ def get_last_production(logger: get_logger, **kwargs):
 
     logger.info('start generating audience production ZIP ...')
     last_table = ['wh_panel_mapping_' + i for i in list(production_dict.keys())]
-
-
-    generate_zip(last_table, source_db_name)
+    generate_zip(last_table,source_db_name)
 
 
 

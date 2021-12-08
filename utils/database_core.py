@@ -2,6 +2,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional, Dict
 
 import pymysql
 import pandas as pd
@@ -19,27 +20,44 @@ def create_db(db_path, config_db):
         engine = create_engine(f'{config_db}', encoding='utf-8')
         SQLModel.metadata.create_all(engine)
 
-def connect_database(schema = None, output = False):
-    if not output:
-        _config = {
-            'host': DatabaseConfig.INPUT_HOST,
-            'port': DatabaseConfig.INPUT_PORT,
-            'user': DatabaseConfig.INPUT_USER,
-            'password': DatabaseConfig.INPUT_PASSWORD,
-            'db': schema,
-            'charset': 'utf8mb4',
+def connect_database(schema = None, output = False, site_input: Optional[Dict] = None):
+    if site_input:
+        _config = site_input
+        _config.update({
             'cursorclass': pymysql.cursors.DictCursor
-        }
+        })
+        # _config = {
+        #     'host': site_input.get('host'),
+        #     'port': site_input.get('port'),
+        #     'user': site_input.get('username'),
+        #     'password': site_input.get('password'),
+        #     'db': site_input.get('schema'),
+        #     'charset': 'utf8mb4',
+        #     'cursorclass': pymysql.cursors.DictCursor
+        # }
     else:
-        _config = {
-            'host': DatabaseConfig.OUTPUT_HOST,
-            'port': DatabaseConfig.OUTPUT_PORT,
-            'user': DatabaseConfig.OUTPUT_USER,
-            'password': DatabaseConfig.OUTPUT_PASSWORD,
-            'db': schema,
-            'charset': 'utf8mb4',
-            'cursorclass': pymysql.cursors.DictCursor
-        }
+        if not output:
+            _config = {
+                'host': DatabaseConfig.INPUT_HOST,
+                'port': DatabaseConfig.INPUT_PORT,
+                'user': DatabaseConfig.INPUT_USER,
+                'password': DatabaseConfig.INPUT_PASSWORD,
+                'db': schema,
+                'charset': 'utf8mb4',
+                'cursorclass': pymysql.cursors.DictCursor
+            }
+        else:
+            _config = {
+                'host': DatabaseConfig.OUTPUT_HOST,
+                'port': DatabaseConfig.OUTPUT_PORT,
+                'user': DatabaseConfig.OUTPUT_USER,
+                'password': DatabaseConfig.OUTPUT_PASSWORD,
+                'db': schema,
+                'charset': 'utf8mb4',
+                'cursorclass': pymysql.cursors.DictCursor
+            }
+
+
     try:
         connection = pymysql.connect(**_config)
         return connection
@@ -107,11 +125,11 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
     insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_ID}`(' \
                  f'`id` VARCHAR(32) NOT NULL,' \
                  f'`task_id` VARCHAR(32) NOT NULL,' \
-                 f'`source_author` TEXT(65535) NOT NULL,' \
+                 f'`source_author` TEXT NOT NULL,' \
                  f'`panel` VARCHAR(200) NOT NULL,' \
                  f'`create_time` DATETIME NOT NULL,' \
-                 f'`field_content` TEXT(65535) NOT NULL,' \
-                 f'`match_content` TEXT(1073741823) NOT NULL' \
+                 f'`field_content` TEXT NOT NULL,' \
+                 f'`match_content` LONGTEXT NOT NULL' \
                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                  f'AUTO_INCREMENT=1 ;'
     func = connect_database
@@ -372,10 +390,11 @@ def get_timedelta_query(predict_type, table, start_time, end_time):
 
 def get_batch_by_timedelta(schema, predict_type, table,
                            begin_date: datetime, last_date: datetime,
-                           interval: timedelta = timedelta(hours=6)):
+                           interval: timedelta = timedelta(hours=6),
+                           site_input: Optional[Dict] = None):
     while begin_date <= last_date:
 
-        connection = connect_database(schema=schema)
+        connection = connect_database(schema=schema, site_input=site_input)
 
         if begin_date + interval > last_date:
             break
@@ -435,4 +454,29 @@ def alter_column_type(schema: str, table_name: str, column_name: str, datatype: 
     connection.close()
 
 
+def send_break_signal_to_state(task_id: str, schema: str = 'audience_result') -> None:
+    connection = connect_database(schema=schema, output=True)
+    insert_sql = f'UPDATE state ' \
+                 f'SET stat = "BREAK" ' \
+                 f'where task_id = "{task_id}"'
 
+    try:
+        cursor = connection.cursor()
+        cursor.execute(insert_sql)
+        connection.commit()
+        connection.close()
+    except Exception as e:
+        raise e
+
+def check_break_status(task_id: str,
+                       schema: str = 'audience_result'):
+    connection = connect_database(schema=schema, output=True)
+    sql = f"""select stat from state where task_id = '{task_id}'"""
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        return result['stat']
+    except Exception as e:
+        raise e

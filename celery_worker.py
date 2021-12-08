@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Optional
 
 from dotenv import load_dotenv
 from datetime import datetime
@@ -6,7 +6,7 @@ from datetime import datetime
 from celery import Celery
 
 from settings import DatabaseConfig
-from utils.database_core import update2state, get_batch_by_timedelta
+from utils.database_core import update2state, get_batch_by_timedelta, check_break_status
 from utils.helper import get_logger, get_config
 from utils.run_label_task import labeling
 from utils.task_dump_production import get_last_production
@@ -29,8 +29,14 @@ celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTE
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking
-def label_data(task_id: str, **kwargs) -> List[str]:
+def label_data(task_id: str, **kwargs) -> Optional[List[str]]:
+
     _logger = get_logger('label_data')
+
+    if check_break_status(task_id) == 'BREAK':
+        _logger.info(f"task {task_id} is abort by the external user")
+        return None
+
     load_dotenv()
     start_time = datetime.now()
     # cpu_info_df = pd.DataFrame(columns=['task_id', 'batch', 'cpu_percent', 'cpu_freq', 'cpu_load_avg'])
@@ -39,23 +45,30 @@ def label_data(task_id: str, **kwargs) -> List[str]:
     end_date = kwargs.get('END_TIME')
     start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
     end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
+    site_connection_info: Dict = kwargs.get('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
 
     table_dict = {}
     count = 0
     row_number = 0
 
     for idx, elements in enumerate(get_batch_by_timedelta(kwargs.get('INPUT_SCHEMA'),
-                                                         kwargs.get('PREDICT_TYPE'),
-                                                         kwargs.get('INPUT_TABLE'),
-                                                         start_date_d, end_date_d)):
+                                                          kwargs.get('PREDICT_TYPE'),
+                                                          kwargs.get('INPUT_TABLE'),
+                                                          start_date_d,
+                                                          end_date_d,
+                                                          site_input=site_connection_info)):
 
         _logger.info(f'Start calculating task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
                      f'{kwargs.get("INPUT_TABLE")}_batch_{idx} ...')
 
+        element, date_checkpoint = elements
+
+        if check_break_status(task_id) == 'BREAK':
+            _logger.info(f"task {task_id} is abort by the external user in checkpoint {date_checkpoint}")
+            return None
+
         # change the `author` back to `author_name` to fit the label modeling
         pred = "author_name" if kwargs.get('PREDICT_TYPE') == "author" else kwargs.get('PREDICT_TYPE')
-
-        element, date_checkpoint = elements
 
         if element.empty:
             continue
@@ -64,7 +77,7 @@ def label_data(task_id: str, **kwargs) -> List[str]:
 
         try:
             _output, row_num = labeling(task_id, element, kwargs.get('MODEL_TYPE'),
-                               pred, kwargs.get('pattern'), _logger)
+                               pred, kwargs.get('PATTERN'), _logger)
 
             row_number += row_num
 
@@ -111,6 +124,10 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
 
+    if check_break_status(task_id) == 'BREAK':
+        _logger.info(f"task {task_id} is abort by the external user, also skip generating production")
+        return None
+
     if len(output_table) == 0:
         return
 
@@ -143,19 +160,20 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
 
+    if configuration.DUMP_ZIP:
 
-    _logger.info(f'start dumping the result to ZIP from task {task_id}...')
+        _logger.info(f'start dumping the result to ZIP from task {task_id}...')
+        dump_info_kwargs = {
+            'schema': kwargs.get('OUTPUT_SCHEMA'),
+            'table_name': 'state',
+            'task_id': task_id
+        }
+        get_last_production(_logger, **dump_info_kwargs)
+        _logger.info(f'finish dumping the result to ZIP from task {task_id}...')
 
-    dump_info_kwargs = {
-        'schema': kwargs.get('OUTPUT_SCHEMA'),
-        'table_name': 'state',
-        'task_id': task_id
-    }
-
-    get_last_production(_logger, **dump_info_kwargs)
-
-    _logger.info(f'finish dumping the result to ZIP from task {task_id}...')
-
+    else:
+        _logger.info('Local testing will not generate ZIP mysql table backup...skip this part')
+        _logger.info(f'{task_id} done')
 
 
 
