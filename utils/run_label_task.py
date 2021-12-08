@@ -10,7 +10,7 @@ from models.rule_model import RuleModel
 from models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
-from settings import DatabaseConfig, SOURCE
+from settings import DatabaseConfig, SOURCE, LABEL
 from utils.clean_up_result import run_cleaning
 from utils.database_core import create_table, connect_database
 from utils.helper import get_logger
@@ -152,7 +152,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     # df = df[['id', 'task_id', 'source_author', 'created_at', 'panel']]
 
     # logger.info('finish labeling, generate the output ...')
-    df["panel"].replace({"female": "/female", "male": "/male"}, inplace=True)
+    # df["panel"].replace({"female": "/female", "male": "/male"}, inplace=True)
+
     df.rename(columns={'post_time': 'create_time'}, inplace=True)
     df['source_author'] = df['s_id'] + '_' + df['author']
     df['field_content'] = df['s_id']
@@ -191,6 +192,10 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
             _df_write = run_cleaning(df_write)
         except Exception as e:
             raise e
+
+        _df_write = _df_write.replace({"panel": LABEL})
+        _df_write['panel'] = '/' + _df_write['panel'].astype(str)
+
 
         # _table_name= f'wh_panel_mapping_{k}'
         _table_name = k

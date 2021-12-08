@@ -57,6 +57,16 @@ class SampleResulTable(str, Enum):
     video = 'wh_panel_mapping_video'
     Youtube = 'wh_panel_mapping_Youtube'
 
+class Label(str, Enum):
+    male = '男性'
+    female = '女性'
+    unmarried = '未婚'
+    married = '已婚'
+    child = '孩子'
+    parenting = '有子女'
+    young = '青年'
+    employee = '上班族'
+    student = '學生'
 
 
 
