@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from datetime import datetime, date
+from datetime import date
 from pydantic import BaseModel, BaseSettings
 from typing import Dict, Optional
 
@@ -842,6 +842,9 @@ LABEL = {'男性': 'male',
          '學生': 'student'}
 
 
+
+class RulesDatabase:
+    load_dotenv()
 
 
 

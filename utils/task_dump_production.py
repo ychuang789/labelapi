@@ -39,6 +39,7 @@ def get_query(**kwargs):
         "check_duplicate_data": f"""SELECT source_author, panel, COUNT(*) as c 
         FROM {table_name} GROUP BY source_author, panel HAVING c > 1;""",
         "change_table_name": f"""ALTER TABLE {table_name} RENAME {table_name}_old;""",
+        "get_source_schema_name": f"""select target_table from state where task_id = '{task_id}';""",
     }
 
     return query_dict
@@ -112,16 +113,18 @@ def get_dump_table_name(**kwargs) -> List:
     else:
         raise TableMissingError("missing table_name information in arguments")
 
-def generate_zip(table_name: List, production_path = AUDIENCE_PRODUCTION_PATH):
+def generate_zip(table_name: List, source_db_name: str, production_path = AUDIENCE_PRODUCTION_PATH):
     host = DatabaseConfig.OUTPUT_HOST
     port = DatabaseConfig.OUTPUT_PORT
     user = DatabaseConfig.OUTPUT_USER
     password = DatabaseConfig.OUTPUT_PASSWORD
     schema = DatabaseConfig.OUTPUT_SCHEMA
-    today =datetime.now().strftime("%Y_%m_%d")
-    # path = f'{production_path}/{today}'
-    path = f'{production_path}/temp'
+    today = datetime.now().strftime("%Y%m%d%H%M%S")
+    path = f'{production_path}/{source_db_name}_{today}'
 
+    check_path = path + '/'
+    if not os.path.isdir(check_path):
+        os.mkdir(check_path)
 
     for tb in table_name:
 
@@ -130,7 +133,7 @@ def generate_zip(table_name: List, production_path = AUDIENCE_PRODUCTION_PATH):
         """
         os.system(command)
 
-    check_path = path + '/'
+
     for tb in table_name:
         if not os.path.isfile(check_path + f'{tb}.zip'):
             raise OutputZIPNotFoundError(f'table {tb} writing to ZIP failed...')
@@ -154,12 +157,19 @@ def get_production_dict(table_list):
                                                'settings.TABLE_GROUPS_FOR_INDEX')
     return dict(_d)
 
+def get_source_db_name(**kwargs):
+    schema = kwargs.get('schema')
+    connection = connect_database(schema=schema, output=True)
+    return get_data(connection, get_query(**kwargs).get('get_source_schema_name'), _fetchone=True)
+
+
 def get_last_production(logger: get_logger, **kwargs):
     schema = kwargs.get('schema')
-
+    source_db_name = get_source_db_name(**kwargs).get('target_table')
     logger.info('getting dump table info ...')
     table_name = get_dump_table_name(**get_dump_info(**kwargs))
     production_dict = get_production_dict(table_name)
+
 
     kwargs.pop('table_name')
 
@@ -232,7 +242,7 @@ def get_last_production(logger: get_logger, **kwargs):
 
     logger.info('start generating audience production ZIP ...')
     last_table = ['wh_panel_mapping_' + i for i in list(production_dict.keys())]
-    generate_zip(last_table)
+    generate_zip(last_table, source_db_name)
 
 
 

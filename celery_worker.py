@@ -1,5 +1,6 @@
 import json
-from typing import List, Dict, Optional
+from typing import Dict, Optional
+
 
 from dotenv import load_dotenv
 from datetime import datetime

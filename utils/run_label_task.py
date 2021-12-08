@@ -66,6 +66,36 @@ def read_rules_from_db(rule_name, model_type, labeling_job_id: int = 21, schema=
 
 
 
+
+
+def read_rules_from_db(rule_name, model_type, labeling_job_id: int = 21, schema='audience-toolkit-django', table='labeling_jobs_rule'):
+    connection = connect_database(schema=schema ,output=True)
+    sql = f"""SELECT * FROM {table} where labeling_job_id = {labeling_job_id};"""
+    cursor = connection.cursor()
+    r = cursor.execute(sql)
+    if r == 0:
+        return
+    result = cursor.fetchall()
+    connection.close()
+    output_dict = {}
+
+    if model_type == ModelType.RULE_MODEL.value:
+        rule_list = []
+        for d in result:
+            rule_list.append(d['content'])
+
+        output_dict.update({rule_name:rule_list})
+
+    if model_type == ModelType.KEYWORD_MODEL.value:
+        values = []
+        for d in result:
+            values.append((d['content'], d['match_type']))
+
+        output_dict.update({rule_name:values})
+
+    return output_dict
+
+
 def run_prediction(input_examples: Iterable[InputExample], pattern: Dict,
                    model_type: str,
                    predict_type: PredictTarget):
@@ -152,8 +182,6 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     # df = df[['id', 'task_id', 'source_author', 'created_at', 'panel']]
 
     # logger.info('finish labeling, generate the output ...')
-    # df["panel"].replace({"female": "/female", "male": "/male"}, inplace=True)
-
     df.rename(columns={'post_time': 'create_time'}, inplace=True)
     df['source_author'] = df['s_id'] + '_' + df['author']
     df['field_content'] = df['s_id']
