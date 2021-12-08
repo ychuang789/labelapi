@@ -291,6 +291,7 @@ def get_table_info(id):
     cur = connection.cursor()
     cur.execute(q)
     result = cur.fetchone()
+
     return result
 
 

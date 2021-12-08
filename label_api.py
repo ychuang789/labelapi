@@ -193,7 +193,7 @@ async def sample_result(task_id: str):
 
     tb_list = tb_dict.get('result').split(',')
 
-    if tb_dict.get('result') == '':
+    if not tb_list:
         err_info = {
             "error_code": 404,
             "error_message": f"result table is not found, it is probably due to unfinished or failed task"
