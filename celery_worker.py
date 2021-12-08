@@ -8,7 +8,8 @@ from datetime import datetime
 from celery import Celery
 
 from settings import DatabaseConfig
-from utils.database_core import update2state, get_batch_by_timedelta, check_break_status
+from utils.database_core import update2state, get_batch_by_timedelta, check_break_status, update2state_nodata, \
+    update2state_temp_result_table
 from utils.helper import get_logger, get_config
 from utils.run_label_task import labeling
 from utils.task_dump_production import get_last_production
@@ -50,7 +51,7 @@ def label_data(task_id: str, **kwargs) -> Optional[str]:
 
     site_connection_info: Dict = kwargs.get('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
 
-    table_dict = {}
+    table_dict: Dict = {}
     count = 0
     row_number = 0
 
@@ -91,8 +92,16 @@ def label_data(task_id: str, **kwargs) -> Optional[str]:
                     table_dict.update({k:v})
 
 
+            if table_dict:
+                update2state_temp_result_table(task_id,
+                                               DatabaseConfig.OUTPUT_SCHEMA,
+                                               ','.join(table_dict.keys()),
+                                               _logger)
+
             _logger.info(f'task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
                          f'{kwargs.get("INPUT_TABLE")}_batch_{idx} finished labeling...')
+
+
 
             # cpu_track = track_cpu_usage()
             # cpu_track.update({'task_id': task_id, 'batch': idx})
@@ -102,7 +111,8 @@ def label_data(task_id: str, **kwargs) -> Optional[str]:
             update2state(task_id, '', _logger,
                          schema=DatabaseConfig.OUTPUT_SCHEMA,
                          success=False,
-                         check_point=date_checkpoint)
+                         check_point=date_checkpoint,
+                         error_message=e)
 
             err_msg = f'task {task_id} failed at {kwargs.get("INPUT_SCHEMA")}.' \
                       f'{kwargs.get("INPUT_TABLE")}_batch_{idx}, additional error message {e}'
@@ -134,6 +144,7 @@ def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
     output_table = json.loads(output_table_json)
 
     if len(output_table) == 0:
+        update2state_nodata(task_id, DatabaseConfig.OUTPUT_SCHEMA, _logger)
         return
 
     for tb in output_table:

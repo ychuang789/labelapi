@@ -152,18 +152,19 @@ def create_state_table(logger: get_logger, schema=None):
                  f'`prod_stat` VARCHAR (10),' \
                  f'`model_type` VARCHAR(32) NOT NULL,' \
                  f'`predict_type` VARCHAR(32) NOT NULL,' \
-                 f'`date_range` TEXT(1073741823),' \
+                 f'`date_range` TEXT,' \
                  f'`target_table` VARCHAR(32) NOT NULL,' \
                  f'`create_time` DATETIME NOT NULL,' \
                  f'`peak_memory` FLOAT(10),' \
                  f'`length_receive_table` INT(11),' \
                  f'`length_output_table` INT(11),' \
                  f'`length_prod_table` VARCHAR (100),' \
-                 f'`result` TEXT(1073741823),' \
+                 f'`result` TEXT,' \
                  f'`uniq_source_author` VARCHAR(100),' \
                  f'`rate_of_label` INT(11),' \
                  f'`run_time` FLOAT(10),' \
-                 f'`check_point` DATETIME' \
+                 f'`check_point` DATETIME,' \
+                 f'`error_message` LONGTEXT' \
                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                  f'AUTO_INCREMENT=1 ;'
     func = connect_database
@@ -207,9 +208,39 @@ def insert2state(task_id, status, model_type, predict_type,
     except Exception as e:
         raise e
 
+def update2state_temp_result_table(task_id, schema, result, logger: get_logger):
+    connection = connect_database(schema=schema, output=True)
+    insert_sql = f'UPDATE state ' \
+                 f'SET result = "{result}" ' \
+                 f'where task_id = "{task_id}"'
+    try:
+        cursor = connection.cursor()
+        logger.info('connecting to database...')
+        cursor.execute(insert_sql)
+        logger.info(f'successfully write state into table.')
+        connection.commit()
+        connection.close()
+    except Exception as e:
+        raise e
+
+def update2state_nodata(task_id, schema, logger: get_logger):
+    connection = connect_database(schema=schema, output=True)
+    insert_sql = f'UPDATE state ' \
+                 f'SET prod_stat = "no_data" ' \
+                 f'where task_id = "{task_id}"'
+    try:
+        cursor = connection.cursor()
+        logger.info('connecting to database...')
+        cursor.execute(insert_sql)
+        logger.info(f'successfully write state into table.')
+        connection.commit()
+        connection.close()
+    except Exception as e:
+        raise e
+
 def update2state(task_id, result, logger: get_logger, input_row_length = None,
                  output_row_length = None, run_time=None, schema=None, success=True,
-                 check_point=None, uniq_source_author=None):
+                 check_point=None, uniq_source_author=None, error_message=None):
 
     connection = connect_database(schema=schema, output=True)
     if success:
@@ -222,7 +253,10 @@ def update2state(task_id, result, logger: get_logger, input_row_length = None,
                      f'where task_id = "{task_id}"'
     else:
         insert_sql = f'UPDATE state ' \
-                     f'SET stat = "FAILURE", result = "{result}", check_point = "{check_point}" ' \
+                     f'SET stat = "FAILURE", ' \
+                     f'result = "{result}", ' \
+                     f'check_point = "{check_point}", ' \
+                     f'error_message = "{error_message}"' \
                      f'where task_id = "{task_id}"'
 
 
