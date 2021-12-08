@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from datetime import datetime, date
+from datetime import date
 from pydantic import BaseModel, BaseSettings
 from typing import Dict, Optional
 
@@ -831,6 +831,20 @@ class TaskSampleResult:
     NUMBER: int = 50
     OFFSET: int = 1000
 
+LABEL = {'男性': 'male',
+         '女性': 'female',
+         '未婚': 'unmarried',
+         '已婚': 'married',
+         '孩子': 'child',
+         '有子女': 'parenting',
+         '青年': 'young',
+         '上班族': 'employee',
+         '學生': 'student'}
+
+
+
+class RulesDatabase:
+    load_dotenv()
 
 
 

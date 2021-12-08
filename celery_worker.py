@@ -1,4 +1,6 @@
-from typing import List, Dict, Optional
+import json
+from typing import Dict, Optional
+
 
 from dotenv import load_dotenv
 from datetime import datetime
@@ -29,7 +31,7 @@ celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTE
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking
-def label_data(task_id: str, **kwargs) -> Optional[List[str]]:
+def label_data(task_id: str, **kwargs) -> Optional[str]:
 
     _logger = get_logger('label_data')
 
@@ -117,10 +119,10 @@ def label_data(task_id: str, **kwargs) -> Optional[List[str]]:
 
     # cpu_info_df.to_csv(f'save_file/{task_id}_cpu_info.csv', encoding='utf-8-sig', index=False)
 
-    return list(table_dict.keys())
+    return json.dumps(list(table_dict.keys()), ensure_ascii=False)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.generate_production', track_started=True)
-def generate_production(output_table: List[str], task_id: str, **kwargs) -> None:
+def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
     _logger = get_logger('produce_outcome')
     start_time = datetime.now()
 
@@ -128,6 +130,8 @@ def generate_production(output_table: List[str], task_id: str, **kwargs) -> None
         _logger.info(f"task {task_id} is abort by the external user, also skip generating production")
         return None
 
+    output_table = json.loads(output_table_json)
+    
     if len(output_table) == 0:
         return
 

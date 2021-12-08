@@ -459,7 +459,6 @@ def send_break_signal_to_state(task_id: str, schema: str = 'audience_result') ->
     insert_sql = f'UPDATE state ' \
                  f'SET stat = "BREAK" ' \
                  f'where task_id = "{task_id}"'
-
     try:
         cursor = connection.cursor()
         cursor.execute(insert_sql)
@@ -480,3 +479,4 @@ def check_break_status(task_id: str,
         return result['stat']
     except Exception as e:
         raise e
+

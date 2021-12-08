@@ -13,7 +13,6 @@ from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, Abo
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config
-from utils.run_label_task import read_from_dir, read_rules_from_db
 
 configuration = get_config()
 
@@ -69,22 +68,6 @@ async def create_task(create_request_body: TaskConfig):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    # try:
-    #     pattern = read_from_dir(config.get('MODEL_TYPE'), config.get('PREDICT_TYPE'))
-    #     pattern = read_rules_from_db()
-    #     config.update(
-    #         {'pattern': pattern}
-    #     )
-    # except Exception as e:
-    #     err_info = {
-    #         "error_code": 501,
-    #         "error_message": f"cannot read pattern file, probably unknown file path or file is not exist"
-    #                          f", additional error message: {e}"
-    #     }
-    #     _logger.error(err_info)
-    #     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-
-    # since the source database author column name is `author`
     if config.get('PREDICT_TYPE') == 'author_name':
         config['PREDICT_TYPE'] = "author"
     else:
@@ -193,7 +176,7 @@ async def sample_result(task_id: str):
 
     tb_list = tb_dict.get('result').split(',')
 
-    if tb_dict.get('result') == '':
+    if not tb_list:
         err_info = {
             "error_code": 404,
             "error_message": f"result table is not found, it is probably due to unfinished or failed task"
@@ -242,6 +225,34 @@ async def sample_result(task_id: str):
         }
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+@app.post('/api/tasks/abort/', description='aborting a task no matter it is executing')
+async def abort_task(abort_request_body: AbortionConfig):
+    config = abort_request_body.__dict__
+    task_id = config.get('TASK_ID', None)
+
+    if len(task_id) != 32:
+        err_info = {
+            "error_code": 400,
+            "error_message": f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits'
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    try:
+        send_break_signal_to_state(task_id)
+        err_info = {
+            "error_code": 200,
+            "error_message" : f"successfully send break status to task {task_id} in state"
+        }
+    except Exception as e:
+        err_info = {
+            "error_code": 500,
+            "error_message": f"failed to send break status to task, additional error message: {e}"
+        }
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
 
 @app.post('/api/tasks/abort/', description='aborting a task no matter it is executing')
 async def abort_task(abort_request_body: AbortionConfig):

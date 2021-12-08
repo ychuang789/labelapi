@@ -158,6 +158,8 @@ clean_up.py
 tracing_task_id.txt
 tracing_task_id_2.txt
 
+requirements_database_list.txt
+
 # get the multi-state
 get_multi_state.py
 generate_prod_multi.py

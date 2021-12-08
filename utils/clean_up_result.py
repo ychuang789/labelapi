@@ -47,7 +47,7 @@ def run_cleaning(df: pd.DataFrame) -> pd.DataFrame:
         return uniq_df
 
     output = pd.merge(uniq_df, remove_duplicates_df, on=['source_author', 'panel']).drop(['counts'], axis=1)
-    # o = output.drop_duplicates(subset=['source_author', 'panel'], keep='last')
+    o = output.drop_duplicates(subset=['source_author', 'panel'], keep='last')
     return o.sort_values(by='create_time')
 
 def write_results_back_to_database(df: pd.DataFrame ,table_name: str, logger: get_logger):
