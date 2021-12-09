@@ -43,7 +43,7 @@ def run_dump_flow(path: str, **connection):
 
 @click.command()
 @click.option('--path', required=True)
-@click.option('--connection', required=True, default='config.ini')
+@click.option('--connection', required=True, default='dump/config.ini')
 def execute_task(path,connection):
     config = configparser.ConfigParser()
     config.read(connection)
@@ -56,5 +56,6 @@ def execute_task(path,connection):
 
 if __name__ == '__main__':
     execute_task()
+    # python dump/fix.py --path /home/deeprd2/audience_production/2021_11_26
 
 
