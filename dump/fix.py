@@ -13,7 +13,7 @@ class FileNotFoundError(Exception):
     """no file in dir"""
     pass
 
-def load_dump_file(file_name: str, **connection) -> None:
+def load_dump_file(path:str, file_name: str, **connection) -> None:
     host = connection['host']
     port = int(connection['port'])
     user = connection['user']
@@ -21,7 +21,7 @@ def load_dump_file(file_name: str, **connection) -> None:
     schema = connection['schema']
 
     command = f"""
-            mysql -u{user} -p{password} -h{host} -P{port} {schema} < unzip -p {file_name} 
+            mysql -u{user} -p{password} -h{host} -P{port} {schema} < unzip -p {path}{file_name} 
             """
     os.system(command)
 
@@ -37,7 +37,7 @@ def run_dump_flow(path: str, **connection):
 
     for file in tqdm(file_list):
         try:
-            load_dump_file(file, **connection)
+            load_dump_file(path, file, **connection)
         except Exception as e:
             raise f"fail to restore the {file} since {e}"
 
