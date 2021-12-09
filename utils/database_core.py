@@ -416,7 +416,9 @@ def get_label_source_from_state(task_id):
 
 def get_timedelta_query(predict_type, table, start_time, end_time):
     q = f"SELECT * FROM {table} " \
-        f"WHERE {predict_type} IS NOT NULL " \
+        f"WHERE author IS NOT NULL " \
+        f"AND s_id IS NOT NULL " \
+        f"AND {predict_type} IS NOT NULL " \
         f"AND post_time >= '{start_time}' " \
         f"AND post_time <= '{end_time}';"
 

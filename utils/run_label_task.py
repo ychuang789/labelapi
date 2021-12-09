@@ -216,10 +216,9 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         if df_write.empty:
             continue
 
-        try:
-            _df_write = run_cleaning(df_write)
-        except Exception as e:
-            raise e
+
+        _df_write = run_cleaning(df_write)
+
 
         _df_write = _df_write.replace({"panel": LABEL})
         _df_write['panel'] = '/' + _df_write['panel'].astype(str)
@@ -236,7 +235,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
             logger.info(f'successfully write data into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}')
 
         except Exception as e:
-            logger.error(f'write dataframe to test failed!')
+            # _df_write.to_csv('debug.csv', index=False, encoding='utf-8-sig')
+            logger.error(f'write dataframe to {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name} failed!')
             raise ConnectionError(f'failed to write output into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}... '
                                   f'additional error message {e}')
         # result_table_list.append(_table_name)

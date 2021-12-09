@@ -186,7 +186,7 @@ async def sample_result(task_id: str):
 
         err_info = {
             "error_code": 404,
-            "error_message": f"result table is not found, it is probably due to unfinished or failed task"
+            "error_message": f"result table is not found, plz wait for awhile to retry it"
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
