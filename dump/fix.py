@@ -36,10 +36,11 @@ def run_dump_flow(path: str, **connection):
         raise FileNotFoundError(f"there is no matching files in the {path}")
 
     for file in tqdm(file_list):
-        try:
-            load_dump_file(path, file, **connection)
-        except Exception as e:
-            raise f"fail to restore the {file} since {e}"
+        print(file)
+        # try:
+        #     load_dump_file(path, file, **connection)
+        # except Exception as e:
+        #     raise f"fail to restore the {file} since {e}"
 
 @click.command()
 @click.option('--path', required=True)
