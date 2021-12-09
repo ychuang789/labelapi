@@ -21,7 +21,7 @@ def load_dump_file(file_name: str, **connection) -> None:
     schema = connection['schema']
 
     command = f"""
-            unzip -p {file_name} | mysql -u {user} -p {password} -h{ host} -P {port} {schema}
+            unzip -p {file_name} | mysql -u {user} -p {password} -h {host} -P {port} {schema}
             """
     os.system(command)
 
