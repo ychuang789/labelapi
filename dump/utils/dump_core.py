@@ -1,6 +1,7 @@
 import os
 from collections import defaultdict
 from datetime import datetime
+from typing import Dict, List
 
 from sqlalchemy import create_engine
 from tqdm import tqdm
@@ -38,10 +39,11 @@ def get_old_data(schema, table_name):
     result = to_dataframe(get_data(schema, q, output=False))
     return result
 
-def get_current_data(schema, table_name):
+def get_current_data(schema, table_name, task_id):
     q = f"""
     SELECT source_author, panel 
     FROM {table_name} 
+    WHERE task_id = '{task_id}'
     """
     result = to_dataframe(get_data(schema, q, output=True))
     return result
@@ -76,25 +78,27 @@ def check_merge_data(**kwargs):
 
     return get_old_table_list(old_data_db, year)
 
-def checker(df):
-    # df = get_current_data(schema, table_name)
-    duplicate = df[df.duplicated(subset=['source_author', 'panel'])]
+# def checker(df):
+#     # df = get_current_data(schema, table_name)
+#     duplicate = df[df.duplicated(subset=['source_author', 'panel'])]
+#
+#     check_dict = defaultdict(list)
+#     for idx, row in tqdm(df.iterrows()):
+#         if row.panel in CONFLICT_GROUPS:
+#             check_dict[row.source_author].append(row.panel)
+#
+#     return len(duplicate), dict(check_dict)
 
-    check_dict = defaultdict(list)
-    for idx, row in tqdm(df.iterrows()):
-        if row.panel in CONFLICT_GROUPS:
-            check_dict[row.source_author].append(row.panel)
 
-    return len(duplicate), dict(check_dict)
+def merge_data(old_data: pd.DataFrame, _current_data: pd.DataFrame,
+               conflict_term: str, now: datetime = datetime.now()):
 
-
-def merge_data(old_data, _current_data, now = datetime.now()):
     old_data['source_author'] = old_data['source_author'].str.strip()
     _current_data['source_author'] = _current_data['source_author'].str.strip()
     current_data = _current_data.drop_duplicates(subset=['source_author', 'panel'], keep='last')
 
-    old_data_gender = old_data[old_data['panel'].isin(CONFLICT_GROUPS)]
-    old_data_other = old_data[~old_data['panel'].isin(CONFLICT_GROUPS)]
+    old_data_gender = old_data[old_data['panel'].isin(CONFLICT_GROUPS.get(conflict_term))]
+    old_data_other = old_data[~old_data['panel'].isin(CONFLICT_GROUPS.get(conflict_term))]
 
     old_overlap_data = old_data_gender[old_data_gender['source_author'].isin(current_data['source_author'].values.tolist())]
     new_overlap_data = current_data[current_data['source_author'].isin(old_data_gender['source_author'].values.tolist())]
@@ -124,8 +128,6 @@ def merge_data(old_data, _current_data, now = datetime.now()):
     result_overlap_df = temp[['source_author','panel','create_time']]
     new_data = new_data.append(result_overlap_df)
     # _logger.info(f'sum of nan in new_data after concat conflict {new_data.isna().sum()}')
-
-
     return new_data
 
 def run_task(**kwargs):
@@ -145,7 +147,7 @@ def run_task(**kwargs):
         # _logger.info('start checking conflict...')
         new_data = merge_data(old_df, new_df)
 
-        duplicate_row_number, dict_checker = checker(new_data)
+        # duplicate_row_number, dict_checker = checker(new_data)
 
         # if duplicate_row_number > 0:
             # _logger.error(f'table conflict result {i} contains duplicate row number {duplicate_row_number}')
@@ -160,10 +162,63 @@ def run_task(**kwargs):
         create_new_table(temp_table_name, new_data_db)
         write_into_table(new_data, new_data_db, temp_table_name)
 
+def clean_rest(df: pd.DataFrame, now: datetime = datetime.now()):
 
-def run(generate_dict):
-    df = pd.DataFrame(columns=[])
+    # _logger.info(f'get current data...')
+
+    df['source_author'] = df['source_author'].str.strip()
+    df = df.drop_duplicates(subset=['source_author', 'panel'], keep='last')
+
+    create_time = [now] * len(df)
+    temp = pd.DataFrame({'create_time': create_time})
+    # _logger.info(f'concating...')
+    df = pd.concat([df.reset_index(drop=True), temp], axis=1)
+
+    return df
+    # duplicate_row_number, dict_checker = checker(df)
+
+    # if duplicate_row_number > 0:
+        # _logger.error(f'table conflict result {i} contains duplicate row number {duplicate_row_number}')
+
+    # for k, v in dict_checker.items():
+    #     if len(v) > 1:
+            # _logger.error(f'table conflict result {i} contains conflict on source_author {k}')
+            # print(f'{k}:{v}')
+
+    # _logger.info(f'writing into table...')
+
+
+def run(generate_dict: Dict[str,List[str]], result_table_dict: Dict[str,List[str]],
+        input_database: str, output_database: str, year: int, prefix: str,
+        conflict_term: str, now: datetime = datetime.now()):
+
     for table_name, task_ids in generate_dict.items():
+
+        # get the new data
+        new_df = pd.DataFrame(columns=['source_author', 'panel', 'create_time'])
+
+        for task_id in task_ids:
+            for result_table in result_table_dict.get(task_id):
+                current_df = get_current_data(output_database, result_table, task_id)
+                new_df = new_df.append(current_df)
+
+        # get the old data
+        previous_table_list = get_old_table_list(input_database, year)
+        temp_table_name =  prefix + table_name + '_' + str(year)
+        if temp_table_name in previous_table_list:
+            old_df = get_old_data(input_database, temp_table_name)
+            dump_df = merge_data(old_df, new_df, conflict_term, now=now)
+
+            dump_table_name = prefix + table_name + '_dump'
+            create_new_table(dump_table_name, output_database)
+            write_into_table(dump_df, output_database, dump_table_name)
+
+        else:
+            dump_df = clean_rest(new_df, now=now)
+            temp_table_name = table_name + '_dump'
+            create_new_table(temp_table_name, output_database)
+            write_into_table(dump_df, output_database, temp_table_name)
+
 
 
 

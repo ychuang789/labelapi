@@ -743,6 +743,8 @@ SOURCE: Dict = {
     ]
 }
 
+TABLE_PREFIX = 'wh_panel_mapping_'
+
 TABLE_GROUPS_FOR_INDEX = {
     'fb': ['fbfans', 'fbgroup', 'fbkol', 'fbpm', 'fbprivategroup'],
     'forum': ['forum', 'Dcard'],

@@ -4,22 +4,34 @@ from typing import List, Dict
 from dump.groups.dump_helper import ResultMissingError, TaskUnfinishedError
 from dump.groups.groups_interface import IGroups
 from dump.utils.check_merge_2020 import get_generate_dict_from_state
-from settings import TABLE_GROUPS_FOR_INDEX
-
+from dump.utils.dump_core import run
+from settings import TABLE_GROUPS_FOR_INDEX, TABLE_PREFIX
 
 
 class Gender_Dump(IGroups):
     def __init__(self, task_ids: List[str], input_database: str,
-                 output_database: str):
+                 output_database: str, previous_year: int = None):
         super().__init__(task_ids=task_ids, input_database=input_database,
                          output_database=output_database, generate_dict=defaultdict(list),
-                         logger_name='gender_dump')
+                         result_table_dict=defaultdict(list), previous_year=previous_year,
+                         logger_name='gender_dump', prefix=TABLE_PREFIX)
+
         self.get_generate_dict()
 
 
     def get_generate_dict(self):
+
         state_list = get_generate_dict_from_state(self.task_ids)
         _state_checker(state_list)
+
+        for item_dict in state_list:
+            if ',' in item_dict.get('result'):
+                for i in item_dict.get('result').split(','):
+                    table_name = self.prefix + i
+                    self.result_table_dict[item_dict.get('task_id')].append(table_name)
+            else:
+                table_name = self.prefix + item_dict.get('result')
+                self.result_table_dict[item_dict.get('task_id')].append(table_name)
 
         for item_dict in state_list:
             for result_table, source_group in TABLE_GROUPS_FOR_INDEX.items():
@@ -29,7 +41,10 @@ class Gender_Dump(IGroups):
                 else:
                     if item_dict.get('result') in source_group:
                         self.generate_dict[result_table].append(item_dict.get('task_id'))
-    # def run_merge(self):
+
+
+    def run_merge(self):
+        run(self.generate_dict, self.result_table_dict, self.input_database, self.output_database, self.year)
 
 
 
