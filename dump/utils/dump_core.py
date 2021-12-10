@@ -1,5 +1,4 @@
 import os
-from collections import defaultdict
 from datetime import datetime
 from typing import Dict, List
 
@@ -8,8 +7,11 @@ from tqdm import tqdm
 
 import pandas as pd
 
-from settings import CONFLICT_GROUPS
+from definition import AUDIENCE_PRODUCTION_PATH
+from dump.groups.dump_helper import OutputZIPNotFoundError
+from settings import CONFLICT_GROUPS, DatabaseConfig
 from utils.database_core import connect_database, to_dataframe
+from utils.helper import get_logger
 
 
 def get_data(schema, query, output=True):
@@ -190,11 +192,13 @@ def clean_rest(df: pd.DataFrame, now: datetime = datetime.now()):
 
 def run(generate_dict: Dict[str,List[str]], result_table_dict: Dict[str,List[str]],
         input_database: str, output_database: str, year: int, prefix: str,
-        conflict_term: str, now: datetime = datetime.now()):
+        conflict_term: str, logger: get_logger, now: datetime = datetime.now()):
 
-    for table_name, task_ids in generate_dict.items():
+    for table_name, task_ids in tqdm(generate_dict.items()):
 
-        # get the new data
+        logger.info(f'start generating {table_name} dumping flow...')
+
+        logger.info(f'start scraping result data...')
         new_df = pd.DataFrame(columns=['source_author', 'panel', 'create_time'])
 
         for task_id in task_ids:
@@ -202,28 +206,56 @@ def run(generate_dict: Dict[str,List[str]], result_table_dict: Dict[str,List[str
                 current_df = get_current_data(output_database, result_table, task_id)
                 new_df = new_df.append(current_df)
 
-        # get the old data
+        logger.info(f'start scraping {year} data...')
         previous_table_list = get_old_table_list(input_database, year)
         temp_table_name =  prefix + table_name + '_' + str(year)
         if temp_table_name in previous_table_list:
+
             old_df = get_old_data(input_database, temp_table_name)
             dump_df = merge_data(old_df, new_df, conflict_term, now=now)
 
             dump_table_name = prefix + table_name + '_dump'
+
+            logger.info(f'start creating table {dump_table_name}...')
             create_new_table(dump_table_name, output_database)
+
+            logger.info(f'start writing data in to {dump_table_name}...')
             write_into_table(dump_df, output_database, dump_table_name)
 
         else:
+            logger.info(f'there is no {temp_table_name}, directly dumping...')
             dump_df = clean_rest(new_df, now=now)
+
             temp_table_name = table_name + '_dump'
+
+            logger.info(f'start creating table {temp_table_name}...')
             create_new_table(temp_table_name, output_database)
+
+            logger.info(f'start writing data in to {temp_table_name}...')
             write_into_table(dump_df, output_database, temp_table_name)
 
 
+def execute_zip_command(table_name: str, year: int,
+                        production_path=AUDIENCE_PRODUCTION_PATH) -> None:
+    host = DatabaseConfig.OUTPUT_HOST
+    port = DatabaseConfig.OUTPUT_PORT
+    user = DatabaseConfig.OUTPUT_USER
+    password = DatabaseConfig.OUTPUT_PASSWORD
+    schema = DatabaseConfig.OUTPUT_SCHEMA
+    direction = datetime.now().strftime('%Y_%m_%d')
+    base_path = f'{production_path}/{direction}_dump_{year}'
 
+    check_path = base_path + '/'
+    if not os.path.isdir(check_path):
+        os.mkdir(check_path)
 
+    zip_file_name = table_name.rsplit('_', 1)[0]
 
+    command = f"""
+    mysqldump -u{user} -p{password} -h{host} -P{port} 
+    --lock-tables=false {schema} {table_name} | zip > {base_path}/{zip_file_name}.zip
+    """
+    os.system(command)
 
-
-
-# def run_task(**kwargs):
+    if not os.path.isfile(check_path + f'{zip_file_name}.zip'):
+        raise OutputZIPNotFoundError(f'table {zip_file_name} writing to ZIP failed...')

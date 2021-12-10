@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Dict
 
-from settings import TABLE_PREFIX
+from settings import TABLE_PREFIX, CONFLICT_GROUPS
 from utils.helper import get_logger
 
 
@@ -12,7 +12,8 @@ class IGroups(ABC):
                  result_table_dict: defaultdict,
                  previous_year: int,
                  logger_name: str = "IGroups",
-                 prefix: str = TABLE_PREFIX):
+                 prefix: str = TABLE_PREFIX,
+                 conflict_term: str = None):
         self.task_ids = task_ids
         self.generate_dict = generate_dict
         self.result_table_dict = result_table_dict
@@ -21,6 +22,7 @@ class IGroups(ABC):
         self.previous_year = previous_year
         self.logger = get_logger(logger_name)
         self.prefix = prefix
+        self.conflict_term = conflict_term
 
     @abstractmethod
     def get_generate_dict(self) -> Dict[str,List[str]]:
@@ -31,4 +33,9 @@ class IGroups(ABC):
     @abstractmethod
     def run_merge(self) -> None:
         """run the merge function to add previous data"""
+        pass
+
+    @abstractmethod
+    def dump_zip(self) -> None:
+        """dump to zip"""
         pass
