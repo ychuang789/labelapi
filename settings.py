@@ -841,7 +841,11 @@ LABEL = {'男性': 'male',
          '上班族': 'employee',
          '學生': 'student'}
 
+CONFLICT_GROUPS = {
+    'gender': ('/male', '/female'),
+    'marriage': ('/unmarried', '/married'),
 
+}
 
 class RulesDatabase:
     load_dotenv()
