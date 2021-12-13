@@ -4,12 +4,13 @@ from datetime import datetime
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import create_engine
 
 from celery import chain
-from celery_worker import label_data, generate_production
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig
+
+from celery_worker import label_data, generate_production, dump_result
+from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config
@@ -26,7 +27,9 @@ This service is created by department of Research and Development 2 to help Audi
 1. create_task : a post api which create a labeling task via the information in the request body.    
 2. task_list : return the recent tasks and tasks information.     
 3. check_status : return a single task status and results if success via task_id.   
-4. sample_result : return the labeling results from database via task_id and table information.     
+4. sample_result : return the labeling results from database via task_id and table information.    
+5. abort_task : break the task.   
+6. dump_tasks : dump tasks to ZIP.   
 
 #### Users   
 For eland staff only.  
@@ -34,7 +37,7 @@ For eland staff only.
 
 app = FastAPI(title=configuration.API_TITLE, description=description, version=configuration.API_VERSION)
 
-@app.post('/api/tasks/', description='Create lableing task, '
+@app.post('/api/tasks/', description='Create labeling task, '
                                      'edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks, especially, `task_id`')
 async def create_task(create_request_body: TaskConfig):
@@ -254,33 +257,35 @@ async def abort_task(abort_request_body: AbortionConfig):
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 
-@app.post('/api/tasks/abort/', description='aborting a task no matter it is executing')
-async def abort_task(abort_request_body: AbortionConfig):
-    config = abort_request_body.__dict__
-    task_id = config.get('TASK_ID', None)
+@app.post('/api/tasks/dump/', description='run dump workflow with task_id')
+async def dump_tasks(dump_request_body: DumpConfig):
+    config = dump_request_body.__dict__
 
-    if len(task_id) != 32:
+    if not config.get('task_ids') or len(config.get('task_ids')) == 0:
         err_info = {
-            "error_code": 400,
-            "error_message": f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits'
+            "error_code": 404,
+            "error_message": f"task_ids cannot be null or empty in dump_tasks"
         }
-        _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     try:
-        send_break_signal_to_state(task_id)
+        dump_result.apply_async(kwargs=config)
         err_info = {
             "error_code": 200,
-            "error_message" : f"successfully send break status to task {task_id} in state"
+            "error_message": config
         }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
     except Exception as e:
         err_info = {
             "error_code": 500,
-            "error_message": f"failed to send break status to task, additional error message: {e}"
+            "error_message": f"task failed because of {e}"
         }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-
+@app.get('/', description='redirect to open API docs')
+def redirect_to_docs():
+    return RedirectResponse('/docs')
 
 
 if __name__ == '__main__':
