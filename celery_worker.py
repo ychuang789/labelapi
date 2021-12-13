@@ -7,6 +7,7 @@ from datetime import datetime
 
 from celery import Celery
 
+from dump.dump_production import DumpFlow
 from settings import DatabaseConfig
 from utils.database_core import update2state, get_batch_by_timedelta, check_break_status, update2state_nodata, \
     update2state_temp_result_table
@@ -175,20 +176,40 @@ def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
 
-    if configuration.DUMP_ZIP:
+    # if configuration.DUMP_ZIP:
+    #
+    #     _logger.info(f'start dumping the result to ZIP from task {task_id}...')
+    #     dump_info_kwargs = {
+    #         'schema': kwargs.get('OUTPUT_SCHEMA'),
+    #         'table_name': 'state',
+    #         'task_id': task_id
+    #     }
+    #     get_last_production(_logger, **dump_info_kwargs)
+    #
+    #     _logger.info(f'finish dumping the result to ZIP from task {task_id}...')
+    #
+    # else:
+    #     _logger.info('Local testing will not generate ZIP mysql table backup...skip this part')
+    #     _logger.info(f'{task_id} done')
 
-        _logger.info(f'start dumping the result to ZIP from task {task_id}...')
-        dump_info_kwargs = {
-            'schema': kwargs.get('OUTPUT_SCHEMA'),
-            'table_name': 'state',
-            'task_id': task_id
-        }
-        get_last_production(_logger, **dump_info_kwargs)
-        _logger.info(f'finish dumping the result to ZIP from task {task_id}...')
+@celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', track_started=True)
+def dump_result(**kwargs) -> None:
+    _logger = get_logger('dump')
 
-    else:
-        _logger.info('Local testing will not generate ZIP mysql table backup...skip this part')
-        _logger.info(f'{task_id} done')
+    _logger.info('start dumping...')
+    dump_workflow = DumpFlow().generate_dump_flow(kwargs.get('group'), kwargs.get('task_ids'), kwargs.get('previous'))
+
+    try:
+        _logger.info('start merging data')
+        dump_workflow.run_merge()
+    except Exception as e:
+        _logger.error(f'failed to execute dumping flow, additional message {e}')
+        raise e
+
+    _logger.info('dump to zip...')
+    dump_workflow.dump_zip()
+
+
 
 
 

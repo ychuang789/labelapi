@@ -743,6 +743,8 @@ SOURCE: Dict = {
     ]
 }
 
+TABLE_PREFIX = 'wh_panel_mapping_'
+
 TABLE_GROUPS_FOR_INDEX = {
     'fb': ['fbfans', 'fbgroup', 'fbkol', 'fbpm', 'fbprivategroup'],
     'forum': ['forum', 'Dcard'],
@@ -790,6 +792,7 @@ class DatabaseConfig:
     OUTPUT_ENGINE_INFO: str = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
                               f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
                               f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
+    DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
 
 class TaskConfig(BaseModel):
     load_dotenv()
@@ -841,7 +844,11 @@ LABEL = {'男性': 'male',
          '上班族': 'employee',
          '學生': 'student'}
 
-
+# don't delete or edit items in conflict_group, only add item
+CONFLICT_GROUPS = {
+    'GENDER': ('/male', '/female'),
+    'MARRIAGE': ('/unmarried', '/married'),
+}
 
 class RulesDatabase:
     load_dotenv()

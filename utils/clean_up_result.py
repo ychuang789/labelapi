@@ -32,7 +32,9 @@ def clean_data(df: pd.DataFrame) -> Union[pd.DataFrame, None]:
         elif temp.counts.iloc[0] < temp.counts.iloc[1]:
             delete_dict.update({temp.iloc[0, 0]: temp.iloc[0, 1]})
         else:
-            pass
+            # ==== delete both: AS demand at 2021-12-10
+            delete_dict.update({temp.iloc[1, 0]: temp.iloc[1, 1]})
+            delete_dict.update({temp.iloc[0, 0]: temp.iloc[0, 1]})
 
     for k, v in delete_dict.items():
         group = group[~((group.source_author.isin([k])) & (group.panel.isin([v])))]
