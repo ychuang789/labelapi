@@ -194,21 +194,27 @@ def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
     #     _logger.info(f'{task_id} done')
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', track_started=True)
-def dump_result(**kwargs) -> None:
+def dump_result(**kwargs):
     _logger = get_logger('dump')
 
     _logger.info('start dumping...')
     dump_workflow = DumpFlow().generate_dump_flow(kwargs.get('group'), kwargs.get('task_ids'), kwargs.get('previous'))
 
+    if dump_workflow:
+        _logger.info('dump group is not found...plz re-check it')
+        return None
+
     try:
         _logger.info('start merging data')
         dump_workflow.run_merge()
+
     except Exception as e:
         _logger.error(f'failed to execute dumping flow, additional message {e}')
         raise e
 
     _logger.info('dump to zip...')
     dump_workflow.dump_zip()
+
 
 
 

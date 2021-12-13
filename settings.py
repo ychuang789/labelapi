@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from datetime import date
 from pydantic import BaseModel, BaseSettings
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 SOURCE: Dict = {
     "Comment": [
@@ -756,6 +756,12 @@ TABLE_GROUPS_FOR_INDEX = {
     'Blog': ['blog']
 }
 
+# don't delete or edit items in conflict_group, only add item
+CONFLICT_GROUPS = {
+    'GENDER': ('/male', '/female'),
+    'MARRIAGE': ('/unmarried', '/married'),
+}
+
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
     API_TITLE: str  = 'Audience API'
@@ -811,6 +817,13 @@ class TaskConfig(BaseModel):
 class AbortionConfig(BaseModel):
     TASK_ID: str = 'string'
 
+class DumpConfig(BaseModel):
+    GROUP: str = "GENDER"
+    TASK_IDS: List[str] = None
+    PREVIOUS_YEAR: int = 2019
+    INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
+    OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
+
 
 class TaskList:
     load_dotenv()
@@ -844,11 +857,6 @@ LABEL = {'男性': 'male',
          '上班族': 'employee',
          '學生': 'student'}
 
-# don't delete or edit items in conflict_group, only add item
-CONFLICT_GROUPS = {
-    'GENDER': ('/male', '/female'),
-    'MARRIAGE': ('/unmarried', '/married'),
-}
 
 class RulesDatabase:
     load_dotenv()

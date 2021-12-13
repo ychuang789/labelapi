@@ -11,7 +11,6 @@ class DumpFlow:
             return GenderDump(task_ids, input_database, output_database, previous_year=year)
         if group_property == 'MARRIAGE':
             return MarriageDump(task_ids, input_database, output_database, previous_year=year)
-
         return None
 
 
