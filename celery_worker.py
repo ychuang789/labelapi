@@ -49,7 +49,6 @@ def label_data(task_id: str, **kwargs) -> Optional[str]:
     end_date = kwargs.get('END_TIME')
     start_date_d = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%S")
     end_date_d = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%S")
-
     site_connection_info: Dict = kwargs.get('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
 
     table_dict: Dict = {}
@@ -143,7 +142,7 @@ def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
         return None
 
     output_table = json.loads(output_table_json)
-
+    
     if len(output_table) == 0:
         update2state_nodata(task_id, DatabaseConfig.OUTPUT_SCHEMA, _logger)
         return
@@ -214,16 +213,5 @@ def dump_result(**kwargs):
 
     _logger.info('dump to zip...')
     dump_workflow.dump_zip()
-
-
-
-
-
-
-
-
-
-
-
 
 

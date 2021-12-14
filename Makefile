@@ -10,8 +10,8 @@ NUMBER_OF_QUEUE=4
 # tasks
 # YEAR=2020
 YEAR=2021
-DB_NAME_FILE='requirements_database_list_1.txt'
-# DB_NAME_FILE='requirements_database_list_2.txt'
+#DB_NAME_FILE='requirements_database_list_1.txt'
+DB_NAME_FILE='requirements_database_list_2.txt'
 
 python_path:
 	@eval "which $(PYTHON_NAME)"
