@@ -1,8 +1,8 @@
-Audience API v 2.1
+# Audience API v 2.2
 
-###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2021-12-08
+###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2021-12-14
 
-中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pdf)
+中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pptx)
 
 #### Table of content
 

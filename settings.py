@@ -780,7 +780,6 @@ class DevelopConfig(BaseSettings):
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
-    DUMP_ZIP: bool = True
 
 class DatabaseConfig:
     load_dotenv()
