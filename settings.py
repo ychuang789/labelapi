@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import date
 from pydantic import BaseModel, BaseSettings
-from typing import Dict
+from typing import Dict, Optional, List
 
 SOURCE: Dict = {
     "Comment": [
@@ -12,9 +12,9 @@ SOURCE: Dict = {
         "WH_F0199",
         "WH_F0500"
     ],
-    "Dcard": [
-        "WH_F0116"
-    ],
+    # "Dcard": [
+    #     "WH_F0116"
+    # ],
     "Instagram": [
         "WH_F0157"
     ],
@@ -743,6 +743,8 @@ SOURCE: Dict = {
     ]
 }
 
+TABLE_PREFIX = 'wh_panel_mapping_'
+
 TABLE_GROUPS_FOR_INDEX = {
     'fb': ['fbfans', 'fbgroup', 'fbkol', 'fbpm', 'fbprivategroup'],
     'forum': ['forum', 'Dcard'],
@@ -754,6 +756,11 @@ TABLE_GROUPS_FOR_INDEX = {
     'Blog': ['blog']
 }
 
+# don't delete or edit items in conflict_group, only add item
+CONFLICT_GROUPS = {
+    'GENDER': ('/male', '/female'),
+    'MARRIAGE': ('/unmarried', '/married'),
+}
 
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
@@ -768,6 +775,7 @@ class DevelopConfig(BaseSettings):
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
+    DUMP_ZIP: bool = False
 
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
@@ -789,18 +797,32 @@ class DatabaseConfig:
     OUTPUT_ENGINE_INFO: str = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
                               f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
                               f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
+    DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
 
 class TaskConfig(BaseModel):
     load_dotenv()
     MODEL_TYPE: str = 'keyword_model'
     PREDICT_TYPE: str = 'author_name'
-    START_TIME: datetime = "2020-01-01 00:00:00"
-    END_TIME: datetime = "2021-01-01 00:00:00"
+    START_TIME: date = "2020-01-01"
+    END_TIME: date = "2021-01-01"
+    PATTERN: Optional[Dict] = None
     INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
     INPUT_TABLE: str = os.getenv('INPUT_TABLE')
     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
     COUNTDOWN: int = 5
     QUEUE: str = "queue1"
+    SITE_CONFIG: Optional[Dict] = None
+
+class AbortionConfig(BaseModel):
+    TASK_ID: str = 'string'
+
+class DumpConfig(BaseModel):
+    GROUP: str = "GENDER"
+    TASK_IDS: List[str] = None
+    PREVIOUS_YEAR: int = 2019
+    INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
+    OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
+
 
 class TaskList:
     load_dotenv()
@@ -824,6 +846,19 @@ class TaskSampleResult:
     NUMBER: int = 50
     OFFSET: int = 1000
 
+LABEL = {'男性': 'male',
+         '女性': 'female',
+         '未婚': 'unmarried',
+         '已婚': 'married',
+         '孩子': 'child',
+         '有子女': 'parenting',
+         '青年': 'young',
+         '上班族': 'employee',
+         '學生': 'student'}
+
+
+class RulesDatabase:
+    load_dotenv()
 
 
 

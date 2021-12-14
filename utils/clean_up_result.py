@@ -32,7 +32,9 @@ def clean_data(df: pd.DataFrame) -> Union[pd.DataFrame, None]:
         elif temp.counts.iloc[0] < temp.counts.iloc[1]:
             delete_dict.update({temp.iloc[0, 0]: temp.iloc[0, 1]})
         else:
-            pass
+            # ==== delete both: AS demand at 2021-12-10
+            delete_dict.update({temp.iloc[1, 0]: temp.iloc[1, 1]})
+            delete_dict.update({temp.iloc[0, 0]: temp.iloc[0, 1]})
 
     for k, v in delete_dict.items():
         group = group[~((group.source_author.isin([k])) & (group.panel.isin([v])))]
@@ -47,7 +49,7 @@ def run_cleaning(df: pd.DataFrame) -> pd.DataFrame:
         return uniq_df
 
     output = pd.merge(uniq_df, remove_duplicates_df, on=['source_author', 'panel']).drop(['counts'], axis=1)
-    # o = output.drop_duplicates(subset=['source_author', 'panel'], keep='last')
+    o = output.drop_duplicates(subset=['source_author', 'panel'], keep='last')
     return o.sort_values(by='create_time')
 
 def write_results_back_to_database(df: pd.DataFrame ,table_name: str, logger: get_logger):

@@ -4,18 +4,16 @@ from datetime import datetime
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import create_engine
 
 from celery import chain
-from celery_worker import label_data, generate_production
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult
+
+from celery_worker import label_data, generate_production, dump_result
+from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
-    get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info
+    get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config
-from utils.run_label_task import read_from_dir
-
-
 
 configuration = get_config()
 
@@ -29,7 +27,9 @@ This service is created by department of Research and Development 2 to help Audi
 1. create_task : a post api which create a labeling task via the information in the request body.    
 2. task_list : return the recent tasks and tasks information.     
 3. check_status : return a single task status and results if success via task_id.   
-4. sample_result : return the labeling results from database via task_id and table information.     
+4. sample_result : return the labeling results from database via task_id and table information.    
+5. abort_task : break the task.   
+6. dump_tasks : dump tasks to ZIP.   
 
 #### Users   
 For eland staff only.  
@@ -37,11 +37,17 @@ For eland staff only.
 
 app = FastAPI(title=configuration.API_TITLE, description=description, version=configuration.API_VERSION)
 
-@app.post('/api/tasks/', description='Create lableing task, '
+@app.post('/api/tasks/', description='Create labeling task, '
                                      'edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks, especially, `task_id`')
 async def create_task(create_request_body: TaskConfig):
     config = create_request_body.__dict__
+
+    # if config.get('SITE_CONFIG'):
+    #     target_connection_info = config['SITE_CONFIG']
+    # else:
+    #     target_connection_info = config['SITE_CONFIG']
+    # err_info = target_connection_info
 
     if config.get('START_TIME') >= config.get('END_TIME'):
         err_info = {
@@ -65,21 +71,6 @@ async def create_task(create_request_body: TaskConfig):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    try:
-        pattern = read_from_dir(config.get('MODEL_TYPE'), config.get('PREDICT_TYPE'))
-        config.update(
-            {'pattern': pattern}
-        )
-    except Exception as e:
-        err_info = {
-            "error_code": 501,
-            "error_message": f"cannot read pattern file, probably unknown file path or file is not exist"
-                             f", additional error message: {e}"
-        }
-        _logger.error(err_info)
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-
-    # since the source database author column name is `author`
     if config.get('PREDICT_TYPE') == 'author_name':
         config['PREDICT_TYPE'] = "author"
     else:
@@ -114,7 +105,6 @@ async def create_task(create_request_body: TaskConfig):
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     config.update({"task_id": task_id})
-    config.pop('pattern')
 
     err_info = {
         "error_code": 200,
@@ -152,22 +142,23 @@ async def tasks_list():
 async def check_status(task_id):
     try:
         result = query_state_by_id(task_id)
-        err_info = {
-            "error_code": 200,
-            "error_message": "OK",
-            "status": result.get('stat'),
-            "prod_status": result.get('prod_stat'),
-            "result": result.get('result')
-        }
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+        if result:
+            err_info = {
+                "error_code": 200,
+                "error_message": result
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+        else:
+            err_info = {
+                "error_code": 404,
+                "error_message": f"{task_id} status is not found, plz re-check the task_id"
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     except Exception as e:
         err_info = {
-            "error_code": 400,
-            "error_message": f'task id is not exist, plz re-check the task id. Addition error message:{e}',
-            "status": None,
-            "prod_status": None,
-            "result": None
+            "error_code": 500,
+            "error_message": f'Addition error message:{e}',
         }
         _logger.error(f'{e}')
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
@@ -184,16 +175,31 @@ async def sample_result(task_id: str):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-
     tb_list = get_table_info(task_id)
+
+
+
+    if not tb_list:
+        if query_state_by_id(task_id).get('prod_stat') == 'no_data':
+            err_info = {
+                "error_code": 404,
+                "error_message": f"there is no data processed in task {task_id}"
+            }
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+        err_info = {
+            "error_code": 404,
+            "error_message": f"result table is not found, plz wait for awhile to retry it"
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     q = ''
     for i in range(len(tb_list)):
-        output_tb_name = f'wh_panel_mapping_{tb_list[i]}'
+        output_tb_name = f'{tb_list[i]}'
         query = get_sample_query(task_id, output_tb_name,
                                  TaskSampleResult.NUMBER)
         q += query
-        if i != len(tb_list)-1:
+        if i != len(tb_list) - 1:
             q += ' UNION ALL '
         else:
             pass
@@ -221,7 +227,65 @@ async def sample_result(task_id: str):
             "error_message": f"Cannot scrape data from result tables. Additional error message: {e}"
         }
         _logger.error(err_info)
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+@app.post('/api/tasks/abort/', description='aborting a task no matter it is executing')
+async def abort_task(abort_request_body: AbortionConfig):
+    config = abort_request_body.__dict__
+    task_id = config.get('TASK_ID', None)
+
+    if len(task_id) != 32:
+        err_info = {
+            "error_code": 400,
+            "error_message": f'{task_id} is not in proper format, expect 32 digits get {len(task_id)} digits'
+        }
+        _logger.error(err_info)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    try:
+        send_break_signal_to_state(task_id)
+        err_info = {
+            "error_code": 200,
+            "error_message" : f"successfully send break status to task {task_id} in state"
+        }
+    except Exception as e:
+        err_info = {
+            "error_code": 500,
+            "error_message": f"failed to send break status to task, additional error message: {e}"
+        }
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+
+@app.post('/api/tasks/dump/', description='run dump workflow with task_id')
+async def dump_tasks(dump_request_body: DumpConfig):
+    config = dump_request_body.__dict__
+
+    if not config.get('task_ids') or len(config.get('task_ids')) == 0:
+        err_info = {
+            "error_code": 404,
+            "error_message": f"task_ids cannot be null or empty in dump_tasks"
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    try:
+        dump_result.apply_async(kwargs=config)
+        err_info = {
+            "error_code": 200,
+            "error_message": config
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+    except Exception as e:
+        err_info = {
+            "error_code": 500,
+            "error_message": f"task failed because of {e}"
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+@app.get('/', description='redirect to open API docs')
+def redirect_to_docs():
+    return RedirectResponse('/docs')
 
 
 if __name__ == '__main__':

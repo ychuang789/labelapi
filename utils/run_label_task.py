@@ -10,9 +10,9 @@ from models.rule_model import RuleModel
 from models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
-from settings import DatabaseConfig, SOURCE
+from settings import DatabaseConfig, SOURCE, LABEL
 from utils.clean_up_result import run_cleaning
-from utils.database_core import create_table
+from utils.database_core import create_table, connect_database
 from utils.helper import get_logger
 from utils.selections import ModelType, PredictTarget, KeywordMatchType
 from utils.input_example import InputExample
@@ -28,6 +28,7 @@ def read_key_word_pattern(file_path: Optional[Union[str, Path]], _key: str) -> D
 def read_from_dir(model_type: Union[ModelType, str],
                   predict_type: Union[PredictTarget, str]) -> Dict[str, List[Tuple[str, KeywordMatchType]]]:
     _dict = {}
+
     for gender in os.listdir(f'{RULE_FOLDER}/{model_type}'):
         for file in os.listdir(f'{RULE_FOLDER}/{model_type}/{gender}'):
             if file.endswith(".txt"):
@@ -35,6 +36,36 @@ def read_from_dir(model_type: Union[ModelType, str],
                 _dict.update(read_key_word_pattern(file_path, gender))
 
     return _dict
+
+def read_rules_from_db(rule_name, model_type, labeling_job_id: int = 21, schema='audience-toolkit-django', table='labeling_jobs_rule'):
+    connection = connect_database(schema=schema ,output=True)
+    sql = f"""SELECT * FROM {table} where labeling_job_id = {labeling_job_id};"""
+    cursor = connection.cursor()
+    r = cursor.execute(sql)
+    if r == 0:
+        return
+    result = cursor.fetchall()
+    connection.close()
+    output_dict = {}
+
+    if model_type == ModelType.RULE_MODEL.value:
+        rule_list = []
+        for d in result:
+            rule_list.append(d['content'])
+
+        output_dict.update({rule_name:rule_list})
+
+    if model_type == ModelType.KEYWORD_MODEL.value:
+        values = []
+        for d in result:
+            values.append((d['content'], d['match_type']))
+
+        output_dict.update({rule_name:values})
+
+    return output_dict
+
+
+
 
 
 def run_prediction(input_examples: Iterable[InputExample], pattern: Dict,
@@ -123,7 +154,6 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     # df = df[['id', 'task_id', 'source_author', 'created_at', 'panel']]
 
     # logger.info('finish labeling, generate the output ...')
-    df["panel"].replace({"female": "/female", "male": "/male"}, inplace=True)
     df.rename(columns={'post_time': 'create_time'}, inplace=True)
     df['source_author'] = df['s_id'] + '_' + df['author']
     df['field_content'] = df['s_id']
@@ -158,10 +188,13 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
         if df_write.empty:
             continue
 
-        try:
-            _df_write = run_cleaning(df_write)
-        except Exception as e:
-            raise e
+
+        _df_write = run_cleaning(df_write)
+
+
+        _df_write = _df_write.replace({"panel": LABEL})
+        _df_write['panel'] = '/' + _df_write['panel'].astype(str)
+
 
         # _table_name= f'wh_panel_mapping_{k}'
         _table_name = k
@@ -174,7 +207,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
             logger.info(f'successfully write data into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}')
 
         except Exception as e:
-            logger.error(f'write dataframe to test failed!')
+            # _df_write.to_csv('debug.csv', index=False, encoding='utf-8-sig')
+            logger.error(f'write dataframe to {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name} failed!')
             raise ConnectionError(f'failed to write output into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}... '
                                   f'additional error message {e}')
         # result_table_list.append(_table_name)
