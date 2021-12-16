@@ -101,12 +101,6 @@ def label_data(task_id: str, **kwargs) -> Optional[str]:
             _logger.info(f'task {task_id} {kwargs.get("INPUT_SCHEMA")}.'
                          f'{kwargs.get("INPUT_TABLE")}_batch_{idx} finished labeling...')
 
-
-
-            # cpu_track = track_cpu_usage()
-            # cpu_track.update({'task_id': task_id, 'batch': idx})
-            # cpu_info_df = cpu_info_df.append(cpu_track, ignore_index=True)
-
         except Exception as e:
             update2state(task_id, '', _logger,
                          schema=DatabaseConfig.OUTPUT_SCHEMA,
@@ -128,21 +122,15 @@ def label_data(task_id: str, **kwargs) -> Optional[str]:
                  schema=DatabaseConfig.OUTPUT_SCHEMA,
                  uniq_source_author=','.join([str(len(i)) for i in table_dict.values()]))
 
-    # cpu_info_df.to_csv(f'save_file/{task_id}_cpu_info.csv', encoding='utf-8-sig', index=False)
+    # return json.dumps(list(table_dict.keys()), ensure_ascii=False)
 
-    return json.dumps(list(table_dict.keys()), ensure_ascii=False)
-
-@celery_app.task(name=f'{configuration.CELERY_NAME}.generate_production', track_started=True)
-def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
-    _logger = get_logger('produce_outcome')
+    output_table =  list(table_dict.keys())
     start_time = datetime.now()
 
     if check_break_status(task_id) == 'BREAK':
         _logger.info(f"task {task_id} is abort by the external user, also skip generating production")
         return None
 
-    output_table = json.loads(output_table_json)
-    
     if len(output_table) == 0:
         update2state_nodata(task_id, DatabaseConfig.OUTPUT_SCHEMA, _logger)
         return
@@ -154,7 +142,6 @@ def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
                                                  kwargs.get('OUTPUT_SCHEMA'),
                                                  tb, _logger)
         _output_table_name, row_num = generate_production.clean()
-
 
         _logger.info(f'finish generating output for table {tb}')
         _logger.info(f'start generating task validation for table {tb} ...')
@@ -175,6 +162,49 @@ def generate_production(output_table_json: str, task_id: str, **kwargs) -> None:
 
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
+
+# @celery_app.task(name=f'{configuration.CELERY_NAME}.generate_production', track_started=True)
+# def generate_production(output_table: str, task_id: str, **kwargs) -> None:
+#     _logger = get_logger('produce_outcome')
+#     start_time = datetime.now()
+#
+#     if check_break_status(task_id) == 'BREAK':
+#         _logger.info(f"task {task_id} is abort by the external user, also skip generating production")
+#         return None
+#
+#
+#     if len(output_table) == 0:
+#         update2state_nodata(task_id, DatabaseConfig.OUTPUT_SCHEMA, _logger)
+#         return
+#
+#     for tb in output_table:
+#         _logger.info(f'start generating output for table {tb}...')
+#
+#         generate_production = TaskGenerateOutput(task_id,
+#                                                  kwargs.get('OUTPUT_SCHEMA'),
+#                                                  tb, _logger)
+#         _output_table_name, row_num = generate_production.clean()
+#
+#
+#         _logger.info(f'finish generating output for table {tb}')
+#         _logger.info(f'start generating task validation for table {tb} ...')
+#
+#         task_info_obj = TaskInfo(task_id,
+#                                  kwargs.get('OUTPUT_SCHEMA'),
+#                                  tb,
+#                                  kwargs.get('INPUT_TABLE'),
+#                                  row_num, _logger)
+#
+#         _logger.info(f'start calculating rate_of_label for table {tb}...')
+#         task_info_obj.generate_output()
+#         _logger.info(f'finish calculating rate_of_label for table {tb}')
+#
+#         _logger.info(
+#             f'total time for {task_id}: {tb} is '
+#             f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
+#
+#     _logger.info(f'finish task {task_id} generate_production, total time: '
+#                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
 
     # if configuration.DUMP_ZIP:
     #

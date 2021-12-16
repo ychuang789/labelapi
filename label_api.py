@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 
 from celery import chain
 
-from celery_worker import label_data, generate_production, dump_result
+from celery_worker import label_data, dump_result
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
@@ -43,12 +43,6 @@ app = FastAPI(title=configuration.API_TITLE, description=description, version=co
 async def create_task(create_request_body: TaskConfig):
     config = create_request_body.__dict__
 
-    # if config.get('SITE_CONFIG'):
-    #     target_connection_info = config['SITE_CONFIG']
-    # else:
-    #     target_connection_info = config['SITE_CONFIG']
-    # err_info = target_connection_info
-
     if config.get('START_TIME') >= config.get('END_TIME'):
         err_info = {
             "error_code": 400,
@@ -80,15 +74,17 @@ async def create_task(create_request_body: TaskConfig):
     try:
         task_id = uuid.uuid1().hex
 
-        result = chain(
-            label_data.signature(
-                args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE')
-            )
-            | generate_production.signature(
-                args=(task_id,), kwargs=config, countdown=config.get('COUNTDOWN'), queue=config.get('QUEUE')
+        result = label_data.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
 
-            )
-        )()
+        # result = chain(
+        #     label_data.signature(
+        #         args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE')
+        #     )
+        #     | generate_production.signature(
+        #         args=(task_id,), kwargs=config, countdown=config.get('COUNTDOWN'), queue=config.get('QUEUE')
+        #
+        #     )
+        # )()
 
         config.update({"date_range": f"{config.get('START_TIME')} - {config.get('END_TIME')}"})
 

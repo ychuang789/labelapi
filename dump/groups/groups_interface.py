@@ -10,7 +10,6 @@ class IGroups(ABC):
     def __init__(self, task_ids: List[str], input_database: str,
                  output_database: str, generate_dict: defaultdict,
                  result_table_dict: defaultdict,
-                 previous_year: int,
                  logger_name: str = "IGroups",
                  prefix: str = TABLE_PREFIX,
                  conflict_term: str = None):
@@ -19,7 +18,6 @@ class IGroups(ABC):
         self.result_table_dict = result_table_dict
         self.input_database = input_database
         self.output_database = output_database
-        self.previous_year = previous_year
         self.logger = get_logger(logger_name)
         self.prefix = prefix
         self.conflict_term = conflict_term

@@ -9,10 +9,10 @@ from settings import TABLE_GROUPS_FOR_INDEX, TABLE_PREFIX
 
 class MarriageDump(IGroups):
     def __init__(self, task_ids: List[str], input_database: str,
-                 output_database: str, previous_year: int = None):
+                 output_database: str):
         super().__init__(task_ids=task_ids, input_database=input_database,
                          output_database=output_database, generate_dict=defaultdict(list),
-                         result_table_dict=defaultdict(list), previous_year=previous_year,
+                         result_table_dict=defaultdict(list),
                          logger_name='gender_dump', prefix=TABLE_PREFIX, conflict_term='MARRIAGE')
 
         self.logger.info(f'start initializing {self.conflict_term.lower()} dumping workflow...')
@@ -43,19 +43,16 @@ class MarriageDump(IGroups):
     def run_merge(self):
         self.logger.info(f'start executing merging...')
         run(self.generate_dict, self.result_table_dict, self.input_database,
-            self.output_database, self.previous_year, self.prefix,
+            self.output_database, self.prefix,
             self.conflict_term, self.logger)
 
 # run run_merge first
     def dump_zip(self):
         for key in self.generate_dict.keys():
             table_name = self.prefix + key + '_dump'
-            year = self.previous_year
 
             self.logger.info(f'start dumping {table_name} to zip...')
-            execute_zip_command(table_name, year)
-
-
+            execute_zip_command(table_name)
 
 
 def _state_checker(state_list: List[Dict]) -> None:

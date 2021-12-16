@@ -7,13 +7,18 @@ from typing import List, Dict
 import pandas as pd
 from sqlalchemy import create_engine
 
-from settings import DatabaseConfig
+from settings import DatabaseConfig, TABLE_PREFIX, TABLE_GROUPS_FOR_INDEX
 from utils.database_core import connect_database, to_dataframe
 from utils.helper import get_logger
 
 CONFLICT_GROUPS = ('/male', '/female')
 
 _logger = get_logger('fix_2020')
+
+def get_table_suffix_condition() -> str:
+    temp = '|'.join(TABLE_GROUPS_FOR_INDEX.keys())
+    condition = '(' + temp + ')$'
+    return condition
 
 def get_data(schema, query, output=True):
     connection = connect_database(schema=schema, output=output)
@@ -23,13 +28,13 @@ def get_data(schema, query, output=True):
     connection.close()
     return result
 
-def get_old_table_list(schema, year):
+def get_old_table_list(schema, condition):
     q = f"""
     SHOW TABLES 
     FROM {schema} 
     WHERE Tables_in_{schema} 
-    LIKE 'wh_panel_mapping_%' AND
-    Tables_in_{schema} LIKE '%{year}' 
+    LIKE '{TABLE_PREFIX}%' AND
+    Tables_in_{schema} REGEXP '{condition}' 
     """
     result = get_data(schema, q, output=False)
     return [v for d in result for k,v in d.items()]
@@ -78,24 +83,35 @@ def merge_data(old_data, _current_data, now = datetime.now()):
     _current_data['source_author'] = _current_data['source_author'].str.strip()
     current_data = _current_data.drop_duplicates(subset=['source_author', 'panel'], keep='last')
 
+    # 性別舊資料
     old_data_gender = old_data[old_data['panel'].isin(CONFLICT_GROUPS)]
+    # 非性別舊資料(直接新增)
     old_data_other = old_data[~old_data['panel'].isin(CONFLICT_GROUPS)]
 
+    # 舊性別資料重疊新性別資料
     old_overlap_data = old_data_gender[old_data_gender['source_author'].isin(current_data['source_author'].values.tolist())]
+    # 舊性別資料無重疊新性別資料(直接新增)
+    old_no_overlap_data = old_data_gender[~old_data_gender['source_author'].isin(current_data['source_author'].values.tolist())]
+
+    # 新性別資料重疊舊性別資料
     new_overlap_data = current_data[current_data['source_author'].isin(old_data_gender['source_author'].values.tolist())]
+    # 新性別資料無重疊舊性別資料(直接新增)
     new_no_overlap_data = current_data[~current_data['source_author'].isin(old_data_gender['source_author'].values.tolist())]
 
+    # 重疊資料
     overlap_data = old_overlap_data.merge(new_overlap_data, left_on=('source_author'), right_on=('source_author'),suffixes=('_old','_new'))
     _logger.info(f'sum of nan in merge {overlap_data.isna().sum()}')
 
     new_data = pd.DataFrame(columns=['source_author', 'panel', 'create_time'])
     new_data = new_data.append(old_data_other)
     new_data = new_data.append(new_no_overlap_data)
+    new_data = new_data.append(old_no_overlap_data)
     new_data = new_data.fillna(value={'create_time': now})
     _logger.info(f'sum of nan in new_data before conflict {new_data.isna().sum()}')
 
     result_list = []
     for idx, row in tqdm(overlap_data.iterrows()):
+        # 衝突資料，應用新的標籤
         if row.panel_old != row.panel_new:
             result_list.append(row.panel_new)
             row.create_time = now
@@ -116,9 +132,9 @@ def merge_data(old_data, _current_data, now = datetime.now()):
 def check_merge_data(**kwargs):
     old_data_db = kwargs.get('old_data_db')
     # new_data_db = kwargs.get('new_data_db')
-    year = kwargs.get('previous_year')
+    # year = kwargs.get('previous_year')
 
-    return get_old_table_list(old_data_db, year)
+    return get_old_table_list(old_data_db, get_table_suffix_condition())
 
 def checker(df):
     # df = get_current_data(schema, table_name)
@@ -142,7 +158,7 @@ def run_task(**kwargs):
         old_df = get_old_data(old_data_db, i)
 
         _logger.info(f'get current data...')
-        target_table_name = i.rsplit('_', 1)[0]
+        target_table_name = i + '_2020'
         new_df = get_current_data(new_data_db, target_table_name)
 
         _logger.info('start checking conflict...')
@@ -159,7 +175,7 @@ def run_task(**kwargs):
 
 
         _logger.info('start writing data into new table...')
-        temp_table_name = target_table_name + '_check'
+        temp_table_name = target_table_name.rsplit('_',1)[0]
         create_new_table(temp_table_name, new_data_db)
         write_into_table(new_data, new_data_db, temp_table_name)
 
@@ -190,7 +206,7 @@ def clean_rest(schema, tb_list, now = datetime.now()):
 
         _logger.info(f'writing into table...')
 
-        temp_table_name = i + '_check'
+        temp_table_name = i.rsplit('_',1)[0]
         create_new_table(temp_table_name, new_data_db)
         write_into_table(df, new_data_db, temp_table_name)
 
