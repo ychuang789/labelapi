@@ -95,7 +95,7 @@ Get into the virtual environment
 
 ```bash
 # clone the project
-$ git clone -b 14-optimize-audience-task-flow --single-branch https://ychuang:weber1812eland@gitting.eland.com.tw/rd2/audience/audience-api.git
+$ git clone https://ychuang:weber1812eland@gitting.eland.com.tw/rd2/audience/audience-api.git
 
 # get into the project folder
 $ cd <your project dir>
@@ -116,7 +116,7 @@ $ pip install -r requirements.txt
 
 ```bash
 # clone the project
-$ git clone -b 14-optimize-audience-task-flow --single-branch https://ychuang:weber1812eland@gitting.eland.com.tw/rd2/audience/audience-api.git
+$ git clone https://ychuang:weber1812eland@gitting.eland.com.tw/rd2/audience/audience-api.git
 
 # get into the project folder
 $ cd <your project dir>
@@ -165,7 +165,15 @@ Make sure the redis is running beforehand or you should fail to initialize celer
 **Windows**
 
 ```bash
-$ make run_queue_1
+# if you wanna run the task with coroutine
+# make sure installing the gevent before `pip install gevent`
+$ make run_worker_1
+
+# if you want to run multi workers try
+# noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
+$ make run_worker_2
+$ make run_worker_3
+$ make run_worker_4
 ```
 
 We use `gevent` to run a worker, see `Makefile` for more information.
@@ -181,7 +189,13 @@ For detailed option command of celery, `-l` means loglevel; `-P` **CANNOT** be s
 ```bash
 # if you wanna run the task with coroutine
 # make sure installing the gevent before `pip install gevent`
-$ make run_queue_1
+$ make run_worker_1
+
+# if you want to run multi workers try
+# noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
+$ make run_worker_2
+$ make run_worker_3
+$ make run_worker_4
 ```
 
 According to [Celery Execution Pools: What is it all about?](https://www.distributedpython.com/2018/10/26/celery-execution-pool/) , it is suggested to configure the worker with **coroutine** (`-P gevent` or `-P eventlet`) used as I/O bound task like HTTP restful API :
