@@ -18,7 +18,7 @@ python_path:
 	@eval "which $(PIP_NAME)"
 
 run_multi_workers:
-	@eval "celery -A celery_worker multi start 4 -Q myqueue -l INFO -P gevent --concurrency=$(CONCURRENCY) --pidfile=pid/%n.pid --logfile=logs/%n%I.log"
+	@eval "celery -A celery_worker multi start 4 -Q myqueue -l INFO -P gevent --concurrency=$(CONCURRENCY) --logfile=logs/%n%I.log"
 
 run_worker_1:
 	@eval "celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P gevent --concurrency=$(CONCURRENCY) --without-gossip --logfile=logs/%n%I.log"

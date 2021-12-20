@@ -67,6 +67,15 @@ def label_data(task_id: str, **kwargs) -> Optional[str]:
 
         element, date_checkpoint = elements
 
+        if isinstance(element, str):
+            update2state(task_id, '', _logger,
+                         schema=DatabaseConfig.OUTPUT_SCHEMA,
+                         success=False,
+                         check_point=date_checkpoint,
+                         error_message=elements)
+            return None
+
+
         if check_break_status(task_id) == 'BREAK':
             _logger.info(f"task {task_id} is abort by the external user in checkpoint {date_checkpoint}")
             return None

@@ -6,6 +6,7 @@ from typing import Optional, Dict
 
 import pymysql
 import pandas as pd
+from retry import retry
 from sqlmodel import SQLModel, create_engine
 from sqlalchemy import create_engine as C
 
@@ -20,6 +21,7 @@ def create_db(db_path, config_db):
         engine = create_engine(f'{config_db}', encoding='utf-8')
         SQLModel.metadata.create_all(engine)
 
+@retry(tries=5)
 def connect_database(schema = None, output = False, site_input: Optional[Dict] = None):
     if site_input:
         _config = site_input
@@ -429,21 +431,28 @@ def get_batch_by_timedelta(schema, predict_type, table,
                            interval: timedelta = timedelta(hours=6),
                            site_input: Optional[Dict] = None):
     while begin_date <= last_date:
+        try:
+            connection = connect_database(schema=schema, site_input=site_input)
+        except Exception as e:
+            return str(e), begin_date
 
-        connection = connect_database(schema=schema, site_input=site_input)
 
         if begin_date + interval > last_date:
+
             break
 
         else:
             start_date_interval = begin_date + interval
             cursor = connection.cursor()
+
             cursor.execute(get_timedelta_query(predict_type, table, begin_date, start_date_interval))
             result = to_dataframe(cursor.fetchall())
-            begin_date += interval
-
             yield result, begin_date
+            begin_date += interval
             connection.close()
+
+
+
 
 
 def check_state_result_for_task_info(task_id: str, schema: str):
