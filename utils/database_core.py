@@ -21,7 +21,7 @@ def create_db(db_path, config_db):
         engine = create_engine(f'{config_db}', encoding='utf-8')
         SQLModel.metadata.create_all(engine)
 
-@retry(tries=5)
+@retry(tries=5, delay=3)
 def connect_database(schema = None, output = False, site_input: Optional[Dict] = None):
     if site_input:
         _config = site_input
