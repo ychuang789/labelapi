@@ -30,6 +30,7 @@ celery_app.conf.update(timezone=configuration.CELERY_TIMEZONE)
 celery_app.conf.update(result_extended=configuration.CELERY_RESULT_EXTENDED)
 celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTED)
 celery_app.conf.update(task_acks_late=configuration.CELERY_ACKS_LATE)
+celery_app.conf.update(task_serializer=configuration.CELERY_SERIALIZER)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking

@@ -17,6 +17,7 @@ from utils.helper import get_logger
 from utils.selections import ModelType, PredictTarget, KeywordMatchType
 from utils.input_example import InputExample
 
+pd.options.mode.chained_assignment = None
 
 def read_key_word_pattern(file_path: Optional[Union[str, Path]], _key: str) -> Dict[str, List[Tuple[str, KeywordMatchType]]]:
     with open(file_path, 'r') as f:
