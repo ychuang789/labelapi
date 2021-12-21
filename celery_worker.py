@@ -1,4 +1,3 @@
-import json
 from typing import Dict, Optional
 
 
@@ -13,11 +12,8 @@ from utils.database_core import update2state, get_batch_by_timedelta, check_brea
     update2state_temp_result_table
 from utils.helper import get_logger, get_config
 from utils.run_label_task import labeling
-from utils.task_dump_production import get_last_production
 from utils.task_generate_production_core import TaskGenerateOutput
 from utils.task_info_core import TaskInfo
-from utils.worker_core import memory_usage_tracking, track_cpu_usage
-
 
 configuration = get_config()
 

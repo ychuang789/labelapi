@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import List, Dict
 
-from settings import TABLE_PREFIX, CONFLICT_GROUPS
+from settings import TABLE_PREFIX
 from utils.helper import get_logger
 
 

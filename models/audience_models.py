@@ -3,12 +3,14 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Iterable, List, Tuple
 
+import settings
 from utils.helper import get_logger
 from utils.input_example import InputExample
 
 
 from utils.selections import ModelType, PredictTarget
 
+MODEL_ROOT = Path(settings.MODEL_PATH_FIELD_DIRECTORY)
 
 class RuleBaseModel(ABC):
     def __init__(self, name: str, model_type: ModelType,
@@ -40,23 +42,12 @@ class RuleBaseModel(ABC):
 
 
 class SupervisedModel(ABC):
-    def __init__(self, model_dir_name: str, name: str, model_type: ModelType,
-                 na_tag=None,
-                 case_sensitive: bool = False,
-                 logger_name: str = "AudienceModel",
-                 target: PredictTarget = PredictTarget.CONTENT,
-                 verbose: bool = False,
-                 **kwargs):
-        self.name = name
-        self.model_type = model_type
+    def __init__(self, model_dir_name: str, feature: PredictTarget = PredictTarget.CONTENT, na_tag=None, **kwargs):
+        self.model = None
         self.model_dir_name = Path(model_dir_name)
-        self.case_sensitive = case_sensitive
-        self.target = target
+        self.feature = feature if isinstance(feature, PredictTarget) else PredictTarget(feature)
         self.is_multi_label = True
         self.na_tag = na_tag
-        self.logger = get_logger(logger_name, verbose=verbose)
-
-        self.logger.info(f'na_tag: {self.na_tag} (If model predict nothing, it will be the default prediction)')
 
     @abstractmethod
     def fit(self, examples: Iterable[InputExample], y_true):

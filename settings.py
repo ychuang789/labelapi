@@ -858,9 +858,7 @@ LABEL = {'男性': 'male',
          '上班族': 'employee',
          '學生': 'student'}
 
-
-class RulesDatabase:
-    load_dotenv()
+MODEL_PATH_FIELD_DIRECTORY = 'model_files'
 
 
 

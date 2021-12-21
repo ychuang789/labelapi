@@ -2,7 +2,7 @@ from enum import Enum
 from pathlib import Path
 
 from definition import RULE_FOLDER
-
+from models import random_forest_model
 
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
@@ -11,11 +11,14 @@ INPUT_COLUMNS = "source_author, applied_content, created_at"
 class ModelType(Enum):
     KEYWORD_MODEL = "keyword_model"
     RULE_MODEL = "rule_model"
+    RANDOM_FOREST_MODEL = "random_forest_model"
+    TERM_WEIGHT_MODEL = "term_weight_model"
 
 class PredictTarget(Enum):
     AUTHOR_NAME = "author_name"
     CONTENT = "content"
     S_AREA_ID = "s_area_id"
+    TITLE = "title"
 
 class RulesTarget:
     AUTHOR_NAME_KEYWORD = Path(RULE_FOLDER / "author_name.pkl")

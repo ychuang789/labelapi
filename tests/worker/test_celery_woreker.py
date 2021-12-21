@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
 from unittest import TestCase
-from celery.utils.debug import sample_mem, memdump
 from celery_worker import label_data
 from settings import CreateLabelRequestBody
 from utils.run_label_task import read_from_dir

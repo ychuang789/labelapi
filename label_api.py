@@ -7,8 +7,6 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import create_engine
 
-from celery import chain
-
 from celery_worker import label_data, dump_result
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \

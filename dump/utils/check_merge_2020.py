@@ -2,7 +2,7 @@ import os
 from collections import defaultdict
 from datetime import datetime
 from tqdm import tqdm
-from typing import List, Dict
+from typing import List
 
 import pandas as pd
 from sqlalchemy import create_engine
