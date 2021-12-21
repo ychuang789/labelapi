@@ -1,6 +1,7 @@
 
 from abc import ABC, abstractmethod
-from typing import Iterable
+from pathlib import Path
+from typing import Iterable, List, Tuple
 
 from utils.helper import get_logger
 from utils.input_example import InputExample
@@ -9,7 +10,7 @@ from utils.input_example import InputExample
 from utils.selections import ModelType, PredictTarget
 
 
-class AudienceModel(ABC):
+class RuleBaseModel(ABC):
     def __init__(self, name: str, model_type: ModelType,
                  case_sensitive: bool = False,
                  logger_name: str = "AudienceModel",
@@ -23,11 +24,63 @@ class AudienceModel(ABC):
 
     @abstractmethod
     def load(self, label_patterns):
+        """load the saved model or patterns"""
         pass
 
     @abstractmethod
     def predict(self, input_examples: Iterable[InputExample]):
+        """predict the results of output, return labels and probs"""
         pass
 
+    @abstractmethod
+    def eval(self, examples: List[InputExample], y_true):
+        """evaluate with validation set, return the report"""
+        pass
+
+
+
+class SupervisedModel(ABC):
+    def __init__(self, model_dir_name: str, name: str, model_type: ModelType,
+                 na_tag=None,
+                 case_sensitive: bool = False,
+                 logger_name: str = "AudienceModel",
+                 target: PredictTarget = PredictTarget.CONTENT,
+                 verbose: bool = False,
+                 **kwargs):
+        self.name = name
+        self.model_type = model_type
+        self.model_dir_name = Path(model_dir_name)
+        self.case_sensitive = case_sensitive
+        self.target = target
+        self.is_multi_label = True
+        self.na_tag = na_tag
+        self.logger = get_logger(logger_name, verbose=verbose)
+
+        self.logger.info(f'na_tag: {self.na_tag} (If model predict nothing, it will be the default prediction)')
+
+    @abstractmethod
+    def fit(self, examples: Iterable[InputExample], y_true):
+        """train the model"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def predict(self, examples: Iterable[InputExample]) -> List[Tuple[Tuple]]:
+        """predict the results of output, return labels and probs"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def eval(self, examples: Iterable[InputExample], y_true):
+        """evaluate with validation set, return the report"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def save(self):
+        """save the model"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def load(self):
+        """load the model, make sure to do it before predict extral test set"""
+        raise NotImplementedError
 
 

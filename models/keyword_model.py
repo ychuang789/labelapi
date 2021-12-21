@@ -2,13 +2,16 @@ from collections import defaultdict
 from typing import Iterable, Dict, List, Tuple
 
 from ahocorapy.keywordtree import KeywordTree
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.preprocessing import MultiLabelBinarizer
 
-from models.audience_models import AudienceModel
+
+from models.audience_models import RuleBaseModel
 from utils.input_example import InputExample
 from utils.selections import ModelType, PredictTarget, KeywordMatchType, Errors
 
 
-class KeywordModel(AudienceModel):
+class KeywordModel(RuleBaseModel):
     def __init__(self, label_keywords: Dict[str, List[Tuple[str, KeywordMatchType]]] = None,
                  name: str = None,
                  model_type: ModelType = ModelType.KEYWORD_MODEL.value,
@@ -27,6 +30,9 @@ class KeywordModel(AudienceModel):
             self.load(label_keywords)
 
     def load(self, label_keywords: Dict[str, List[Tuple[str, KeywordMatchType]]]):
+        self.mlb = MultiLabelBinarizer(classes=list(label_keywords.keys()))
+        self.mlb.fit([[label] for label in list(label_keywords.keys())])
+
         for label, keywords in label_keywords.items():
             if label not in self.labels:
                 self.labels.append(label)
@@ -48,6 +54,7 @@ class KeywordModel(AudienceModel):
         self.logger.debug(f"label match start: {len(self.label_match_start)}")
         self.logger.debug(f"label match end: {len(self.label_match_end)}")
         self.logger.debug(f"label match full: {len(self.label_match_full)}")
+
 
     def predict(self, input_examples: Iterable[InputExample],
                 target: PredictTarget = None):
@@ -96,6 +103,22 @@ class KeywordModel(AudienceModel):
             return matched_labels, match_count_list
         else:
             return None, None
+
+    def eval(self, examples: List[InputExample], y_true):
+        for index, y in enumerate(y_true):
+            y_true[index] = y
+
+        if self.label_match_any_trees and self.mlb:
+            predict_labels, first_matched_keyword = self.predict(examples)
+            y_true = self.mlb.transform(y_true)
+            y_pred = self.mlb.transform(predict_labels)
+            acc = accuracy_score(y_true=y_true, y_pred=y_pred)
+            report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True, zero_division=1,
+                                           target_names=self.mlb.classes)
+            report['accuracy'] = acc
+            return report
+        else:
+            raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
 
 def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT.value,
                          case_sensitive: bool = False) -> List[str]:
