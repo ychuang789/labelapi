@@ -775,8 +775,8 @@ class DevelopConfig(BaseSettings):
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
-    CELERY_ACKS_LATE = True
-    CELERY_SERIALIZER = 'pickle'
+    CELERY_ACKS_LATE: bool = True
+    CELERY_SERIALIZER: str = 'pickle'
     DUMP_ZIP: bool = False
 
 class ProductionConfig(DevelopConfig):

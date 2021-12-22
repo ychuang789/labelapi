@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Optional
 
 
@@ -30,8 +31,8 @@ celery_app.conf.update(task_serializer=configuration.CELERY_SERIALIZER)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking
-def label_data(task_id: str, **kwargs) -> Optional[str]:
-
+def label_data(task_id: str, kwargs_json: str) -> Optional[str]:
+    kwargs = json.loads(kwargs_json)
     _logger = get_logger('label_data')
 
     if check_break_status(task_id) == 'BREAK':
@@ -250,4 +251,8 @@ def dump_result(**kwargs):
     _logger.info('dump to zip...')
     dump_workflow.dump_zip()
 
-
+#
+# @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
+# def testing(**kwargs):
+#     kw = json.loads(kwargs)
+#     return kwargs.get()

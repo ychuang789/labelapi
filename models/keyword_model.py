@@ -26,13 +26,10 @@ class KeywordModel(RuleBaseModel):
         self.label_match_end = defaultdict(list)
         self.label_match_full = defaultdict(list)
         self.labels = []
-        if label_keywords is not None:
+        if label_keywords:
             self.load(label_keywords)
 
     def load(self, label_keywords: Dict[str, List[Tuple[str, KeywordMatchType]]]):
-        self.mlb = MultiLabelBinarizer(classes=list(label_keywords.keys()))
-        self.mlb.fit([[label] for label in list(label_keywords.keys())])
-
         for label, keywords in label_keywords.items():
             if label not in self.labels:
                 self.labels.append(label)
@@ -54,10 +51,12 @@ class KeywordModel(RuleBaseModel):
         self.logger.debug(f"label match start: {len(self.label_match_start)}")
         self.logger.debug(f"label match end: {len(self.label_match_end)}")
         self.logger.debug(f"label match full: {len(self.label_match_full)}")
-
+        self.mlb = MultiLabelBinarizer(classes=list(label_keywords.keys()))
+        self.mlb.fit([[label] for label in list(label_keywords.keys())])
 
     def predict(self, input_examples: Iterable[InputExample],
                 target: PredictTarget = None):
+
         target = target if target is not None else self.target
         x = parse_predict_target(input_examples=input_examples, target=target,
                                  case_sensitive=self.case_sensitive)
@@ -108,7 +107,7 @@ class KeywordModel(RuleBaseModel):
         for index, y in enumerate(y_true):
             y_true[index] = y
 
-        if self.label_match_any_trees and self.mlb:
+        if self.mlb:
             predict_labels, first_matched_keyword = self.predict(examples)
             y_true = self.mlb.transform(y_true)
             y_pred = self.mlb.transform(predict_labels)

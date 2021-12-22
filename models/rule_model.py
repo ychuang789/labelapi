@@ -12,7 +12,7 @@ from utils.selections import ModelType, PredictTarget, Errors
 
 
 class RuleModel(RuleBaseModel):
-    def __init__(self, model_data: Dict[str, List[str]] = None,
+    def __init__(self, model_rules: Dict[str, List[str]] = None,
                  name: str = None,
                  model_type: ModelType = ModelType.RULE_MODEL,
                  target: PredictTarget = PredictTarget.CONTENT,
@@ -22,8 +22,8 @@ class RuleModel(RuleBaseModel):
         self.logger.debug("model Init")
         self.label_patterns = None
         self.labels = []
-        if model_data is not None:
-            self.load(model_data)
+        if model_rules:
+            self.load(model_rules)
 
     def load(self, label_patterns: Dict[str, List[str]] = None):
         self.label_patterns = label_patterns
@@ -31,7 +31,7 @@ class RuleModel(RuleBaseModel):
         self.logger.debug(f"labels size: {len(self.labels)}")
         self.mlb = MultiLabelBinarizer(classes=list(label_patterns.keys()))
         self.mlb.fit([[label] for label in list(label_patterns.keys())])
-        print(self.mlb.classes)
+        # print(self.mlb.classes)
 
     def predict(self, input_examples: Iterable[InputExample],
                 target=None):

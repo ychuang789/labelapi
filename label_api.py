@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 
@@ -71,7 +72,8 @@ async def create_task(create_request_body: TaskConfig):
     _logger.info('start labeling task flow ...')
     try:
         task_id = uuid.uuid1().hex
-
+        # _config = json.dumps(config, ensure_ascii=False)
+        # result = label_data.apply_async(args=(task_id, _config), task_id=task_id, queue=config.get('QUEUE'))
         result = label_data.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
 
         # result = chain(

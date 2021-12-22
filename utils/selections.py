@@ -2,7 +2,6 @@ from enum import Enum
 from pathlib import Path
 
 from definition import RULE_FOLDER
-from models import random_forest_model
 
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
