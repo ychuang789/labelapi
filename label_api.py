@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import datetime
 
+import content as content
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
@@ -9,10 +10,12 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data, dump_result
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
+from models.model_creator import ModelCreator, ModelTypeNotFound, ParamterMissingError
+from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, TrainingConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config
+from utils.selections import ModelType
 
 configuration = get_config()
 
@@ -279,9 +282,27 @@ async def dump_tasks(dump_request_body: DumpConfig):
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.get('/', description='redirect to open API docs')
-def redirect_to_docs():
-    return RedirectResponse('/docs')
+@app.post('/api/tasks/training/', description='training a model and save it')
+def model_training(training_config: TrainingConfig):
+    try:
+        model = ModelCreator.create_model(training_config.MODEL_TYPE, **training_config.MODEL_INFO)
+    except ModelTypeNotFound:
+        err_msg = f'{training_config.MODEL_TYPE} is not found. ' \
+                  f'Model_type should be in {",".join([i.name for i in ModelType])}'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except ParamterMissingError as p:
+        err_msg = f'{training_config.MODEL_TYPE} model parameter `{p}` is missing in `MODEL_INFO`'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(e))
+
+    if not hasattr(model, 'fit'):
+        err_msg = f'{training_config.MODEL_TYPE.lower()} is not trainable'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    model_path = model.fit(examples=training_config.TRAINING_SET, y_true=training_config.TRAINING_Y)
+    err_msg = f'{model.__class__.__name__} model_path is in {model_path}'
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
 
 if __name__ == '__main__':

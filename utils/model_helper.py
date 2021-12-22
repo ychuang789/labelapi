@@ -18,3 +18,5 @@ def load_joblib(path: Path):
         return joblib.load(path)
     else:
         raise FileNotFoundError(f"{path.__str__()} not found. Please train your model first.")
+
+

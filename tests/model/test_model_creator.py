@@ -12,7 +12,7 @@ class TestModelCreator(TestCase):
 
     keyword_patterns = {"female": [("woman_talk", KeywordMatchType.END), ("_talk", KeywordMatchType.PARTIALLY)]}
     regex_patterns = {"young": ["工作.{0,3}([一兩三]|[1-3])年"]}
-    model_path = "5_supervised_models"
+    model_path = "0_supervised_models"
 
     model_information = {"keyword_patterns": keyword_patterns,
                          "regex_patterns": regex_patterns,
