@@ -1,8 +1,10 @@
 import pymysql
 from retry import retry
 
-class DBConnector():
+from settings import DatabaseConfig
 
+
+class DBConnector(object):
     def __init__(self, **kwargs):
         self.conn_config = kwargs
         self.conn = None
@@ -38,13 +40,63 @@ class DBConnection(object):
                 result = cursor.fetchone()
             else:
                 result = cursor.fetchall()
-
             cursor.close()
             return result
         else:
             cursor.close()
             return None
 
+class ConnectionConfigGenerator:
+
+    @staticmethod
+    def xingyi_database(schema='wh_backpackers',
+                        host=DatabaseConfig.INPUT_HOST,
+                        port=DatabaseConfig.INPUT_PORT,
+                        user=DatabaseConfig.INPUT_USER,
+                        password=DatabaseConfig.INPUT_PASSWORD,
+                        charset='utf8mb4',
+                        cursorclass=pymysql.cursors.DictCursor):
+        """return xingyi database connection config dict"""
+        return {'host': host,
+                'port': port,
+                'user': user,
+                'password': password,
+                'db': schema,
+                'charset': charset,
+                'cursorclass': cursorclass}
+
+    @staticmethod
+    def rd2_database(schema='audience_result',
+                     host=DatabaseConfig.OUTPUT_HOST,
+                     port=DatabaseConfig.OUTPUT_PORT,
+                     user=DatabaseConfig.OUTPUT_USER,
+                     password=DatabaseConfig.OUTPUT_PASSWORD,
+                     charset='utf8mb4',
+                     cursorclass=pymysql.cursors.DictCursor):
+        """return rd2 database connection config dict"""
+        return {'host': host,
+                'port': port,
+                'user': user,
+                'password': password,
+                'db': schema,
+                'charset': charset,
+                'cursorclass': cursorclass}
+
+    @staticmethod
+    def other_database(schema=None, host=None, port=None, user=None, password=None,
+                       charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor):
+        """return connection of outer database config dict"""
+        return {'host': host,
+                'port': port,
+                'user': user,
+                'password': password,
+                'db': schema,
+                'charset': charset,
+                'cursorclass': cursorclass}
+
+
+class QueryManager:
+    state_query = f"""select * from state"""
 
 
 
