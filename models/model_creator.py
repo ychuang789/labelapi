@@ -29,26 +29,22 @@ class ModelCreator():
             type_attribute = type_attribute.lower()
 
         if type_attribute == ModelType.KEYWORD_MODEL.value:
-            keyword_patterns = kwargs.get('keyword_patterns')
-            if not keyword_patterns:
+            if not (keyword_patterns := kwargs.get('keyword_patterns')):
                 raise ParamterMissingError(f'keyword patterns')
             return KeywordModel(label_keywords=keyword_patterns)
 
         elif type_attribute == ModelType.RULE_MODEL.value:
-            regex_patterns = kwargs.get('regex_patterns')
-            if not regex_patterns:
+            if not (regex_patterns := kwargs.get('regex_patterns')):
                 raise ParamterMissingError(f'regex patterns')
             return RuleModel(model_rules=regex_patterns)
 
         elif type_attribute == ModelType.RANDOM_FOREST_MODEL.value:
-            model_path = kwargs.get('model_path')
-            if not model_path:
+            if not (model_path := kwargs.get('model_path')):
                 raise ParamterMissingError(f'model_path')
             return RandomForestModel(model_dir_name=model_path)
 
         elif type_attribute == ModelType.TERM_WEIGHT_MODEL.value:
-            model_path = kwargs.get('model_path')
-            if not model_path:
+            if not (model_path := kwargs.get('model_path')):
                 raise ParamterMissingError(f'model_path')
             return TermWeightModel(model_dir_name=model_path)
 
