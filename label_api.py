@@ -1,17 +1,15 @@
-import json
 import uuid
 from datetime import datetime
 
-import content as content
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data, dump_result
 from models.model_creator import ModelCreator, ModelTypeNotFound, ParamterMissingError
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, TrainingConfig
+from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config
@@ -24,7 +22,9 @@ _logger = get_logger('label_API')
 description = """
 This service is created by department of Research and Development 2 to help Audience labeling.    
 
-#### Item    
+#### Item   
+
+##### Tasks
 
 1. create_task : a post api which create a labeling task via the information in the request body.    
 2. task_list : return the recent tasks and tasks information.     
@@ -33,6 +33,11 @@ This service is created by department of Research and Development 2 to help Audi
 5. abort_task : break the task.   
 6. dump_tasks : dump tasks to ZIP.   
 
+##### Models   
+
+1. modeling_training : train, validate a model and save it in model directory.   
+2. modeling_testing : test a model.  
+   
 #### Users   
 For eland staff only.  
 """
@@ -282,17 +287,20 @@ async def dump_tasks(dump_request_body: DumpConfig):
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.post('/api/tasks/training/', description='training a model and save it')
-def model_training(training_config: TrainingConfig):
+@app.post('/api/models/training/', description='training a model and save it')
+def model_training(training_config: ModelingConfig):
     try:
         model = ModelCreator.create_model(training_config.MODEL_TYPE, **training_config.MODEL_INFO)
+
     except ModelTypeNotFound:
         err_msg = f'{training_config.MODEL_TYPE} is not found. ' \
                   f'Model_type should be in {",".join([i.name for i in ModelType])}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
     except ParamterMissingError as p:
         err_msg = f'{training_config.MODEL_TYPE} model parameter `{p}` is missing in `MODEL_INFO`'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
     except Exception as e:
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(e))
 
@@ -300,12 +308,42 @@ def model_training(training_config: TrainingConfig):
         err_msg = f'{training_config.MODEL_TYPE.lower()} is not trainable'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
-    model_path = model.fit(examples=training_config.TRAINING_SET, y_true=training_config.TRAINING_Y)
-    err_msg = f'{model.__class__.__name__} model_path is in {model_path}'
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    """
+        === training and validation workers ===
+        
+    """
 
+    return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
+
+@app.post('/api/models/testing/', description='testing a model')
+def model_testing(testing_config: ModelingConfig):
+
+    try:
+        model = ModelCreator.create_model(testing_config.MODEL_TYPE, **testing_config.MODEL_INFO)
+
+    except ModelTypeNotFound:
+        err_msg = f'{testing_config.MODEL_TYPE} is not found. ' \
+                  f'Model_type should be in {",".join([i.name for i in ModelType])}'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    except ParamterMissingError as p:
+        err_msg = f'{testing_config.MODEL_TYPE} model parameter `{p}` is missing in `MODEL_INFO`'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    except Exception as e:
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(e))
+
+    if not hasattr(model, 'fit'):
+        err_msg = f'{testing_config.MODEL_TYPE.lower()} is not trainable'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    """
+        === testing workers ===
+    """
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(model.__class__.__name__))
 
 if __name__ == '__main__':
-    uvicorn.run(app, host=configuration.API_HOST, debug=True)
+    uvicorn.run("__main__:app", host=configuration.API_HOST, debug=True)
 
 

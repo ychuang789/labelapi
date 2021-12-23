@@ -24,7 +24,7 @@ input_young = InputExample(id_="1", s_area_id="1", author="Alice", title="", con
                            post_time=datetime.now())
 
 training_file = os.path.join(ROOT_DIR, "tests/sample_data/rulebase_testdata.csv")
-data = load_examples(file=training_file, sample_count=1000)
+data = load_examples(training_file, sample_count=1000)
 y = [[d.label] for d in data]
 
 

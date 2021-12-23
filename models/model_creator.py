@@ -1,5 +1,3 @@
-from ast import literal_eval
-
 from models.keyword_model import KeywordModel
 from models.rf_model import RandomForestModel
 from models.rule_model import RuleModel

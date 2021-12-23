@@ -27,10 +27,10 @@ input_young = InputExample(id_="1", s_area_id="1", author="Alice", title="", con
 training_file = os.path.join(ROOT_DIR, "tests/sample_data/train.csv")
 testing_file = os.path.join(ROOT_DIR, "tests/sample_data/test.csv")
 
-training_set = load_examples(file=training_file, sample_count=500)
+training_set = load_examples(training_file, sample_count=500)
 train_y = [[d.label] for d in training_set]
 
-testing_set = load_examples(file=testing_file)
+testing_set = load_examples(testing_file)
 test_y = [[d.label] for d in testing_set]
 
 class TestRandomForestModel(TestCase):

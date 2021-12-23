@@ -1,9 +1,6 @@
 from typing import List, Dict
 from unittest import TestCase
 
-import pymysql
-
-from settings import DatabaseConfig
 from utils.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
 
 

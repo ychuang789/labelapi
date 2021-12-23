@@ -2,10 +2,10 @@ import os
 from dotenv import load_dotenv
 from datetime import date
 from pydantic import BaseModel, BaseSettings
-from typing import Dict, Optional, List, Any, Union
+from typing import Dict, Optional, List, Union
 
 from utils.input_example import InputExample
-from utils.selections import ModelType, KeywordMatchType
+from utils.selections import ModelType
 
 SOURCE: Dict = {
     "Comment": [
@@ -828,16 +828,13 @@ class DumpConfig(BaseModel):
     INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
     OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
 
-class TrainingConfig(BaseModel):
-    load_dotenv()
+class ModelingConfig(BaseModel):
     #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
-    TRAINING_SET: List[InputExample] = None
-    TRAINING_Y: List[List[str]] = None
+    DATASET_DB: str = 'audience-toolkit-django'
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
                                                "keyword_patterns": None,
                                                "regex_patterns": None,}
-
 
 class TaskList:
     load_dotenv()

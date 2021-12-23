@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from label_api import app
 
+
 class TestAPIs(object):
     client = TestClient(app)
 
