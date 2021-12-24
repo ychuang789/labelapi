@@ -12,6 +12,7 @@ from settings import DatabaseConfig
 from utils.database_core import update2state, get_batch_by_timedelta, check_break_status, update2state_nodata, \
     update2state_temp_result_table
 from utils.helper import get_logger, get_config
+from utils.model_core import ModelingWorker
 from utils.run_label_task import labeling
 from utils.task_generate_production_core import TaskGenerateOutput
 from utils.task_info_core import TaskInfo
@@ -253,8 +254,15 @@ def dump_result(**kwargs):
 
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.modeling', track_started=True)
-def modeling(**kwargs):
-    model = ModelWorker()
+def modeling(task_id, **kwargs):
+    model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],
+                           predict_type=kwargs['PREDICT_TYPE'],
+                           model_path=kwargs['MODEL_INFO']['model_path'],
+                           dataset_number=kwargs['DATASET_NO'],
+                           dataset_schema=kwargs['DATASET_DB'],
+                           **kwargs['MODEL_INFO'])
+
+    model.training_model(task_id)
 
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)

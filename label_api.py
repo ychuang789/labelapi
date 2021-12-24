@@ -292,34 +292,11 @@ async def dump_tasks(dump_request_body: DumpConfig):
 @app.post('/api/models/training/', description='training a model and save it')
 def model_training(training_config: ModelingConfig):
     config = training_config.__dict__
-    try:
-        model = ModelCreator.create_model(training_config.MODEL_TYPE, **training_config.MODEL_INFO)
-    except ModelTypeNotFound:
-        err_msg = f'{training_config.MODEL_TYPE} is not found. ' \
-                  f'Model_type should be in {",".join([i.name for i in ModelType])}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    except ParamterMissingError as p:
-        err_msg = f'{training_config.MODEL_TYPE} model parameter `{p}` is missing in `MODEL_INFO`'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    except Exception as e:
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(e))
-
-    if not hasattr(model, 'fit'):
-        err_msg = f'{training_config.MODEL_TYPE.lower()} is not trainable'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    data_dict = {}
-    for i in ['train', 'dev', 'test']:
-        condition = {'labeling_job_id': training_config.DATASET_NO, 'document_type': i}
-        data = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-                                          **ConnectionConfigGenerator.rd2_database(schema=training_config.DATASET_DB))
-        data = load_examples(data=data, sample_count=1000)
-        data_dict.update({i:data})
+    task_id = uuid.uuid1().hex
+    config.update({'task_id':task_id})
 
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(data_dict))
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
     # return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
 
 @app.post('/api/models/testing/', description='testing a model')

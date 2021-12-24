@@ -6,7 +6,7 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
-from models.audience_models import RuleBaseModel
+from models.audience_model_interfaces import RuleBaseModel
 from utils.input_example import InputExample
 from utils.selections import ModelType, PredictTarget, KeywordMatchType, Errors
 

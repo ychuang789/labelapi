@@ -5,7 +5,7 @@ from pydantic import BaseModel, BaseSettings
 from typing import Dict, Optional, List, Union
 
 from utils.input_example import InputExample
-from utils.selections import ModelType
+from utils.selections import ModelType, PredictTarget
 
 SOURCE: Dict = {
     "Comment": [
@@ -832,6 +832,7 @@ class ModelingConfig(BaseModel):
     #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
     DATASET_DB: str = 'audience-toolkit-django'
     DATASET_NO: int = 1
+    PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
                                                "keyword_patterns": None,

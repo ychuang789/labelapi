@@ -6,7 +6,6 @@ from typing import Iterable, List, Tuple
 import settings
 from utils.helper import get_logger
 from utils.input_example import InputExample
-from utils.model_core import PreprocessWorker
 
 from utils.selections import ModelType, PredictTarget
 
@@ -74,11 +73,3 @@ class SupervisedModel(ABC):
         """load the model, make sure to do it before predict extral test set"""
         raise NotImplementedError
 
-
-class PreprocessInterface(ABC):
-    def __init__(self, _preprocessor=None):
-        self._preprocessor = PreprocessWorker()
-
-    @abstractmethod
-    def data_preprocess(self):
-        pass

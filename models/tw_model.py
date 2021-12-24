@@ -13,7 +13,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
-from models.audience_models import SupervisedModel, MODEL_ROOT
+from models.audience_model_interfaces import SupervisedModel, MODEL_ROOT
 from utils.input_example import InputExample
 from utils.selections import PredictTarget
 

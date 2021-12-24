@@ -9,7 +9,7 @@ from sklearn.metrics import classification_report
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.preprocessing import MultiLabelBinarizer
 
-from models.audience_models import SupervisedModel, MODEL_ROOT
+from models.audience_model_interfaces import SupervisedModel, MODEL_ROOT
 from utils.model_helper import load_joblib, get_multi_accuracy
 from utils.selections import PredictTarget
 
