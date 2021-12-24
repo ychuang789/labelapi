@@ -2,7 +2,8 @@ from models.keyword_model import KeywordModel
 from models.rf_model import RandomForestModel
 from models.rule_model import RuleModel
 from models.tw_model import TermWeightModel
-from utils.selections import ModelType
+from utils.selections import ModelType, PredictTarget
+
 
 class ModelTypeNotFound(Exception):
     pass
@@ -19,12 +20,16 @@ class ModelCreator():
         return 'Generate a corresponded model which user called'
 
     @staticmethod
-    def create_model(type_attribute, **kwargs):
+    def create_model(type_attribute: str, target_attribute: str = None, **kwargs):
 
         if not hasattr(ModelType, type_attribute):
             raise ModelTypeNotFound(f'{type_attribute} is not in default ModelType')
         else:
             type_attribute = type_attribute.lower()
+
+        if target_attribute:
+            if not hasattr(PredictTarget, target_attribute):
+                raise ModelTypeNotFound(f'{target_attribute} is not in default PredictTarget')
 
         if type_attribute == ModelType.KEYWORD_MODEL.value:
             if not (keyword_patterns := kwargs.get('keyword_patterns')):
@@ -36,15 +41,15 @@ class ModelCreator():
                 raise ParamterMissingError(f'regex patterns')
             return RuleModel(model_rules=regex_patterns)
 
-        elif type_attribute == ModelType.RANDOM_FOREST_MODEL.value:
+        if type_attribute == ModelType.RANDOM_FOREST_MODEL.value:
             if not (model_path := kwargs.get('model_path')):
                 raise ParamterMissingError(f'model_path')
-            return RandomForestModel(model_dir_name=model_path)
+            return RandomForestModel(model_dir_name=model_path, feature=PredictTarget[target_attribute])
 
         elif type_attribute == ModelType.TERM_WEIGHT_MODEL.value:
             if not (model_path := kwargs.get('model_path')):
                 raise ParamterMissingError(f'model_path')
-            return TermWeightModel(model_dir_name=model_path)
+            return TermWeightModel(model_dir_name=model_path, feature=PredictTarget[target_attribute])
 
         else:
             raise ModelTypeNotFound(f'{type_attribute} is unknown')

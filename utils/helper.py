@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import uuid
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from tqdm import tqdm
@@ -90,3 +91,14 @@ def get_config():
     load_dotenv()
     configuration = DevelopConfig() if os.getenv('ENV') == "development" else ProductionConfig()
     return configuration
+
+def uuid_validator(uuid_str: str) -> bool:
+    try:
+        uuid.UUID(uuid_str)
+        return True
+    except AttributeError:
+        return False
+    except TypeError:
+        return False
+    except ValueError:
+        return False

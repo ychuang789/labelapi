@@ -10,9 +10,11 @@ from sqlalchemy import create_engine
 from celery_worker import label_data, dump_result
 from models.model_creator import ModelCreator, ModelTypeNotFound, ParamterMissingError
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig
+from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
+from utils.data_helper import load_examples
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
-from utils.helper import get_logger, get_config
+from utils.helper import get_logger, get_config, uuid_validator
 from utils.selections import ModelType
 
 configuration = get_config()
@@ -289,9 +291,9 @@ async def dump_tasks(dump_request_body: DumpConfig):
 
 @app.post('/api/models/training/', description='training a model and save it')
 def model_training(training_config: ModelingConfig):
+    config = training_config.__dict__
     try:
         model = ModelCreator.create_model(training_config.MODEL_TYPE, **training_config.MODEL_INFO)
-
     except ModelTypeNotFound:
         err_msg = f'{training_config.MODEL_TYPE} is not found. ' \
                   f'Model_type should be in {",".join([i.name for i in ModelType])}'
@@ -308,12 +310,17 @@ def model_training(training_config: ModelingConfig):
         err_msg = f'{training_config.MODEL_TYPE.lower()} is not trainable'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
-    """
-        === training and validation workers ===
-        
-    """
+    data_dict = {}
+    for i in ['train', 'dev', 'test']:
+        condition = {'labeling_job_id': training_config.DATASET_NO, 'document_type': i}
+        data = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
+                                          **ConnectionConfigGenerator.rd2_database(schema=training_config.DATASET_DB))
+        data = load_examples(data=data, sample_count=1000)
+        data_dict.update({i:data})
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(data_dict))
+    # return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
 
 @app.post('/api/models/testing/', description='testing a model')
 def model_testing(testing_config: ModelingConfig):
@@ -342,6 +349,26 @@ def model_testing(testing_config: ModelingConfig):
     """
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(model.__class__.__name__))
+
+@app.get('/api/models/{task_id}')
+def model_status(task_id: str):
+    if not uuid_validator(task_id):
+        err_msg = f'''{task_id} is not in a proper 32-digit uuid format'''
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    condition = {'task_id': task_id}
+    result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
+                                      **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+
+@app.get('/api/models/{task_id}/report/')
+def model_report(task_id):
+    if not uuid_validator(task_id):
+        err_msg = f'''{task_id} is not in a proper 32-digit uuid format'''
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    condition = {'task_id': task_id, 'model_report': True}
+    result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
+                                        **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 
 if __name__ == '__main__':
     uvicorn.run("__main__:app", host=configuration.API_HOST, debug=True)

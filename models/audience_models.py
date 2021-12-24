@@ -6,7 +6,7 @@ from typing import Iterable, List, Tuple
 import settings
 from utils.helper import get_logger
 from utils.input_example import InputExample
-
+from utils.model_core import PreprocessWorker
 
 from utils.selections import ModelType, PredictTarget
 
@@ -34,10 +34,10 @@ class RuleBaseModel(ABC):
         """predict the results of output, return labels and probs"""
         pass
 
-    @abstractmethod
-    def eval(self, examples: List[InputExample], y_true):
-        """evaluate with validation set, return the report"""
-        pass
+    # @abstractmethod
+    # def eval(self, examples: List[InputExample], y_true):
+    #     """evaluate with validation set, return the report"""
+    #     pass
 
 
 
@@ -75,3 +75,10 @@ class SupervisedModel(ABC):
         raise NotImplementedError
 
 
+class PreprocessInterface(ABC):
+    def __init__(self, _preprocessor=None):
+        self._preprocessor = PreprocessWorker()
+
+    @abstractmethod
+    def data_preprocess(self):
+        pass

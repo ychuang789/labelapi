@@ -107,11 +107,34 @@ class ConnectionConfigGenerator:
 
 
 class QueryManager:
-    state_query = f"""select * from state"""
-    model_dataset = f"""SELECT d.id, d.s_area_id, d.author, d.title, d.content, d.post_time, l.name as label
-                        FROM `audience-toolkit-django`.labeling_jobs_document d
-                        INNER JOIN `audience-toolkit-django`.labeling_jobs_label l USING(labeling_job_id)
-                        WHERE d.labeling_job_id = 1;"""
+
+    @staticmethod
+    def get_state_query(**kwargs):
+        if task_id := kwargs.get('task_id'):
+            return f"""select * from state where task_id = '{task_id}'"""
+
+        else:
+            return f"""select * from state"""
+
+    def get_model_query(self, **kwargs):
+        if get_data := kwargs.get('labeling_job_id'):
+            if document_type := kwargs.get('document_type'):
+                return f"""SELECT *
+                           FROM `audience-toolkit-django`.labeling_jobs_document
+                           INNER JOIN `audience-toolkit-django`.labeling_jobs_label USING(labeling_job_id)
+                           WHERE d.labeling_job_id = {get_data} and d.document_type = '{document_type}'"""
+            else:
+                return f"""SELECT *
+                           FROM `audience-toolkit-django`.labeling_jobs_document
+                           INNER JOIN `audience-toolkit-django`.labeling_jobs_label USING(labeling_job_id)
+                           WHERE d.labeling_job_id = {get_data}'"""
+
+        if task_id := kwargs.get('task_id'):
+            return f"""select * from model_status where task_id = '{task_id}'"""
+
+        if kwargs.get('task_id') and kwargs.get('model_report'):
+            return f"""select * from model_report where task_id = '{kwargs.get('task_id')}'"""
+
 
 
 def create_modeling_status_table():
@@ -152,7 +175,7 @@ def create_modeling_report_table():
     meta = MetaData()
     modeling_report = Table(
         'modeling_report', meta,
-        Column('task_id', String(32), ForeignKey("modeling_status.task_id"), nullable=False),
+        Column('task_id', String(32), nullable=False),
         Column('dataset_type', String(10)),
         Column('accuracy', DOUBLE, nullable=False),
         Column('report', String(1000), nullable=False),
@@ -160,3 +183,4 @@ def create_modeling_report_table():
     )
     meta.create_all(engine)
     engine.dispose()
+

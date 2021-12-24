@@ -251,7 +251,12 @@ def dump_result(**kwargs):
     _logger.info('dump to zip...')
     dump_workflow.dump_zip()
 
-#
+
+@celery_app.task(name=f'{configuration.CELERY_NAME}.modeling', track_started=True)
+def modeling(**kwargs):
+    model = ModelWorker()
+
+
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
 # def testing(**kwargs):
 #     kw = json.loads(kwargs)

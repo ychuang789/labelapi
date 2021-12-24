@@ -27,11 +27,11 @@ class TestModelCreator(TestCase):
                               KeywordModel)
 
     def test_create_random_forest_model(self):
-        self.assertIsInstance(ModelCreator.create_model(ModelType.RANDOM_FOREST_MODEL.name, **self.model_information),
+        self.assertIsInstance(ModelCreator.create_model(ModelType.RANDOM_FOREST_MODEL.name, 'CONTENT', **self.model_information),
                               RandomForestModel)
 
     def test_create_term_weight_model(self):
-        self.assertIsInstance(ModelCreator.create_model(ModelType.TERM_WEIGHT_MODEL.name, **self.model_information),
+        self.assertIsInstance(ModelCreator.create_model(ModelType.TERM_WEIGHT_MODEL.name, 'AUTHOR_NAME', **self.model_information),
                               TermWeightModel)
 
 

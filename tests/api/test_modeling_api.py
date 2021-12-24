@@ -28,34 +28,12 @@ class TestAPIs(object):
     def test_training(self):
         response = self.client.post("/api/models/training/",
                                     json={
-                                          "DATASET": [
-                                            {
-                                              "id_": "string",
-                                              "s_area_id": "string",
-                                              "author": "string",
-                                              "title": "string",
-                                              "content": "string",
-                                              "post_time": "2021-12-23T08:07:29.752Z",
-                                              "label": "string"
-                                            },
-                                            {
-                                              "id_": "string",
-                                              "s_area_id": "string",
-                                              "author": "string",
-                                              "title": "string",
-                                              "content": "string",
-                                              "post_time": "2021-12-23T08:07:29.752Z",
-                                              "label": "string"
-                                            }
-                                          ],
-                                          "Y_TRUE": [
-                                            ["string"],
-                                            ["string"]
-                                          ],
-                                          "MODEL_TYPE": "RANDOM_FOREST_MODEL",
-                                          "MODEL_INFO": {
+                                        "DATASET_DB": "audience-toolkit-django",
+                                        "DATASET_NO": 1,
+                                        "MODEL_TYPE": "RANDOM_FOREST_MODEL",
+                                        "MODEL_INFO": {
                                             "model_path": "model_path"
-                                          }
+                                        }
                                     })
         assert response.status_code == 200
         return response.status_code, response.content
@@ -63,11 +41,19 @@ class TestAPIs(object):
     def test_testing(self):
         response = self.client.post("/api/models/testing/",
                                     json={
-                                        "DATASET": [input_male, input_female],
-                                        "Y_TRUE": [['male'], ['female']],
+                                        "DATASET_DB": "audience-toolkit-django",
+                                        "DATASET_NO": 1,
                                         "MODEL_TYPE": "RANDOM_FOREST_MODEL",
                                         "MODEL_INFO": {
                                             "model_path": "model_path"
                                         }
                                     })
+        assert response.status_code == 200
+
+    def test_status(self, task_id):
+        response = self.client.get(f'/api/models/{task_id}')
+        assert response.status_code == 200
+
+    def test_report(self, task_id):
+        response = self.client.get(f'/api/models/{task_id}/report/')
         assert response.status_code == 200

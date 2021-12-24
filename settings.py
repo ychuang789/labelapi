@@ -831,6 +831,7 @@ class DumpConfig(BaseModel):
 class ModelingConfig(BaseModel):
     #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
     DATASET_DB: str = 'audience-toolkit-django'
+    DATASET_NO: int = 1
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
                                                "keyword_patterns": None,
