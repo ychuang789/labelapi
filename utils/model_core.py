@@ -13,7 +13,11 @@ from utils.helper import get_logger
 from utils.selections import ModelType
 
 class ModelingWorker(PreprocessInterface):
-    """Training, validation and testing the model"""
+    """
+    Training, validation and testing the model, auto-load the model while initializing.
+    Using data preprocessing adaptor to scrape, transform, preprocess the dataset before modeling.
+    Saving the modeling status and report to `audience_result`.modeling_status and `audience_result`.modeling_report
+    """
     def __init__(self, model_name: str, predict_type: str, model_path: str,
                  dataset_number: int, dataset_schema: str, logger_name: str = 'modeling',
                  verbose = False, **model_information):
@@ -30,7 +34,7 @@ class ModelingWorker(PreprocessInterface):
             self.logger.info(f'Initializing the model {model_name.lower()}...')
             self.init_model(self.model_name, self.predict_type,**self.model_information)
 
-    def training_model(self, task_id):
+    def run_task(self, task_id):
         try:
             self.logger.info(f'preparing the datasets for task: {task_id}')
             self.data_preprocess()
@@ -44,7 +48,6 @@ class ModelingWorker(PreprocessInterface):
             self.logger.error(err_msg)
             raise AttributeError(err_msg)
 
-        create_modeling_status_table()
         create_modeling_report_table()
 
         try:
@@ -66,13 +69,7 @@ class ModelingWorker(PreprocessInterface):
 
         self.logger.info(f"start modeling task: {task_id}")
 
-        session.add(ms(task_id=task_id,
-                       model_name=self.model_name,
-                       training_status='pending',
-                       feature=self.predict_type,
-                       model_path=self.model_path,
-                       create_time=datetime.now()))
-        session.commit()
+        session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: 'started'})
 
         try:
             self.logger.info(f"training the model ...")
@@ -125,6 +122,38 @@ class ModelingWorker(PreprocessInterface):
             self.logger.error(e)
             raise e
 
+    @staticmethod
+    def add_task_info(task_id, model_name, predict_type, model_path):
+        try:
+            engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=True)
+        except Exception as e:
+            err_msg = f'connection failed, additional error message {e}'
+            raise err_msg
+
+        session = Session(engine)
+        meta = MetaData()
+        meta.reflect(engine, only=['modeling_status', 'modeling_report'])
+        Base = automap_base(metadata=meta)
+        Base.prepare()
+
+        # build table cls
+        ms = Base.classes.modeling_status
+
+        try:
+            session.add(ms(task_id=task_id,
+                           model_name=model_name,
+                           training_status='pending',
+                           feature=predict_type,
+                           model_path=model_path,
+                           create_time=datetime.now()))
+            session.commit()
+        except Exception as e:
+            err_msg = f'failed to add a new record in model_status since {e}'
+            raise err_msg
+        finally:
+            session.close()
+            engine.dispose()
+
     def data_preprocess(self):
         dataset: Dict = self._preprocessor.run_processing(self.dataset_number, self.dataset_schema)
 
@@ -138,4 +167,6 @@ class ModelingWorker(PreprocessInterface):
         self.logger.info(f'training_set: {len(self.training_set)}')
         self.logger.info(f'dev_set: {len(self.dev_set)}')
         self.logger.info(f'testing_set: {len(self.testing_set)}')
+
+
 

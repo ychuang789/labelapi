@@ -830,6 +830,7 @@ class DumpConfig(BaseModel):
 
 class ModelingConfig(BaseModel):
     #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
+    QUEUE: str = "queue1"
     DATASET_DB: str = 'audience-toolkit-django'
     DATASET_NO: int = 1
     PREDICT_TYPE: str = PredictTarget.CONTENT.name

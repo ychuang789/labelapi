@@ -7,14 +7,14 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
-from celery_worker import label_data, dump_result
+from celery_worker import label_data, dump_result, modeling
 from models.model_creator import ModelCreator, ModelTypeNotFound, ParamterMissingError
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig
-from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
-from utils.data_helper import load_examples
+from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator, create_modeling_status_table
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config, uuid_validator
+from utils.model_core import ModelingWorker
 from utils.selections import ModelType
 
 configuration = get_config()
@@ -46,8 +46,7 @@ For eland staff only.
 
 app = FastAPI(title=configuration.API_TITLE, description=description, version=configuration.API_VERSION)
 
-@app.post('/api/tasks/', description='Create labeling task, '
-                                     'edit the request body to fit your requirement. '
+@app.post('/api/tasks/', description='Create labeling task, edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks, especially, `task_id`')
 async def create_task(create_request_body: TaskConfig):
     config = create_request_body.__dict__
@@ -291,10 +290,20 @@ async def dump_tasks(dump_request_body: DumpConfig):
 
 @app.post('/api/models/training/', description='training a model and save it')
 def model_training(training_config: ModelingConfig):
-    config = training_config.__dict__
     task_id = uuid.uuid1().hex
+
+    config = training_config.__dict__
     config.update({'task_id':task_id})
 
+    create_modeling_status_table()
+
+    try:
+        modeling.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
+        ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
+                                     predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'])
+    except Exception as e:
+        err_msg = f'failed to add task info to modeling_status since {e}'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
     # return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
