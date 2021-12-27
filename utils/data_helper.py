@@ -1,12 +1,13 @@
 import random
 
 from collections import defaultdict
-from typing import Dict, Iterator, Union, List, Any
+from typing import Dict, Iterator, Union, List, Any, Tuple
 
 import pandas as pd
 
 from utils.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
 from utils.input_example import InputExample
+from utils.model_table_creator import TermWeights
 
 class PreprocessWorker:
     def run_processing(self, dataset_number, dataset_schema, sample_count=1000):
@@ -18,6 +19,7 @@ class PreprocessWorker:
             data = load_examples(data=data, sample_count=sample_count)
             data_dict.update({i: data})
         return data_dict
+
 
 
 def load_examples(data: Union[str, List[Dict[str, Any]]],
@@ -69,3 +71,14 @@ def preprocess_example(examples: Dict, sample_count: int = None, shuffle: bool =
     if shuffle:
         random.shuffle(dataset)
     return dataset
+
+
+
+def get_term_weights_objects(task_id: str,
+                             term_weight_dict: Dict[str, List[Tuple[str, float]]]) -> List[TermWeights]:
+    term_weight_list = []
+    for label, term_info in term_weight_dict.items():
+        for term, weight in term_info:
+            term_weight_list.append(TermWeights(label=label, term=term, weight=weight, task_id=task_id))
+
+    return term_weight_list

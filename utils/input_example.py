@@ -14,3 +14,4 @@ class InputExample:
 
     def __iter__(self):
         return iter(astuple(self))
+

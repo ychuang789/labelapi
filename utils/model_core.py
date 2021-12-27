@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 
 from models.audience_data_interfaces import PreprocessInterface
 from models.model_creator import ModelCreator, ModelTypeNotFound, ParamterMissingError
+from models.tw_model import TermWeightModel
 from settings import DatabaseConfig
-from utils.connection_helper import create_modeling_status_table, create_modeling_report_table
+from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
 from utils.selections import ModelType
 
@@ -48,8 +49,6 @@ class ModelingWorker(PreprocessInterface):
             self.logger.error(err_msg)
             raise AttributeError(err_msg)
 
-        create_modeling_report_table()
-
         try:
             engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=True)
         except Exception as e:
@@ -59,13 +58,14 @@ class ModelingWorker(PreprocessInterface):
 
         session = Session(engine)
         meta = MetaData()
-        meta.reflect(engine, only=['modeling_status', 'modeling_report'])
+        meta.reflect(engine, only=['modeling_status', 'modeling_report', 'term_weights'])
         Base = automap_base(metadata=meta)
         Base.prepare()
 
         # build table cls
         ms = Base.classes.modeling_status
         mr = Base.classes.modeling_report
+        tw = Base.classes.term_weights
 
         self.logger.info(f"start modeling task: {task_id}")
 
@@ -74,6 +74,11 @@ class ModelingWorker(PreprocessInterface):
         try:
             self.logger.info(f"training the model ...")
             self.model.fit(self.training_set, self.training_y)
+
+            if isinstance(self.model, TermWeightModel):
+                bulk_list = get_term_weights_objects(task_id, self.model.label_term_weights)
+                session.add_all(bulk_list)
+                # session.bulk_save_objects(bulk_list)
 
             self.logger.info(f"evaluating the model ...")
             dev_report = self.model.eval(self.dev_set, self.dev_y)
@@ -167,6 +172,5 @@ class ModelingWorker(PreprocessInterface):
         self.logger.info(f'training_set: {len(self.training_set)}')
         self.logger.info(f'dev_set: {len(self.dev_set)}')
         self.logger.info(f'testing_set: {len(self.testing_set)}')
-
 
 

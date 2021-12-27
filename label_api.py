@@ -10,11 +10,12 @@ from sqlalchemy import create_engine
 from celery_worker import label_data, dump_result, modeling
 from models.model_creator import ModelCreator, ModelTypeNotFound, ParamterMissingError
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig
-from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator, create_modeling_status_table
+from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config, uuid_validator
 from utils.model_core import ModelingWorker
+from utils.model_table_creator import create_model_table
 from utils.selections import ModelType
 
 configuration = get_config()
@@ -288,14 +289,14 @@ async def dump_tasks(dump_request_body: DumpConfig):
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.post('/api/models/training/', description='training a model and save it')
+@app.post('/api/models/train/', description='training a model and save it')
 def model_training(training_config: ModelingConfig):
     task_id = uuid.uuid1().hex
 
     config = training_config.__dict__
     config.update({'task_id':task_id})
 
-    create_modeling_status_table()
+    create_model_table()
 
     try:
         modeling.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
@@ -308,7 +309,7 @@ def model_training(training_config: ModelingConfig):
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
     # return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
 
-@app.post('/api/models/testing/', description='testing a model')
+@app.post('/api/models/test/', description='testing a model')
 def model_testing(testing_config: ModelingConfig):
 
     try:
