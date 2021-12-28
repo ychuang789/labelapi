@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect
+from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.ext.automap import automap_base
+from sqlalchemy.orm import declarative_base, relationship, Session
 
 from settings import DatabaseConfig
 
@@ -94,7 +95,27 @@ def create_model_table() -> None:
 
 
 
+def table_cls_maker(engine: create_engine, add_new=False):
 
+    meta = MetaData()
+    if add_new:
+        meta.reflect(engine, only=['model_status'])
+        Base = automap_base(metadata=meta)
+        Base.prepare()
+
+        # build table cls
+        ms = Base.classes.model_status
+        return ms
+    else:
+        meta.reflect(engine, only=['model_status', 'model_report', 'term_weights'])
+        Base = automap_base(metadata=meta)
+        Base.prepare()
+
+        # build table cls
+        ms = Base.classes.model_status
+        mr = Base.classes.model_report
+
+        return ms, mr
 
 
 
