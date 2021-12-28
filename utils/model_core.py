@@ -17,8 +17,8 @@ from utils.selections import ModelType
 
 class ModelingWorker(PreprocessInterface):
     """
-    Training, validation and testing the model, auto-load the model while initializing.
-    Using data preprocessing adaptor to scrape, transform, preprocess the dataset before modeling.
+    Training, validation and testing the model, auto-create the model while initializing.
+    Using data preprocessing adapter to scrape, transform, preprocess the dataset before modeling.
     Saving the modeling status and report to `audience_result`.modeling_status and `audience_result`.modeling_report
     """
     def __init__(self, model_name: str, predict_type: str,
@@ -134,14 +134,6 @@ class ModelingWorker(PreprocessInterface):
 
         session = Session(engine, autoflush=False)
         ms, mr = table_cls_maker(engine)
-        # meta = MetaData()
-        # meta.reflect(engine, only=['model_status', 'model_report', 'term_weights'])
-        # Base = automap_base(metadata=meta)
-        # Base.prepare()
-        #
-        # # build table cls
-        # ms = Base.classes.model_status
-        # mr = Base.classes.model_report
 
         self.logger.info(f"start eval_outer_test_data task: {task_id}")
 
