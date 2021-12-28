@@ -18,16 +18,18 @@ def singleton(cls):
         return _instance[cls]
     return inner
 
+
 @singleton
 class DBConnector(object):
 
-    def __init__(self, ):
-        self.conn = None
+    def __init__(self, conn = None):
+        self.conn = conn
 
     @retry(tries=5, delay=2)
     def create_connection(self, **kwargs):
         """create connection"""
         return pymysql.connect(**kwargs)
+
 
     def __enter__(self):
         self.conn = self.create_connection()
@@ -46,20 +48,13 @@ class DBConnection(object):
         return cls.connection
 
     @classmethod
-    def execute_query(cls, query: str, single=False, alter=False, **kwargs):
+    def execute_query(cls, query: str, alter=False, **kwargs):
         connection = cls.get_connection(**kwargs)
         cursor = connection.cursor()
         cursor.execute(query)
-        if not alter:
-            if single:
-                result = cursor.fetchone()
-            else:
-                result = cursor.fetchall()
-            cursor.close()
-            return result
-        else:
-            cursor.close()
-            return None
+        result = None if alter else cursor.fetchall()
+        cursor.close()
+        return result
 
 class ConnectionConfigGenerator:
 
@@ -120,21 +115,22 @@ class QueryManager:
         else:
             return f"""select * from state"""
 
-    def get_model_query(self, **kwargs):
+    @staticmethod
+    def get_model_query(**kwargs):
         if get_data := kwargs.get('labeling_job_id'):
             if document_type := kwargs.get('document_type'):
                 return f"""SELECT *
-                           FROM `audience-toolkit-django`.labeling_jobs_document
-                           INNER JOIN `audience-toolkit-django`.labeling_jobs_label USING(labeling_job_id)
+                           FROM `audience-toolkit-django`.labeling_jobs_document d
+                           INNER JOIN `audience-toolkit-django`.labeling_jobs_label l USING(labeling_job_id)
                            WHERE d.labeling_job_id = {get_data} and d.document_type = '{document_type}'"""
             else:
                 return f"""SELECT *
-                           FROM `audience-toolkit-django`.labeling_jobs_document
-                           INNER JOIN `audience-toolkit-django`.labeling_jobs_label USING(labeling_job_id)
+                           FROM `audience-toolkit-django`.labeling_jobs_document d
+                           INNER JOIN `audience-toolkit-django`.labeling_jobs_label l USING(labeling_job_id)
                            WHERE d.labeling_job_id = {get_data}'"""
 
-        if task_id := kwargs.get('task_id'):
-            return f"""select * from model_status where task_id = '{task_id}'"""
+        if kwargs.get('task_id') and not kwargs.get('model_report'):
+            return f"""select * from model_status where task_id = '{kwargs.get('task_id')}'"""
 
         if kwargs.get('task_id') and kwargs.get('model_report'):
             return f"""select * from model_report where task_id = '{kwargs.get('task_id')}'"""

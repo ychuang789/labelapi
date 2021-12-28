@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data, dump_result, modeling
-from models.model_creator import ModelCreator, ModelTypeNotFound, ParamterMissingError
+from models.model_creator import ModelCreator, ModelTypeNotFoundError, ParamterMissingError
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig
 from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
@@ -312,30 +312,11 @@ def model_training(training_config: ModelingConfig):
 @app.post('/api/models/test/', description='testing a model')
 def model_testing(testing_config: ModelingConfig):
 
-    try:
-        model = ModelCreator.create_model(testing_config.MODEL_TYPE, **testing_config.MODEL_INFO)
-
-    except ModelTypeNotFound:
-        err_msg = f'{testing_config.MODEL_TYPE} is not found. ' \
-                  f'Model_type should be in {",".join([i.name for i in ModelType])}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    except ParamterMissingError as p:
-        err_msg = f'{testing_config.MODEL_TYPE} model parameter `{p}` is missing in `MODEL_INFO`'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    except Exception as e:
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(e))
-
-    if not hasattr(model, 'fit'):
-        err_msg = f'{testing_config.MODEL_TYPE.lower()} is not trainable'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
     """
         === testing workers ===
     """
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(model.__class__.__name__))
+    # return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(model.__class__.__name__))
 
 @app.get('/api/models/{task_id}')
 def model_status(task_id: str):
@@ -352,7 +333,7 @@ def model_report(task_id):
     if not uuid_validator(task_id):
         err_msg = f'''{task_id} is not in a proper 32-digit uuid format'''
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-    condition = {'task_id': task_id, 'model_report': True}
+    condition = {'task_id': task_id, 'model_report': 'report'}
     result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
                                         **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))

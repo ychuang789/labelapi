@@ -50,10 +50,10 @@ class TestAPIs(object):
                                     })
         assert response.status_code == 200
 
-    def test_status(self, task_id):
-        response = self.client.get(f'/api/models/{task_id}')
+    def test_status(self):
+        response = self.client.get(f'/api/models/67baa11967b211ec982c04ea56825bad')
         assert response.status_code == 200
 
-    def test_report(self, task_id):
-        response = self.client.get(f'/api/models/{task_id}/report/')
+    def test_report(self):
+        response = self.client.get(f'/api/models/67baa11967b211ec982c04ea56825bad/report/')
         assert response.status_code == 200

@@ -201,7 +201,6 @@ def modeling(task_id, **kwargs):
     _logger.info(f'start task {task_id}')
     model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],
                            predict_type=kwargs['PREDICT_TYPE'],
-                           model_path=kwargs['MODEL_INFO']['model_path'],
                            dataset_number=kwargs['DATASET_NO'],
                            dataset_schema=kwargs['DATASET_DB'],
                            **kwargs['MODEL_INFO'])

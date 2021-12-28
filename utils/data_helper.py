@@ -9,18 +9,33 @@ from utils.connection_helper import DBConnection, ConnectionConfigGenerator, Que
 from utils.input_example import InputExample
 from utils.model_table_creator import TermWeights
 
+class DataNotFoundError(Exception):
+    """nothing return fround database"""
+    pass
+
+
 class PreprocessWorker:
-    def run_processing(self, dataset_number, dataset_schema, sample_count=1000):
-        data_dict = {}
-        for i in ['train', 'dev', 'test']:
-            condition = {'labeling_job_id': dataset_number, 'document_type': i}
+    def run_processing(self, dataset_number, dataset_schema,
+                       sample_count=1000, is_train=True, document_type='ext_test'):
+        if is_train:
+            data_dict = {}
+            for i in ['train', 'dev', 'test']:
+                condition = {'labeling_job_id': dataset_number, 'document_type': i}
+                data = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
+                                                  **ConnectionConfigGenerator.rd2_database(schema=dataset_schema))
+                if not data:
+                    raise DataNotFoundError('There are missing data from database')
+                data = load_examples(data=data, sample_count=sample_count)
+                data_dict.update({i: data})
+            return data_dict
+        else:
+            condition = {'labeling_job_id': dataset_number, 'document_type': document_type}
             data = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
                                               **ConnectionConfigGenerator.rd2_database(schema=dataset_schema))
+            if not data:
+                raise DataNotFoundError('There are missing data from database')
             data = load_examples(data=data, sample_count=sample_count)
-            data_dict.update({i: data})
-        return data_dict
-
-
+        return data
 
 def load_examples(data: Union[str, List[Dict[str, Any]]],
                   sample_count: int = None, shuffle: bool = True,
@@ -30,8 +45,8 @@ def load_examples(data: Union[str, List[Dict[str, Any]]],
         df = pd.DataFrame(data)
 
         for index, row in df.iterrows():
-            if not labels or row['label'] in labels:
-                examples[row['label']].append(
+            if not labels or row['name'] in labels:
+                examples[row['name']].append(
                     InputExample(
                         id_=row['id'],
                         s_area_id=row['s_area_id'],

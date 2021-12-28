@@ -8,12 +8,12 @@ from typing import List, Optional, Iterable, Dict, Tuple
 import jieba
 import numpy
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
 from models.audience_model_interfaces import SupervisedModel, MODEL_ROOT
+from models.term_weight_feature_extractor import TermWeightFeatureModel
 from utils.input_example import InputExample
 from utils.selections import PredictTarget
 
@@ -32,7 +32,7 @@ class TermWeightModel(SupervisedModel):
         self.vectorizer = None
         self.threshold = 0.3
 
-    def fit(self, examples: List[InputExample], y_true):
+    def fit(self, examples: List[InputExample], y_true, **kwargs):
 
         if isinstance(y_true[0], str):
             classes = list(set(y_true))
@@ -62,7 +62,7 @@ class TermWeightModel(SupervisedModel):
 
             x_train = self.convert_feature(examples, update_vectorizer=True)
             feature_list = self.vectorizer.get_feature_names()
-            label_term_dict = class_feature_importance(x_train, tmp_y, feature_list)
+            label_term_dict = class_feature_importance(x_train, tmp_y, feature_list, **kwargs)
             ovr_class_features[label] = label_term_dict.get(label)
         self.label_term_weights = ovr_class_features
         return self.save()
@@ -172,9 +172,10 @@ class TermWeightModel(SupervisedModel):
         return x_features
 
 
-def class_feature_importance(x, y, feature_list, use_scaler=True) -> Dict[str, List[Tuple[str, float]]]:
-    clf = SGDClassifier(loss='log', penalty='elasticnet', l1_ratio=0.9, learning_rate='optimal', n_iter_no_change=10,
-                        shuffle=True, n_jobs=3, fit_intercept=True, class_weight='balanced')
+def class_feature_importance(x, y, feature_list, use_scaler=True, verbose=1, **kwargs) -> Dict[str, List[Tuple[str, float]]]:
+    # clf = SGDClassifier(loss='log', penalty='elasticnet', l1_ratio=0.9, learning_rate='optimal', n_iter_no_change=10,
+    #                     shuffle=True, n_jobs=3, fit_intercept=True, class_weight='balanced', verbose=verbose)
+    clf = TermWeightFeatureModel().create_model(kwargs.get('feature_model'), verbose=verbose)
     clf.fit(x, y)
     label_fea_importance = {}
     if len(clf.classes_) == 2:

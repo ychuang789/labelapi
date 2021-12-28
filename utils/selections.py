@@ -6,6 +6,8 @@ from definition import RULE_FOLDER
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
+class TWFeatureModel(Enum):
+    SGD = 'sgd'
 
 class ModelType(Enum):
     KEYWORD_MODEL = "keyword_model"

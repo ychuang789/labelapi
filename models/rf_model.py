@@ -61,10 +61,10 @@ class RandomForestModel(SupervisedModel):
                 raise ValueError("模型尚未被初始化，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
         return x_features
 
-    def fit(self, examples, y_true: List):
+    def fit(self, examples, y_true: List, verbose=1):
 
         x_train_features = self.convert_feature(examples, update_vectorizer=True)
-        classifier = RandomForestClassifier(n_estimators=100)
+        classifier = RandomForestClassifier(n_estimators=100, verbose=verbose)
 
         for index, y in enumerate(y_true):
             y_true[index] = y_true[index][0].split(',')

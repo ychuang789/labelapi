@@ -11,22 +11,22 @@ class ModelStatus(Base):
     task_id = Column(String(32), primary_key=True)
     model_name = Column(String(100))
     training_status = Column(String(32))
-    ext_predict_status = Column(String(32))
+    ext_status = Column(String(32))
     feature = Column(String(32), nullable=False)
     model_path = Column(String(100))
     error_message = Column(LONGTEXT)
     create_time = Column(DateTime, nullable=False)
     # one-to-many collection
     report = relationship("ModelReport")
-    term_weight = relationship("TermWeight")
+    term_weight = relationship("TermWeights")
 
     def __init__(self, task_id, model_name, training_status,
-                 ext_predict_status, feature, model_path,
+                 ext_status, feature, model_path,
                  error_message, create_time):
         self.task_id = task_id
         self.model_name = model_name
         self.training_status = training_status
-        self.ext_predict_status = ext_predict_status
+        self.ext_status = ext_status
         self.feature = feature
         self.model_path = model_path
         self.error_message = error_message
@@ -34,7 +34,7 @@ class ModelStatus(Base):
 
     def __repr__(self):
         return f"<ModelStatus({self.task_id}, {self.model_name}, {self.training_status}, " \
-               f"{self.ext_predict_status}, {self.feature}, {self.model_path}, {self.error_message}, " \
+               f"{self.ext_status}, {self.feature}, {self.model_path}, {self.error_message}, " \
                f"{self.create_time})>"
 
 class ModelReport(Base):
