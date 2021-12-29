@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data, dump_result, training, testing
-from models.model_creator import TrainableModelCreator, ModelTypeNotFoundError, ParamterMissingError
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig, \
     ModelingAbort
 from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
@@ -17,35 +16,33 @@ from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
 from utils.helper import get_logger, get_config, uuid_validator
 from utils.model_core import ModelingWorker
 from utils.model_table_creator import create_model_table, status_changer
-from utils.selections import ModelType
 
 configuration = get_config()
 
 _logger = get_logger('label_API')
 
 description = """
-This service is created by department of Research and Development 2 to help Audience labeling.    
+A backend API which support labeling, modeling and predicting jobs of django site for Audience.          
 
 #### Item   
 
-##### Tasks
+##### Tasks     
 
 1. create_task : a post api which create a labeling task via the information in the request body.    
 2. task_list : return the recent tasks and tasks information.     
 3. check_status : return a single task status and results if success via task_id.   
 4. sample_result : return the labeling results from database via task_id and table information.    
-5. abort_task : break the task.   
+5. abort_task : break a task with a target task_id.    
 6. dump_tasks : dump tasks to ZIP.   
 
 ##### Models   
 
-1. modeling_training : train, validate a model and save it in model directory.   
-2. modeling_testing : test a model.   
-3. modeling
-
-   
-#### Users   
-For eland staff only.  
+1. model_training : train and validate a model with saving it to model directory.   
+2. model_testing : test a model with a external test data.        
+3. model_status : get the model status information with a target task_id.      
+4. model_report : get the model report information with a target task_id.  
+5. model_abort : break a task with a target task_id.   
+  
 """
 
 app = FastAPI(title=configuration.API_TITLE, description=description, version=configuration.API_VERSION)

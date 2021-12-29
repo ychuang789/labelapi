@@ -171,7 +171,6 @@ def label_data(task_id: str, kwargs_json: str) -> Optional[str]:
     _logger.info(f'finish task {task_id} generate_production, total time: '
                  f'{(datetime.now() - start_time).total_seconds() / 60} minutes')
 
-
 @celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', track_started=True)
 def dump_result(**kwargs):
     _logger = get_logger('dump')
@@ -194,7 +193,6 @@ def dump_result(**kwargs):
     _logger.info('dump to zip...')
     dump_workflow.dump_zip()
 
-
 @celery_app.task(name=f'{configuration.CELERY_NAME}.training', track_started=True)
 def training(task_id, **kwargs):
     _logger = get_logger('modeling')
@@ -205,7 +203,6 @@ def training(task_id, **kwargs):
                            dataset_schema=kwargs['DATASET_DB'],
                            **kwargs['MODEL_INFO'])
     model.run_task(task_id)
-
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
 def testing(task_id, **kwargs):
