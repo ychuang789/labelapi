@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
 from celery_worker import label_data, dump_result, modeling
-from models.model_creator import ModelCreator, ModelTypeNotFoundError, ParamterMissingError
+from models.model_creator import TrainableModelCreator, ModelTypeNotFoundError, ParamterMissingError
 from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig
 from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \

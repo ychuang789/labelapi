@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import Session
 
 from models.audience_data_interfaces import PreprocessInterface
-from models.model_creator import ModelCreator, ModelTypeNotFoundError, ParamterMissingError
+from models.model_creator import TrainableModelCreator, ModelTypeNotFoundError, ParamterMissingError
 from models.tw_model import TermWeightModel
 from settings import DatabaseConfig
 from utils.data_helper import get_term_weights_objects
@@ -187,7 +187,7 @@ class ModelingWorker(PreprocessInterface):
 
     def init_model(self, model_name, predict_type, **model_information) -> None:
         try:
-            self.model = ModelCreator.create_model(model_name, predict_type, **model_information)
+            self.model = TrainableModelCreator.create_model(model_name, predict_type, **model_information)
         except ModelTypeNotFoundError:
             err_msg = f'{model_name} is not found. ' \
                       f'Model_type should be in {",".join([i.name for i in ModelType])}'

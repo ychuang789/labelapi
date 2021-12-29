@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from models.keyword_model import KeywordModel
-from models.model_creator import ModelCreator
+from models.model_creator import TrainableModelCreator
 from models.rf_model import RandomForestModel
 from models.rule_model import RuleModel
 from models.tw_model import TermWeightModel
@@ -19,19 +19,19 @@ class TestModelCreator(TestCase):
                          "model_path": model_path}
 
     def test_create_rule_model(self):
-        self.assertIsInstance(ModelCreator.create_model(ModelType.RULE_MODEL.name, **self.model_information),
+        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.RULE_MODEL.name, **self.model_information),
                               RuleModel)
 
     def test_create_keyword_model(self):
-        self.assertIsInstance(ModelCreator.create_model(ModelType.KEYWORD_MODEL.name, **self.model_information),
+        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.KEYWORD_MODEL.name, **self.model_information),
                               KeywordModel)
 
     def test_create_random_forest_model(self):
-        self.assertIsInstance(ModelCreator.create_model(ModelType.RANDOM_FOREST_MODEL.name, 'CONTENT', **self.model_information),
+        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.RANDOM_FOREST_MODEL.name, 'CONTENT', **self.model_information),
                               RandomForestModel)
 
     def test_create_term_weight_model(self):
-        self.assertIsInstance(ModelCreator.create_model(ModelType.TERM_WEIGHT_MODEL.name, 'AUTHOR_NAME', **self.model_information),
+        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.TERM_WEIGHT_MODEL.name, 'AUTHOR_NAME', **self.model_information),
                               TermWeightModel)
 
 
