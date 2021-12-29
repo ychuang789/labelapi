@@ -1,11 +1,11 @@
 from unittest import TestCase
 
 from models.keyword_model import KeywordModel
-from models.model_creator import TrainableModelCreator
+from models.model_creator import ModelSelector
 from models.rf_model import RandomForestModel
 from models.rule_model import RuleModel
 from models.tw_model import TermWeightModel
-from utils.selections import KeywordMatchType, ModelType
+from utils.selections import KeywordMatchType, ModelType, PredictTarget
 
 
 class TestModelCreator(TestCase):
@@ -19,19 +19,27 @@ class TestModelCreator(TestCase):
                          "model_path": model_path}
 
     def test_create_rule_model(self):
-        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.RULE_MODEL.name, **self.model_information),
+        self.assertIsInstance(ModelSelector.rule_based_model(ModelType.RULE_MODEL.name,
+                                                             PredictTarget.CONTENT.name,
+                                                             **self.model_information),
                               RuleModel)
 
     def test_create_keyword_model(self):
-        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.KEYWORD_MODEL.name, **self.model_information),
+        self.assertIsInstance(ModelSelector.rule_based_model(ModelType.KEYWORD_MODEL.name,
+                                                             PredictTarget.AUTHOR_NAME.name,
+                                                             **self.model_information),
                               KeywordModel)
 
     def test_create_random_forest_model(self):
-        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.RANDOM_FOREST_MODEL.name, 'CONTENT', **self.model_information),
+        self.assertIsInstance(ModelSelector.trainable_model(ModelType.RANDOM_FOREST_MODEL.name,
+                                                             PredictTarget.CONTENT.name,
+                                                            **self.model_information),
                               RandomForestModel)
 
     def test_create_term_weight_model(self):
-        self.assertIsInstance(TrainableModelCreator.create_model(ModelType.TERM_WEIGHT_MODEL.name, 'AUTHOR_NAME', **self.model_information),
+        self.assertIsInstance(ModelSelector.trainable_model(ModelType.TERM_WEIGHT_MODEL.name,
+                                                             PredictTarget.CONTENT.name,
+                                                            **self.model_information),
                               TermWeightModel)
 
 

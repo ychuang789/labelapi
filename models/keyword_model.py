@@ -16,10 +16,10 @@ class KeywordModel(RuleBaseModel):
                  name: str = None,
                  model_type: ModelType = ModelType.KEYWORD_MODEL.value,
                  case_sensitive: bool = False,
-                 target=PredictTarget.CONTENT.value,
+                 feature=PredictTarget.CONTENT.value,
                  verbose: bool = False):
         super().__init__(name=name if name is not None else "KeywordModel", model_type=model_type,
-                         case_sensitive=case_sensitive, target=target, logger_name="KeywordModel", verbose=verbose)
+                         case_sensitive=case_sensitive, feature=feature, logger_name="KeywordModel", verbose=verbose)
         self.logger.debug("model Init")
         self.label_match_any_trees = dict()
         self.label_match_start = defaultdict(list)

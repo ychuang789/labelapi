@@ -4,6 +4,7 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import declarative_base, relationship, Session
 
 from settings import DatabaseConfig
+from utils.selections import ModelTaskStatus
 
 Base = declarative_base()
 
@@ -116,6 +117,24 @@ def table_cls_maker(engine: create_engine, add_new=False):
         mr = Base.classes.model_report
 
         return ms, mr
+
+
+def status_changer(task_id: str, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
+    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO)
+    session = Session(engine, autoflush=False)
+    ms = table_cls_maker(engine, add_new=True)
+    err_msg = f'{task_id} {status.value} by the external user'
+
+    try:
+        session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: status.value,
+                                                                ms.error_message: err_msg})
+        session.commit()
+    except Exception as e:
+        raise e
+    finally:
+        session.close()
+        engine.dispose()
+
 
 
 

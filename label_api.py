@@ -7,15 +7,16 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
-from celery_worker import label_data, dump_result, modeling
+from celery_worker import label_data, dump_result, training, testing
 from models.model_creator import TrainableModelCreator, ModelTypeNotFoundError, ParamterMissingError
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig
+from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig, \
+    ModelingAbort
 from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger, get_config, uuid_validator
 from utils.model_core import ModelingWorker
-from utils.model_table_creator import create_model_table
+from utils.model_table_creator import create_model_table, status_changer
 from utils.selections import ModelType
 
 configuration = get_config()
@@ -39,7 +40,9 @@ This service is created by department of Research and Development 2 to help Audi
 ##### Models   
 
 1. modeling_training : train, validate a model and save it in model directory.   
-2. modeling_testing : test a model.  
+2. modeling_testing : test a model.   
+3. modeling
+
    
 #### Users   
 For eland staff only.  
@@ -49,7 +52,7 @@ app = FastAPI(title=configuration.API_TITLE, description=description, version=co
 
 @app.post('/api/tasks/', description='Create labeling task, edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks, especially, `task_id`')
-async def create_task(create_request_body: TaskConfig):
+def create_task(create_request_body: TaskConfig):
     config = create_request_body.__dict__
 
     if config.get('START_TIME') >= config.get('END_TIME'):
@@ -121,7 +124,7 @@ async def create_task(create_request_body: TaskConfig):
 
 @app.get('/api/tasks/', description="Return a subset of task_id and task_info, "
                                     "you can pick a 'SUCCESS' task_id and get it's ")
-async def tasks_list():
+def tasks_list():
     try:
         result = get_tasks_query_recent(TaskList.ORDER_COLUMN,
                                        TaskList.NUMBER)
@@ -145,7 +148,7 @@ async def tasks_list():
 
 @app.get('/api/tasks/{task_id}', description='Input a task_id and output status. If the task is successed, '
                                              'return the result tables for querying sample results')
-async def check_status(task_id):
+def check_status(task_id):
     try:
         result = query_state_by_id(task_id)
         if result:
@@ -172,7 +175,7 @@ async def check_status(task_id):
 @app.get('/api/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
                                                      'If you have no clue of task_id or table_names check the  '
                                                      '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
-async def sample_result(task_id: str):
+def sample_result(task_id: str):
     if len(task_id) != 32:
         err_info = {
             "error_code": 400,
@@ -236,7 +239,7 @@ async def sample_result(task_id: str):
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @app.post('/api/tasks/abort/', description='aborting a task no matter it is executing')
-async def abort_task(abort_request_body: AbortionConfig):
+def abort_task(abort_request_body: AbortionConfig):
     config = abort_request_body.__dict__
     task_id = config.get('TASK_ID', None)
 
@@ -262,9 +265,8 @@ async def abort_task(abort_request_body: AbortionConfig):
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-
 @app.post('/api/tasks/dump/', description='run dump workflow with task_id')
-async def dump_tasks(dump_request_body: DumpConfig):
+def dump_tasks(dump_request_body: DumpConfig):
     config = dump_request_body.__dict__
 
     if not config.get('task_ids') or len(config.get('task_ids')) == 0:
@@ -299,11 +301,11 @@ def model_training(training_config: ModelingConfig):
     create_model_table()
 
     try:
-        modeling.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
+        training.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
         ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
                                      predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'])
     except Exception as e:
-        err_msg = f'failed to add task info to modeling_status since {e}'
+        err_msg = f'failed to add training task info to modeling_status since {e}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
@@ -311,12 +313,22 @@ def model_training(training_config: ModelingConfig):
 
 @app.post('/api/models/test/', description='testing a model')
 def model_testing(testing_config: ModelingConfig):
+    task_id = uuid.uuid1().hex
 
-    """
-        === testing workers ===
-    """
+    config = testing_config.__dict__
+    config.update({'task_id': task_id})
 
-    # return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(model.__class__.__name__))
+    create_model_table()
+
+    try:
+        testing.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
+        ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
+                                     predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'])
+    except Exception as e:
+        err_msg = f'failed to add testing task info to modeling_status since {e}'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
 @app.get('/api/models/{task_id}')
 def model_status(task_id: str):
@@ -337,6 +349,22 @@ def model_report(task_id):
     result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
                                         **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+
+@app.post('/api/models/abort/')
+def model_abort(abort_request_body: ModelingAbort):
+
+    if not uuid_validator(task_id := abort_request_body.task_id):
+        err_msg = f'''{task_id} is not in a proper 32-digit uuid format'''
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    try:
+        status_changer(abort_request_body.task_id)
+        err_msg = f'{task_id} is successfully aborted'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f'{task_id} abortion failed with {e}'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
 
 if __name__ == '__main__':
     uvicorn.run("__main__:app", host=configuration.API_HOST, debug=True)

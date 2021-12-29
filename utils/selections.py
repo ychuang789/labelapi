@@ -6,6 +6,19 @@ from definition import RULE_FOLDER
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
+class DatasetType(Enum):
+    TRAIN = 'train'
+    DEV = 'dev'
+    TEST = 'test'
+    EXT_TEST = 'ext_test'
+
+class ModelTaskStatus(Enum):
+    PENDING = 'pending'
+    STARTED = 'started'
+    FINISHED = 'finished'
+    FAILED = 'failed'
+    BREAK = 'break'
+
 class TWFeatureModel(Enum):
     SGD = 'sgd'
 

@@ -195,8 +195,8 @@ def dump_result(**kwargs):
     dump_workflow.dump_zip()
 
 
-@celery_app.task(name=f'{configuration.CELERY_NAME}.modeling', track_started=True)
-def modeling(task_id, **kwargs):
+@celery_app.task(name=f'{configuration.CELERY_NAME}.training', track_started=True)
+def training(task_id, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
     model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],
@@ -205,6 +205,18 @@ def modeling(task_id, **kwargs):
                            dataset_schema=kwargs['DATASET_DB'],
                            **kwargs['MODEL_INFO'])
     model.run_task(task_id)
+
+
+@celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
+def testing(task_id, **kwargs):
+    _logger = get_logger('modeling')
+    _logger.info(f'start task {task_id}')
+    model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],
+                           predict_type=kwargs['PREDICT_TYPE'],
+                           dataset_number=kwargs['DATASET_NO'],
+                           dataset_schema=kwargs['DATASET_DB'],
+                           **kwargs['MODEL_INFO'])
+    model.eval_outer_test_data(task_id)
 
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)

@@ -128,10 +128,7 @@ dmypy.json
 /scrap_file/*.xlsx
 
 # tests scripts
-test.py
 temp.py
-tmp.py
-unit_test.py
 
 # notebook
 *.ipynb

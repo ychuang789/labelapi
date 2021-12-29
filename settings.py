@@ -4,6 +4,8 @@ from datetime import date
 from pydantic import BaseModel, BaseSettings
 from typing import Dict, Optional, List, Union
 
+from tornado.process import task_id
+
 from utils.input_example import InputExample
 from utils.selections import ModelType, PredictTarget
 
@@ -830,7 +832,7 @@ class DumpConfig(BaseModel):
 
 class ModelingConfig(BaseModel):
     #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
-    QUEUE: str = "queue1"
+    QUEUE: str = "queue2"
     DATASET_DB: str = 'audience-toolkit-django'
     DATASET_NO: int = 1
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
@@ -838,6 +840,9 @@ class ModelingConfig(BaseModel):
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
                                                "keyword_patterns": None,
                                                "regex_patterns": None,}
+
+class ModelingAbort(BaseModel):
+    task_id: str = 'string'
 
 class TaskList:
     load_dotenv()

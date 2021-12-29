@@ -15,9 +15,9 @@ class RuleModel(RuleBaseModel):
     def __init__(self, model_rules: Dict[str, List[str]] = None,
                  name: str = None,
                  model_type: ModelType = ModelType.RULE_MODEL,
-                 target: PredictTarget = PredictTarget.CONTENT,
+                 feature: PredictTarget = PredictTarget.CONTENT,
                  verbose: bool = False):
-        super().__init__(name=name if name is not None else "RuleModel", model_type=model_type, target=target,
+        super().__init__(name=name if name is not None else "RuleModel", model_type=model_type, feature=feature,
                          logger_name="RuleModel", verbose=verbose)
         self.logger.debug("model Init")
         self.label_patterns = None

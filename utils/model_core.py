@@ -13,7 +13,8 @@ from settings import DatabaseConfig
 from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
 from utils.model_table_creator import table_cls_maker
-from utils.selections import ModelType
+from utils.selections import ModelType, ModelTaskStatus, DatasetType
+
 
 class ModelingWorker(PreprocessInterface):
     """
@@ -40,11 +41,6 @@ class ModelingWorker(PreprocessInterface):
 
     def run_task(self, task_id: str, sql_debug=False) -> None:
 
-        if not hasattr(self.model, 'fit'):
-            err_msg = f'{self.model.name} is not trainable'
-            self.logger.error(err_msg)
-            raise AttributeError(err_msg)
-
         try:
             engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=sql_debug)
         except Exception as e:
@@ -66,18 +62,20 @@ class ModelingWorker(PreprocessInterface):
 
         self.logger.info(f"start modeling task: {task_id}")
 
-        session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: 'started'})
+        if not hasattr(self.model, 'fit'):
+            err_msg = f'{self.model.name} is not trainable'
+            self.logger.error(err_msg)
+            session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.FAILED.value,
+                                                                    ms.error_message: err_msg})
+            session.close()
+            engine.dispose()
+            raise AttributeError(err_msg)
 
+        session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.STARTED.value})
 
         try:
             self.logger.info(f'preparing the datasets for task: {task_id}')
             self.data_preprocess()
-        except Exception as e:
-            err_msg = f'failed to prepare the dataset for the model since {e}'
-            self.logger.error(err_msg)
-            raise e
-
-        try:
             self.model.fit(self.training_set, self.training_y)
 
             if isinstance(self.model, TermWeightModel):
@@ -89,7 +87,7 @@ class ModelingWorker(PreprocessInterface):
             self.logger.info(f"evaluating the model ...")
             dev_report = self.model.eval(self.dev_set, self.dev_y)
             session.add(mr(task_id=task_id,
-                           dataset_type='dev',
+                           dataset_type=DatasetType.DEV.value,
                            accuracy=dev_report.get('accuracy', -1),
                            report=json.dumps(dev_report, ensure_ascii=False),
                            create_time=datetime.now()
@@ -97,33 +95,30 @@ class ModelingWorker(PreprocessInterface):
             self.logger.info(f"testing the model ...")
             test_report = self.model.eval(self.testing_set, self.testing_y)
             session.add(mr(task_id=task_id,
-                           dataset_type='test',
+                           dataset_type=DatasetType.TEST.value,
                            accuracy=test_report.get('accuracy', -1),
                            report=json.dumps(test_report, ensure_ascii=False),
                            create_time=datetime.now()
                            ))
             session.query(ms).filter(ms.task_id == task_id).update({
-                ms.training_status: "finished"
+                ms.training_status: ModelTaskStatus.FINISHED.value
             })
             session.commit()
             self.logger.info(f"modeling task: {task_id} is finished")
         except Exception as e:
             session.rollback()
-            session.query(ms).filter(ms.task_id==task_id).update({ms.training_status:'failed'})
-            session.commit()
             err_msg = f"modeling task: {task_id} is failed since {e}"
             self.logger.error(err_msg)
+            session.query(ms).filter(ms.task_id==task_id).update({ms.training_status:ModelTaskStatus.FAILED.value,
+                                                                  ms.error_message: err_msg})
+            session.commit()
+
             raise e
         finally:
             session.close()
             engine.dispose()
 
     def eval_outer_test_data(self, task_id: str, sql_debug=False) -> None:
-
-        if not hasattr(self.model, 'eval'):
-            err_msg = f'{self.model.name} cannot be evaluated'
-            self.logger.error(err_msg)
-            raise AttributeError(err_msg)
 
         try:
             engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=sql_debug)
@@ -137,7 +132,16 @@ class ModelingWorker(PreprocessInterface):
 
         self.logger.info(f"start eval_outer_test_data task: {task_id}")
 
-        session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: 'started'})
+        if not hasattr(self.model, 'eval'):
+            err_msg = f'{self.model.name} cannot be evaluated'
+            self.logger.error(err_msg)
+            session.query(ms).filter(ms.task_id == task_id).update(
+                {ms.training_status: ModelTaskStatus.FAILED.value, ms.error_message: err_msg})
+            session.close()
+            engine.dispose()
+            raise AttributeError(err_msg)
+
+        session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.STARTED.value})
 
         try:
             self.logger.info(f'preparing the datasets for task: {task_id}')
@@ -155,31 +159,33 @@ class ModelingWorker(PreprocessInterface):
             report = self.model.eval(self.testing_set, self.testing_y)
 
             session.add(mr(task_id=task_id,
-                           dataset_type='ext_test',
+                           dataset_type=DatasetType.EXT_TEST.value,
                            accuracy=report.get('accuracy', -1),
                            report=json.dumps(report, ensure_ascii=False),
                            create_time=datetime.now()
                            ))
 
             session.query(ms).filter(ms.task_id == task_id).update({
-                ms.ext_status: "finished"
+                ms.ext_status: ModelTaskStatus.FINISHED.value
             })
             session.commit()
             self.logger.info(f"modeling task: {task_id} is finished")
 
         except FileNotFoundError as f:
             session.rollback()
-            session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: 'failed'})
-            session.commit()
             err_msg = f"modeling task: {task_id} is failed since {f}"
             self.logger.error(err_msg)
+            session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
+                                                                  ms.error_message: err_msg})
+            session.commit()
             raise f
         except Exception as e:
             session.rollback()
-            session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: 'failed'})
-            session.commit()
             err_msg = f"modeling task: {task_id} is failed since {e}"
             self.logger.error(err_msg)
+            session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
+                                                                  ms.error_message: err_msg})
+            session.commit()
             raise e
         finally:
             session.close()
@@ -187,6 +193,7 @@ class ModelingWorker(PreprocessInterface):
 
     def init_model(self, model_name, predict_type, **model_information) -> None:
         try:
+
             self.model = TrainableModelCreator.create_model(model_name, predict_type, **model_information)
         except ModelTypeNotFoundError:
             err_msg = f'{model_name} is not found. ' \
@@ -221,7 +228,7 @@ class ModelingWorker(PreprocessInterface):
         try:
             session.add(ms(task_id=task_id,
                            model_name=model_name,
-                           training_status='pending',
+                           training_status=ModelTaskStatus.PENDING.value,
                            feature=predict_type,
                            model_path=model_path,
                            create_time=datetime.now()))
@@ -237,11 +244,11 @@ class ModelingWorker(PreprocessInterface):
         if is_train:
             dataset: Dict = self._preprocessor.run_processing(self.dataset_number, self.dataset_schema)
 
-            self.training_set = dataset.get('train')
+            self.training_set = dataset.get(DatasetType.TRAIN.value)
             self.training_y = [[d.label] for d in self.training_set]
-            self.dev_set = dataset.get('dev')
+            self.dev_set = dataset.get(DatasetType.DEV.value)
             self.dev_y = [[d.label] for d in self.dev_set]
-            self.testing_set = dataset.get('test')
+            self.testing_set = dataset.get(DatasetType.TEST.value)
             self.testing_y = [[d.label] for d in self.testing_set]
 
             self.logger.info(f'training_set: {len(self.training_set)}')
@@ -249,7 +256,7 @@ class ModelingWorker(PreprocessInterface):
             self.logger.info(f'testing_set: {len(self.testing_set)}')
         else:
             dataset = self._preprocessor.run_processing(self.dataset_number, self.dataset_schema,
-                                                        is_train=False, document_type='test')
+                                                        is_train=False)
             self.testing_set = dataset
             self.testing_y = [[d.label] for d in self.testing_set]
 

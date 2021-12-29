@@ -8,6 +8,8 @@ import pandas as pd
 from utils.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
 from utils.input_example import InputExample
 from utils.model_table_creator import TermWeights
+from utils.selections import DatasetType
+
 
 class DataNotFoundError(Exception):
     """nothing return fround database"""
@@ -16,10 +18,12 @@ class DataNotFoundError(Exception):
 
 class PreprocessWorker:
     def run_processing(self, dataset_number, dataset_schema,
-                       sample_count=1000, is_train=True, document_type='ext_test'):
+                       sample_count=1000, is_train=True):
         if is_train:
             data_dict = {}
-            for i in ['train', 'dev', 'test']:
+            for i in [t.value for t in DatasetType]:
+                if i == DatasetType.EXT_TEST.value:
+                    continue
                 condition = {'labeling_job_id': dataset_number, 'document_type': i}
                 data = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
                                                   **ConnectionConfigGenerator.rd2_database(schema=dataset_schema))
@@ -29,7 +33,7 @@ class PreprocessWorker:
                 data_dict.update({i: data})
             return data_dict
         else:
-            condition = {'labeling_job_id': dataset_number, 'document_type': document_type}
+            condition = {'labeling_job_id': dataset_number, 'document_type': DatasetType.EXT_TEST.value}
             data = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
                                               **ConnectionConfigGenerator.rd2_database(schema=dataset_schema))
             if not data:
@@ -86,7 +90,6 @@ def preprocess_example(examples: Dict, sample_count: int = None, shuffle: bool =
     if shuffle:
         random.shuffle(dataset)
     return dataset
-
 
 
 def get_term_weights_objects(task_id: str,

@@ -15,12 +15,12 @@ class RuleBaseModel(ABC):
     def __init__(self, name: str, model_type: ModelType,
                  case_sensitive: bool = False,
                  logger_name: str = "AudienceModel",
-                 target: PredictTarget = PredictTarget.CONTENT,
+                 feature: PredictTarget = PredictTarget.CONTENT,
                  verbose: bool = False):
         self.name = name
         self.model_type = model_type
         self.case_sensitive = case_sensitive
-        self.target = target
+        self.target = feature
         self.logger = get_logger(logger_name, verbose=verbose)
 
     @abstractmethod

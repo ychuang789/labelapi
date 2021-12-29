@@ -52,18 +52,18 @@ class RuleBasedModelCreator(ModelHandler):
         if type_attribute == ModelType.KEYWORD_MODEL.value:
             if not (keyword_patterns := kwargs.get('keyword_patterns')):
                 raise ParamterMissingError(f'keyword patterns')
-            return KeywordModel(label_keywords=keyword_patterns, target=PredictTarget[target_attribute])
+            return KeywordModel(label_keywords=keyword_patterns, feature=PredictTarget[target_attribute])
 
         elif type_attribute == ModelType.RULE_MODEL.value:
             if not (regex_patterns := kwargs.get('regex_patterns')):
                 raise ParamterMissingError(f'regex patterns')
-            return RuleModel(model_rules=regex_patterns, target=PredictTarget[target_attribute])
+            return RuleModel(model_rules=regex_patterns, feature=PredictTarget[target_attribute])
         else:
             raise ModelTypeNotFoundError(f'{type_attribute} is unknown')
 
 
 class ModelSelector():
-
+    """Select a type of model"""
     @staticmethod
     def trainable_model(type_attribute: str, target_attribute: str, **kwargs):
         return TrainableModelCreator().create_model(type_attribute, target_attribute, **kwargs)
@@ -71,5 +71,8 @@ class ModelSelector():
     @staticmethod
     def rule_based_model(type_attribute: str, target_attribute: str, **kwargs):
         return RuleBasedModelCreator().create_model(type_attribute, target_attribute, **kwargs)
+
+
+
 
 
