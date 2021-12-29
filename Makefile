@@ -27,10 +27,10 @@ run_worker_2:
 	@eval "celery -A celery_worker worker -n worker2@%n -Q queue1 -l INFO -P gevent --concurrency=$(CONCURRENCY) --without-gossip --logfile=logs/%n%I.log"
 
 run_worker_3:
-	@eval "celery -A celery_worker worker -n worker3@%n -Q queue1 -l INFO -P gevent --concurrency=$(CONCURRENCY) --without-gossip --logfile=logs/%n%I.log"
+	@eval "celery -A celery_worker worker -n worker3@%n -Q queue2 -l INFO -P gevent --concurrency=$(CONCURRENCY) --without-gossip --logfile=logs/%n%I.log"
 
 run_worker_4:
-	@eval "celery -A celery_worker worker -n worker4@%n -Q queue1 -l INFO -P gevent --concurrency=$(CONCURRENCY) --without-gossip --logfile=logs/%n%I.log"
+	@eval "celery -A celery_worker worker -n worker4@%n -Q queue2 -l INFO -P gevent --concurrency=$(CONCURRENCY) --without-gossip --logfile=logs/%n%I.log"
 
 run_api:
 	@eval "python label_api.py"
