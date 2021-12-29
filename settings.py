@@ -878,7 +878,10 @@ LABEL = {'男性': 'male',
 
 MODEL_PATH_FIELD_DIRECTORY = 'model_files'
 
-
+MODEL_TYPE_DICT = {
+    'trainable':[ModelType.RANDOM_FOREST_MODEL.value, ModelType.TERM_WEIGHT_MODEL.value],
+    'untrainable':[ModelType.KEYWORD_MODEL.value, ModelType.RULE_MODEL.value]
+}
 
 # class DatabaseInfo:
 #     load_dotenv()

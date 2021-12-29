@@ -7,9 +7,9 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import Session
 
 from models.audience_data_interfaces import PreprocessInterface
-from models.model_creator import TrainableModelCreator, ModelTypeNotFoundError, ParamterMissingError
+from models.model_creator import TrainableModelCreator, ModelTypeNotFoundError, ParamterMissingError, ModelSelector
 from models.tw_model import TermWeightModel
-from settings import DatabaseConfig
+from settings import DatabaseConfig, MODEL_TYPE_DICT
 from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
 from utils.model_table_creator import table_cls_maker
@@ -193,8 +193,15 @@ class ModelingWorker(PreprocessInterface):
 
     def init_model(self, model_name, predict_type, **model_information) -> None:
         try:
-
-            self.model = TrainableModelCreator.create_model(model_name, predict_type, **model_information)
+            if model_name in MODEL_TYPE_DICT.get('trainable'):
+                self.model = ModelSelector.trainable_model(model_name, predict_type, **model_information)
+            elif model_name in MODEL_TYPE_DICT.get('untrainable'):
+                self.model = ModelSelector.rule_based_model(model_name, predict_type, **model_information)
+            else:
+                err_msg = f'{model_name} is unknown or is not in a proper format'
+                self.logger.error(err_msg)
+                raise ModelTypeNotFoundError(err_msg)
+            # self.model = TrainableModelCreator.create_model(model_name, predict_type, **model_information)
         except ModelTypeNotFoundError:
             err_msg = f'{model_name} is not found. ' \
                       f'Model_type should be in {",".join([i.name for i in ModelType])}'
