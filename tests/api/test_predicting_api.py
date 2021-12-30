@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from label_api import app
+from audience_api import app
 
 
 class TestAPIs(object):

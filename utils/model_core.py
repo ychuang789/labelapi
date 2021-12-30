@@ -35,9 +35,6 @@ class ModelingWorker(PreprocessInterface):
         self.dataset_schema = dataset_schema
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_information = model_information
-        if not self.model:
-            self.logger.info(f'Initializing the model {model_name.lower()}...')
-            self.init_model(self.model_name, self.predict_type, **self.model_information)
 
     def run_task(self, task_id: str, sql_debug=False) -> None:
 
@@ -61,6 +58,9 @@ class ModelingWorker(PreprocessInterface):
         # # tw = Base.classes.term_weights
 
         self.logger.info(f"start modeling task: {task_id}")
+
+        self.logger.info(f'Initializing the model {self.model_name .lower()}...')
+        self.init_model(self.model_name, self.predict_type, **self.model_information)
 
         if not hasattr(self.model, 'fit'):
             err_msg = f'{self.model.name} is not trainable'
@@ -132,6 +132,10 @@ class ModelingWorker(PreprocessInterface):
 
         self.logger.info(f"start eval_outer_test_data task: {task_id}")
 
+        if not self.model:
+            self.logger.info(f'Initializing the model {self.model_name.lower()}...')
+            self.init_model(self.model_name, self.predict_type, is_train=False, **self.model_information)
+
         if not hasattr(self.model, 'eval'):
             err_msg = f'{self.model.name} cannot be evaluated'
             self.logger.error(err_msg)
@@ -191,9 +195,9 @@ class ModelingWorker(PreprocessInterface):
             session.close()
             engine.dispose()
 
-    def init_model(self, model_name, predict_type, **model_information) -> None:
+    def init_model(self, model_name, predict_type, is_train=True, **model_information) -> None:
         try:
-            model = ModelSelector(model_name=model_name, target_name=predict_type, **model_information)
+            model = ModelSelector(model_name=model_name, target_name=predict_type, is_train=is_train,**model_information)
             self.model = model.create_model_obj()
         except ModelTypeNotFoundError:
             err_msg = f'{model_name} is not a available model'

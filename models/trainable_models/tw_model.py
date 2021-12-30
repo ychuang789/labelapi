@@ -1,19 +1,16 @@
 import csv
-import logging
 from collections import defaultdict
 from enum import Enum
-from pathlib import Path
-from typing import List, Optional, Iterable, Dict, Tuple
+from typing import List, Optional, Dict, Tuple
 
 import jieba
-import numpy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import MultiLabelBinarizer
 
 
 from models.audience_model_interfaces import SupervisedModel, MODEL_ROOT
-from models.term_weight_feature_extractor import TermWeightFeatureModel
+from models.trainable_models.term_weight_feature_extractor import TermWeightFeatureModel
 from utils.input_example import InputExample
 from utils.selections import PredictTarget
 

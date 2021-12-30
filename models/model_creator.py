@@ -2,7 +2,7 @@ import importlib
 from abc import ABC, abstractmethod
 from typing import Union
 
-from models.audience_model_interfaces import RuleBaseModel
+from models.audience_model_interfaces import RuleBaseModel, SupervisedModel
 from models.rule_based_models.keyword_model import KeywordModel
 from models.trainable_models.rf_model import RandomForestModel
 from models.rule_based_models.rule_model import RuleModel
@@ -70,11 +70,13 @@ class RuleBasedModelCreator(ModelHandler):
 class ModelSelector():
     """Select a model and create it"""
 
-    def __init__(self, model_name: Union[str, ModelType], target_name: Union[str, PredictTarget], **kwargs):
+    def __init__(self, model_name: Union[str, ModelType], target_name: Union[str, PredictTarget],
+                 is_train = True, **kwargs):
         self.model_name = model_name if isinstance(model_name, str) else model_name.value
         self.target_name = target_name if isinstance(target_name, str) else target_name.value
         self.model_path = kwargs.pop('model_path', None)
         self.pattern = kwargs.pop('patterns', None)
+        self.is_train = is_train
         self.model_info = kwargs
 
     def get_model_class(self, model_name: str):
@@ -92,16 +94,21 @@ class ModelSelector():
 
         if model_class:
             self.model = model_class(model_dir_name=self.model_path, feature=self.target_name)
-
-            if isinstance(self.model, RuleBaseModel):
-                if self.pattern:
-                    self.model.load(self.pattern)
-                else:
-                    raise ParamterMissingError(f'patterns are missing')
-
-            return self.model
         else:
             raise ValueError(f'model_name {self.model_name} is unknown')
+
+        if isinstance(self.model, SupervisedModel):
+            if not self.is_train:
+                self.model.load()
+
+        if isinstance(self.model, RuleBaseModel):
+            if self.pattern:
+                self.model.load(self.pattern)
+            else:
+                raise ParamterMissingError(f'patterns are missing')
+
+
+        return self.model
 
     @staticmethod
     def trainable_model(type_attribute: str, target_attribute: str, **kwargs):

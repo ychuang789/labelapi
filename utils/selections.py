@@ -45,7 +45,7 @@ class KeywordMatchType:
 
 class Errors(Enum):
     UNKNOWN_DB_TYPE = "Unknown database type."
-    UNKNOWN_PREDICT_TARGET_TYPE = "Unknown predict target type."
+    UNKNOWN_PREDICT_TARGET_TYPE = "Unknown predicting target type."
 
 
 class QueryStatements(Enum):

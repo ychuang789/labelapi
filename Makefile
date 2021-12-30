@@ -33,7 +33,7 @@ run_worker_4:
 	@eval "celery -A celery_worker worker -n worker4@%n -Q queue2 -l INFO -P gevent --concurrency=$(CONCURRENCY) --without-gossip --logfile=logs/%n%I.log"
 
 run_api:
-	@eval "python label_api.py"
+	@eval "python audience_api.py"
 
 run_tasks:
 	@eval "python run_task_cli.py --file $(DB_NAME_FILE) --number_of_queue $(NUMBER_OF_QUEUE) --year $(YEAR)"

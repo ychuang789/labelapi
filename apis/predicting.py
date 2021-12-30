@@ -1,53 +1,27 @@
 import uuid
 from datetime import datetime
 
-import uvicorn
-from fastapi import FastAPI, status
+from fastapi import status, APIRouter, Depends
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 
-from celery_worker import label_data, dump_result, training, testing
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig, ModelingConfig, \
-    ModelingAbort
-from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
+from celery_worker import label_data, dump_result
+from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
     get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
-from utils.helper import get_logger, get_config, uuid_validator
-from utils.model_core import ModelingWorker
-from utils.model_table_creator import create_model_table, status_changer
-
-configuration = get_config()
+from utils.helper import get_logger
+from dependencies import get_token_header
 
 _logger = get_logger('label_API')
 
-description = """
-A backend API which support labeling, modeling and predicting jobs of django site for Audience.          
+router = APIRouter(prefix='/predict',
+                   tags=['predict'],
+                   dependencies=[Depends(get_token_header)],
+                   responses={404: {"description": "Not found"}},
+                   )
 
-#### Item   
-
-##### Tasks     
-
-1. create_task : a post api which create a labeling task via the information in the request body.    
-2. task_list : return the recent tasks and tasks information.     
-3. check_status : return a single task status and results if success via task_id.   
-4. sample_result : return the labeling results from database via task_id and table information.    
-5. abort_task : break a task with a target task_id.    
-6. dump_tasks : dump tasks to ZIP.   
-
-##### Models   
-
-1. model_training : train and validate a model with saving it to model directory.   
-2. model_testing : test a model with a external test data.        
-3. model_status : get the model status information with a target task_id.      
-4. model_report : get the model report information with a target task_id.  
-5. model_abort : break a task with a target task_id.   
-  
-"""
-
-app = FastAPI(title=configuration.API_TITLE, description=description, version=configuration.API_VERSION)
-
-@app.post('/api/tasks/', description='Create labeling task, edit the request body to fit your requirement. '
+@router.post('/tasks/', description='Create labeling task, edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks, especially, `task_id`')
 def create_task(create_request_body: TaskConfig):
     config = create_request_body.__dict__
@@ -82,22 +56,8 @@ def create_task(create_request_body: TaskConfig):
     _logger.info('start labeling task flow ...')
     try:
         task_id = uuid.uuid1().hex
-        # _config = json.dumps(config, ensure_ascii=False)
-        # result = label_data.apply_async(args=(task_id, _config), task_id=task_id, queue=config.get('QUEUE'))
         result = label_data.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
-
-        # result = chain(
-        #     label_data.signature(
-        #         args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE')
-        #     )
-        #     | generate_production.signature(
-        #         args=(task_id,), kwargs=config, countdown=config.get('COUNTDOWN'), queue=config.get('QUEUE')
-        #
-        #     )
-        # )()
-
         config.update({"date_range": f"{config.get('START_TIME')} - {config.get('END_TIME')}"})
-
         insert2state(task_id, result.state, config.get('MODEL_TYPE'), config.get('PREDICT_TYPE'),
                      config.get('date_range'), config.get('INPUT_SCHEMA'), datetime.now(), "",
                      _logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
@@ -116,10 +76,9 @@ def create_task(create_request_body: TaskConfig):
         "error_code": 200,
         "error_message": config
     }
-
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.get('/api/tasks/', description="Return a subset of task_id and task_info, "
+@router.get('/tasks/', description="Return a subset of task_id and task_info, "
                                     "you can pick a 'SUCCESS' task_id and get it's ")
 def tasks_list():
     try:
@@ -143,7 +102,7 @@ def tasks_list():
         _logger.error(f"{e}")
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.get('/api/tasks/{task_id}', description='Input a task_id and output status. If the task is successed, '
+@router.get('/tasks/{task_id}', description='Input a task_id and output status. If the task is successed, '
                                              'return the result tables for querying sample results')
 def check_status(task_id):
     try:
@@ -169,7 +128,7 @@ def check_status(task_id):
         _logger.error(f'{e}')
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.get('/api/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
+@router.get('/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
                                                      'If you have no clue of task_id or table_names check the  '
                                                      '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
 def sample_result(task_id: str):
@@ -235,7 +194,7 @@ def sample_result(task_id: str):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.post('/api/tasks/abort/', description='aborting a task no matter it is executing')
+@router.post('/tasks/abort/', description='aborting a task no matter it is executing')
 def abort_task(abort_request_body: AbortionConfig):
     config = abort_request_body.__dict__
     task_id = config.get('TASK_ID', None)
@@ -262,7 +221,7 @@ def abort_task(abort_request_body: AbortionConfig):
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@app.post('/api/tasks/dump/', description='run dump workflow with task_id')
+@router.post('/tasks/dump/', description='run dump workflow with task_id')
 def dump_tasks(dump_request_body: DumpConfig):
     config = dump_request_body.__dict__
 
@@ -287,83 +246,3 @@ def dump_tasks(dump_request_body: DumpConfig):
             "error_message": f"task failed because of {e}"
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-
-@app.post('/api/models/train/', description='training a model and save it')
-def model_training(training_config: ModelingConfig):
-    task_id = uuid.uuid1().hex
-
-    config = training_config.__dict__
-    config.update({'task_id':task_id})
-
-    create_model_table()
-
-    try:
-        training.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
-        ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
-                                     predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'])
-    except Exception as e:
-        err_msg = f'failed to add training task info to modeling_status since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
-    # return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
-
-@app.post('/api/models/test/', description='testing a model')
-def model_testing(testing_config: ModelingConfig):
-    task_id = uuid.uuid1().hex
-
-    config = testing_config.__dict__
-    config.update({'task_id': task_id})
-
-    create_model_table()
-
-    try:
-        testing.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
-        ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
-                                     predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'])
-    except Exception as e:
-        err_msg = f'failed to add testing task info to modeling_status since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
-
-@app.get('/api/models/{task_id}')
-def model_status(task_id: str):
-    if not uuid_validator(task_id):
-        err_msg = f'''{task_id} is not in a proper 32-digit uuid format'''
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-    condition = {'task_id': task_id}
-    result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-                                      **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
-
-@app.get('/api/models/{task_id}/report/')
-def model_report(task_id):
-    if not uuid_validator(task_id):
-        err_msg = f'''{task_id} is not in a proper 32-digit uuid format'''
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-    condition = {'task_id': task_id, 'model_report': 'report'}
-    result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-                                        **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
-
-@app.post('/api/models/abort/')
-def model_abort(abort_request_body: ModelingAbort):
-
-    if not uuid_validator(task_id := abort_request_body.task_id):
-        err_msg = f'''{task_id} is not in a proper 32-digit uuid format'''
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-    try:
-        status_changer(abort_request_body.task_id)
-        err_msg = f'{task_id} is successfully aborted'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-    except Exception as e:
-        err_msg = f'{task_id} abortion failed with {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-
-
-if __name__ == '__main__':
-    uvicorn.run("__main__:app", host=configuration.API_HOST, debug=True)
-
-

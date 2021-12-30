@@ -31,7 +31,7 @@ class RuleBaseModel(ABC):
 
     @abstractmethod
     def predict(self, input_examples: Iterable[InputExample]):
-        """predict the results of output, return labels and probs"""
+        """predicting the results of output, return labels and probs"""
         pass
 
     # @abstractmethod
@@ -56,7 +56,7 @@ class SupervisedModel(ABC):
 
     @abstractmethod
     def predict(self, examples: Iterable[InputExample]) -> List[Tuple[Tuple]]:
-        """predict the results of output, return labels and probs"""
+        """predicting the results of output, return labels and probs"""
         raise NotImplementedError
 
     @abstractmethod
@@ -71,6 +71,6 @@ class SupervisedModel(ABC):
 
     @abstractmethod
     def load(self):
-        """load the model, make sure to do it before predict extral test set"""
+        """load the model, make sure to do it before predicting extral test set"""
         raise NotImplementedError
 

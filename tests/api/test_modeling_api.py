@@ -1,7 +1,7 @@
 import json
 
 from fastapi.testclient import TestClient
-from label_api import app
+from audience_api import app
 
 from utils.input_example import InputExample
 from datetime import datetime
