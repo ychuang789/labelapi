@@ -193,20 +193,10 @@ class ModelingWorker(PreprocessInterface):
 
     def init_model(self, model_name, predict_type, **model_information) -> None:
         try:
-            # if model_name in MODEL_TYPE_DICT.get('trainable'):
-            #     self.model = ModelSelector.trainable_model(model_name, predict_type, **model_information)
-            # elif model_name in MODEL_TYPE_DICT.get('untrainable'):
-            #     self.model = ModelSelector.rule_based_model(model_name, predict_type, **model_information)
-            # else:
-            #     err_msg = f'{model_name} is unknown or is not in a proper format'
-            #     self.logger.error(err_msg)
-            #     raise ModelTypeNotFoundError(err_msg)
-            # self.model = TrainableModelCreator.create_model(model_name, predict_type, **model_information)
             model = ModelSelector(model_name=model_name, target_name=predict_type, **model_information)
             self.model = model.create_model_obj()
         except ModelTypeNotFoundError:
-            err_msg = f'{model_name} is not found. ' \
-                      f'Model_type should be in {",".join([i.name for i in ModelType])}'
+            err_msg = f'{model_name} is not a available model'
             self.logger.error(err_msg)
             raise ModelTypeNotFoundError(err_msg)
         except ParamterMissingError as p:

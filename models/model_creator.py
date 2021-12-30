@@ -82,10 +82,14 @@ class ModelSelector():
             module_path, class_name = MODEL_INFORMATION.get(model_name).rsplit(sep='.', maxsplit=1)
             return getattr(importlib.import_module(module_path), class_name), class_name
         else:
-            return None
+            raise ModelTypeNotFoundError(f'{model_name} is not a available model')
 
     def create_model_obj(self):
-        model_class, class_name = self.get_model_class(self.model_name)
+        try:
+            model_class, class_name = self.get_model_class(self.model_name)
+        except ModelTypeNotFoundError:
+            raise ModelTypeNotFoundError(f'{self.model_name} is not a available model')
+
         if model_class:
             self.model = model_class(model_dir_name=self.model_path, feature=self.target_name)
 

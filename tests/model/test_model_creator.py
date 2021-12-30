@@ -55,6 +55,20 @@ class TestModelCreator(TestCase):
         self.assertIsInstance(model.create_model_obj(), KeywordModel)
 
 
+    def test_create_model_obj_exception1(self):
+        """models.model_creator.ModelTypeNotFoundError: KEYWORD_ is not a available model"""
+        model_name = "KEYWORD_"
+        model_info = {"model_path": self.model_path, "patterns": self.keyword_patterns}
+        model = ModelSelector(model_name=model_name, target_name=PredictTarget.AUTHOR_NAME, **model_info)
+        self.assertIsInstance(model.create_model_obj(), KeywordModel)
+
+    def test_create_model_obj_exception2(self):
+        """models.model_creator.ParamterMissingError: patterns are missing"""
+        model_name = "KEYWORD_MODEL"
+        model_info = {"model_path": self.model_path}
+        model = ModelSelector(model_name=model_name, target_name=PredictTarget.AUTHOR_NAME, **model_info)
+        self.assertIsInstance(model.create_model_obj(), KeywordModel)
+
 
 
 
