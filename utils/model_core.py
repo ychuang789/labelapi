@@ -7,8 +7,8 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import Session
 
 from models.audience_data_interfaces import PreprocessInterface
-from models.model_creator import TrainableModelCreator, ModelTypeNotFoundError, ParamterMissingError, ModelSelector
-from models.tw_model import TermWeightModel
+from models.model_creator import ModelTypeNotFoundError, ParamterMissingError, ModelSelector
+from models.trainable_models.tw_model import TermWeightModel
 from settings import DatabaseConfig, MODEL_TYPE_DICT
 from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger

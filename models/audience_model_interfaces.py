@@ -12,12 +12,13 @@ from utils.selections import ModelType, PredictTarget
 MODEL_ROOT = Path(settings.MODEL_PATH_FIELD_DIRECTORY)
 
 class RuleBaseModel(ABC):
-    def __init__(self, name: str, model_type: ModelType,
+    def __init__(self, name: str, model_dir_name: str, model_type: ModelType,
                  case_sensitive: bool = False,
                  logger_name: str = "AudienceModel",
                  feature: PredictTarget = PredictTarget.CONTENT,
                  verbose: bool = False):
         self.name = name
+        self.model_dir_name = model_dir_name
         self.model_type = model_type
         self.case_sensitive = case_sensitive
         self.target = feature

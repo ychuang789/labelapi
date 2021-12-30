@@ -12,22 +12,25 @@ from utils.selections import ModelType, PredictTarget, KeywordMatchType, Errors
 
 
 class KeywordModel(RuleBaseModel):
-    def __init__(self, label_keywords: Dict[str, List[Tuple[str, KeywordMatchType]]] = None,
+    def __init__(self, model_dir_name= None,
+                 patterns: Dict[str, List[Tuple[str, KeywordMatchType]]] = None,
                  name: str = None,
                  model_type: ModelType = ModelType.KEYWORD_MODEL.value,
                  case_sensitive: bool = False,
                  feature=PredictTarget.CONTENT.value,
                  verbose: bool = False):
-        super().__init__(name=name if name is not None else "KeywordModel", model_type=model_type,
-                         case_sensitive=case_sensitive, feature=feature, logger_name="KeywordModel", verbose=verbose)
+        super().__init__(name=name if name is not None else "KeywordModel",
+                         model_dir_name=model_dir_name, model_type=model_type,
+                         case_sensitive=case_sensitive, feature=feature,
+                         logger_name="KeywordModel", verbose=verbose)
         self.logger.debug("model Init")
         self.label_match_any_trees = dict()
         self.label_match_start = defaultdict(list)
         self.label_match_end = defaultdict(list)
         self.label_match_full = defaultdict(list)
         self.labels = []
-        if label_keywords:
-            self.load(label_keywords)
+        if patterns:
+            self.load(patterns)
 
     def load(self, label_keywords: Dict[str, List[Tuple[str, KeywordMatchType]]]):
         for label, keywords in label_keywords.items():

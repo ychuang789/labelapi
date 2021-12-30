@@ -838,8 +838,9 @@ class ModelingConfig(BaseModel):
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "keyword_patterns": None,
-                                               "regex_patterns": None,}
+                                               "feature_model": "SGD",
+                                               "patterns": None,
+                                               }
 
 class ModelingAbort(BaseModel):
     task_id: str = 'string'
@@ -883,6 +884,12 @@ MODEL_TYPE_DICT = {
     'untrainable':[ModelType.KEYWORD_MODEL.value, ModelType.RULE_MODEL.value]
 }
 
+MODEL_INFORMATION = {
+    "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
+    "RULE_MODEL" : "models.rule_based_models.rule_model.RuleModel",
+    "RANDOM_FOREST_MODEL" : "models.trainable_models.rf_model.RandomForestModel",
+    "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
+}
 # class DatabaseInfo:
 #     load_dotenv()
 #     host = os.getenv('INPUT_HOST')

@@ -6,8 +6,8 @@ from typing import Dict, Iterable, Optional, Union, Tuple, List
 from sqlalchemy import create_engine
 import pandas as pd
 
-from models.rule_model import RuleModel
-from models.keyword_model import  KeywordModel
+from models.rule_based_models.rule_model import RuleModel
+from models.rule_based_models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
 from settings import DatabaseConfig, SOURCE, LABEL

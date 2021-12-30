@@ -12,18 +12,21 @@ from utils.selections import ModelType, PredictTarget, Errors
 
 
 class RuleModel(RuleBaseModel):
-    def __init__(self, model_rules: Dict[str, List[str]] = None,
+    def __init__(self, model_dir_name= None,
+                 patterns: Dict[str, List[str]] = None,
                  name: str = None,
                  model_type: ModelType = ModelType.RULE_MODEL,
                  feature: PredictTarget = PredictTarget.CONTENT,
                  verbose: bool = False):
-        super().__init__(name=name if name is not None else "RuleModel", model_type=model_type, feature=feature,
+        super().__init__(name=name if name is not None else "RuleModel",
+                         model_dir_name=model_dir_name,
+                         model_type=model_type, feature=feature,
                          logger_name="RuleModel", verbose=verbose)
         self.logger.debug("model Init")
         self.label_patterns = None
         self.labels = []
-        if model_rules:
-            self.load(model_rules)
+        if patterns:
+            self.load(patterns)
 
     def load(self, label_patterns: Dict[str, List[str]] = None):
         self.label_patterns = label_patterns

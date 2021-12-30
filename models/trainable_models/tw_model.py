@@ -132,7 +132,7 @@ class TermWeightModel(SupervisedModel):
 
     def load(self, label_term_weights: Dict[str, List[Tuple[str, float]]] = None):
         self.label_term_weights.clear()
-        if label_term_weights is None:
+        if not label_term_weights:
             with open(MODEL_ROOT / self.model_dir_name / self.dict_file_name, newline='') as csv_file:
                 for row in csv.DictReader(csv_file):
                     label: str = row.get(self.DictHeaders.LABEL.value)

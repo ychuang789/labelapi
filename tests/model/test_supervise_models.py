@@ -5,8 +5,8 @@ from unittest import TestCase
 import numpy as np
 
 from definition import ROOT_DIR
-from models.rf_model import RandomForestModel
-from models.tw_model import TermWeightModel
+from models.trainable_models.rf_model import RandomForestModel
+from models.trainable_models.tw_model import TermWeightModel
 from utils.data_helper import load_examples
 from utils.input_example import InputExample
 

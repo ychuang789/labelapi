@@ -4,8 +4,8 @@ from unittest import TestCase
 
 
 from definition import ROOT_DIR
-from models.rule_model import RuleModel
-from models.keyword_model import KeywordModel
+from models.rule_based_models.rule_model import RuleModel
+from models.rule_based_models.keyword_model import KeywordModel
 from utils.data_helper import load_examples
 from utils.run_label_task import read_from_dir
 from utils.selections import PredictTarget, KeywordMatchType, ModelType
