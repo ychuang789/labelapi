@@ -1,5 +1,6 @@
 import importlib
 from abc import ABC, abstractmethod
+from typing import Union
 
 from models.audience_model_interfaces import RuleBaseModel
 from models.rule_based_models.keyword_model import KeywordModel
@@ -67,23 +68,14 @@ class RuleBasedModelCreator(ModelHandler):
 
 
 class ModelSelector():
-    """Select a type of model"""
+    """Select a model and create it"""
 
-    def __init__(self, model_name: str, target_name: PredictTarget.CONTENT, **kwargs):
-        self.model_name = model_name
-        self.target_name = target_name
+    def __init__(self, model_name: Union[str, ModelType], target_name: Union[str, PredictTarget], **kwargs):
+        self.model_name = model_name if isinstance(model_name, str) else model_name.value
+        self.target_name = target_name if isinstance(target_name, str) else target_name.value
         self.model_path = kwargs.pop('model_path', None)
         self.pattern = kwargs.pop('patterns', None)
         self.model_info = kwargs
-
-    @staticmethod
-    def trainable_model(type_attribute: str, target_attribute: str, **kwargs):
-        return TrainableModelCreator().create_model(type_attribute, target_attribute, **kwargs)
-
-    @staticmethod
-    def rule_based_model(type_attribute: str, target_attribute: str, **kwargs):
-        return RuleBasedModelCreator().create_model(type_attribute, target_attribute, **kwargs)
-
 
     def get_model_class(self, model_name: str):
         if model_name in MODEL_INFORMATION:
@@ -95,13 +87,25 @@ class ModelSelector():
     def create_model_obj(self):
         model_class, class_name = self.get_model_class(self.model_name)
         if model_class:
-            self.model = model_class(model_dir_name=self.model_path, feature=self.target_name.value)
+            self.model = model_class(model_dir_name=self.model_path, feature=self.target_name)
 
             if isinstance(self.model, RuleBaseModel):
-                self.model.load(self.pattern)
+                if self.pattern:
+                    self.model.load(self.pattern)
+                else:
+                    raise ParamterMissingError(f'patterns are missing')
 
             return self.model
         else:
             raise ValueError(f'model_name {self.model_name} is unknown')
+
+    @staticmethod
+    def trainable_model(type_attribute: str, target_attribute: str, **kwargs):
+        return TrainableModelCreator().create_model(type_attribute, target_attribute, **kwargs)
+
+    @staticmethod
+    def rule_based_model(type_attribute: str, target_attribute: str, **kwargs):
+        return RuleBasedModelCreator().create_model(type_attribute, target_attribute, **kwargs)
+
 
 
