@@ -818,6 +818,7 @@ class TaskConfig(BaseModel):
     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
     COUNTDOWN: int = 5
     QUEUE: str = "queue1"
+    MODEL_JOB_LIST: List[int] = None
     SITE_CONFIG: Optional[Dict] = None
 
 class AbortionConfig(BaseModel):
@@ -830,11 +831,12 @@ class DumpConfig(BaseModel):
     INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
     OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
 
-class ModelingConfig(BaseModel):
+class ModelingTrainingConfig(BaseModel):
     #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
     QUEUE: str = "queue2"
     DATASET_DB: str = 'audience-toolkit-django'
     DATASET_NO: int = 1
+    MODEL_JOB_ID: int = 0
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
@@ -842,8 +844,22 @@ class ModelingConfig(BaseModel):
                                                "patterns": None,
                                                }
 
+
+class ModelingTestingConfig(BaseModel):
+    QUEUE: str = "queue2"
+    DATASET_DB: str = 'audience-toolkit-django'
+    DATASET_NO: int = 1
+    MODEL_JOB_ID: int = 0
+    PREDICT_TYPE: str = PredictTarget.CONTENT.name
+    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+                                               "feature_model": "SGD",
+                                               "patterns": None,
+                                               }
+
+
 class ModelingAbort(BaseModel):
-    task_id: str = 'string'
+    MODEL_JOB_ID: int = 0
 
 class TaskList:
     load_dotenv()

@@ -107,16 +107,15 @@ class ModelSelector():
             else:
                 raise ParamterMissingError(f'patterns are missing')
 
-
         return self.model
 
-    @staticmethod
-    def trainable_model(type_attribute: str, target_attribute: str, **kwargs):
-        return TrainableModelCreator().create_model(type_attribute, target_attribute, **kwargs)
-
-    @staticmethod
-    def rule_based_model(type_attribute: str, target_attribute: str, **kwargs):
-        return RuleBasedModelCreator().create_model(type_attribute, target_attribute, **kwargs)
+    # @staticmethod
+    # def trainable_model(type_attribute: str, target_attribute: str, **kwargs):
+    #     return TrainableModelCreator().create_model(type_attribute, target_attribute, **kwargs)
+    #
+    # @staticmethod
+    # def rule_based_model(type_attribute: str, target_attribute: str, **kwargs):
+    #     return RuleBasedModelCreator().create_model(type_attribute, target_attribute, **kwargs)
 
 
 

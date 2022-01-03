@@ -15,13 +15,13 @@ from dependencies import get_token_header
 
 _logger = get_logger('label_API')
 
-router = APIRouter(prefix='/predict',
+router = APIRouter(prefix='/tasks',
                    tags=['predict'],
                    dependencies=[Depends(get_token_header)],
                    responses={404: {"description": "Not found"}},
                    )
 
-@router.post('/tasks/', description='Create labeling task, edit the request body to fit your requirement. '
+@router.post('/', description='Create labeling task, edit the request body to fit your requirement. '
                                      'Make sure to save the information of tasks, especially, `task_id`')
 def create_task(create_request_body: TaskConfig):
     config = create_request_body.__dict__
@@ -78,7 +78,7 @@ def create_task(create_request_body: TaskConfig):
     }
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@router.get('/tasks/', description="Return a subset of task_id and task_info, "
+@router.get('/', description="Return a subset of task_id and task_info, "
                                     "you can pick a 'SUCCESS' task_id and get it's ")
 def tasks_list():
     try:
@@ -102,7 +102,7 @@ def tasks_list():
         _logger.error(f"{e}")
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@router.get('/tasks/{task_id}', description='Input a task_id and output status. If the task is successed, '
+@router.get('/{task_id}', description='Input a task_id and output status. If the task is successed, '
                                              'return the result tables for querying sample results')
 def check_status(task_id):
     try:
@@ -128,7 +128,7 @@ def check_status(task_id):
         _logger.error(f'{e}')
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@router.get('/tasks/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
+@router.get('/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
                                                      'If you have no clue of task_id or table_names check the  '
                                                      '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
 def sample_result(task_id: str):

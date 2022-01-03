@@ -23,7 +23,7 @@ class ModelingWorker(PreprocessInterface):
     Saving the modeling status and report to `audience_result`.modeling_status and `audience_result`.modeling_report
     """
     def __init__(self, model_name: str, predict_type: str,
-                 dataset_number: int, dataset_schema: str, logger_name: str = 'modeling',
+                 dataset_number: int = None, dataset_schema: str = None, logger_name: str = 'modeling',
                  verbose = False, **model_information):
         super().__init__(model_name=model_name, predict_type=predict_type,
                          dataset_number=dataset_number, dataset_schema=dataset_schema,
@@ -60,12 +60,12 @@ class ModelingWorker(PreprocessInterface):
         self.logger.info(f"start modeling task: {task_id}")
 
         self.logger.info(f'Initializing the model {self.model_name .lower()}...')
-        self.init_model(self.model_name, self.predict_type, **self.model_information)
+        self.init_model()
 
         if not hasattr(self.model, 'fit'):
             err_msg = f'{self.model.name} is not trainable'
             self.logger.error(err_msg)
-            session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.FAILED.value,
+            session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.UNTRAINABLE.value,
                                                                     ms.error_message: err_msg})
             session.close()
             engine.dispose()
@@ -132,9 +132,13 @@ class ModelingWorker(PreprocessInterface):
 
         self.logger.info(f"start eval_outer_test_data task: {task_id}")
 
+        if not (_task := session.query(ms).filter(ms.task_id == task_id)):
+            raise ValueError(f'model is not train yet, execute model_training first')
+
+
         if not self.model:
             self.logger.info(f'Initializing the model {self.model_name.lower()}...')
-            self.init_model(self.model_name, self.predict_type, is_train=False, **self.model_information)
+            self.init_model(is_train=False)
 
         if not hasattr(self.model, 'eval'):
             err_msg = f'{self.model.name} cannot be evaluated'
@@ -195,16 +199,17 @@ class ModelingWorker(PreprocessInterface):
             session.close()
             engine.dispose()
 
-    def init_model(self, model_name, predict_type, is_train=True, **model_information) -> None:
+
+    def init_model(self, is_train=True) -> None:
         try:
-            model = ModelSelector(model_name=model_name, target_name=predict_type, is_train=is_train,**model_information)
+            model = ModelSelector(model_name=self.model_name, target_name=self.predict_type, is_train=is_train, **self.model_information)
             self.model = model.create_model_obj()
         except ModelTypeNotFoundError:
-            err_msg = f'{model_name} is not a available model'
+            err_msg = f'{self.model_name} is not a available model'
             self.logger.error(err_msg)
             raise ModelTypeNotFoundError(err_msg)
         except ParamterMissingError as p:
-            err_msg = f'{model_name} model parameter `{p}` is missing in `MODEL_INFO`'
+            err_msg = f'{self.model_name} model parameter `{p}` is missing in `MODEL_INFO`'
             self.logger.error(err_msg)
             raise ParamterMissingError(err_msg)
         except Exception as e:
@@ -212,7 +217,7 @@ class ModelingWorker(PreprocessInterface):
             raise e
 
     @staticmethod
-    def add_task_info(task_id, model_name, predict_type, model_path, sql_debug=False):
+    def add_task_info(task_id, model_name, predict_type, model_path, job_id=None, sql_debug=False, ext_test=False):
         try:
             engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=sql_debug)
         except Exception as e:
@@ -229,13 +234,18 @@ class ModelingWorker(PreprocessInterface):
         ms = Base.classes.model_status
 
         try:
-            session.add(ms(task_id=task_id,
-                           model_name=model_name,
-                           training_status=ModelTaskStatus.PENDING.value,
-                           feature=predict_type,
-                           model_path=model_path,
-                           create_time=datetime.now()))
-            session.commit()
+            if not ext_test:
+                session.add(ms(task_id=task_id,
+                               model_name=model_name,
+                               training_status=ModelTaskStatus.PENDING.value,
+                               feature=predict_type,
+                               model_path=model_path,
+                               create_time=datetime.now(),
+                               job_id=job_id))
+                session.commit()
+            else:
+                session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.PENDING.value})
+                session.commit()
         except Exception as e:
             err_msg = f'failed to add a new record in model_status since {e}'
             raise e

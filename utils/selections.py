@@ -18,6 +18,7 @@ class ModelTaskStatus(Enum):
     FINISHED = 'finished'
     FAILED = 'failed'
     BREAK = 'break'
+    UNTRAINABLE = 'untrainable'
 
 class TWFeatureModel(Enum):
     SGD = 'sgd'

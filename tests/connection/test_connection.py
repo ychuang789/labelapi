@@ -12,14 +12,14 @@ class TestConnection(TestCase):
         self.assertIsNotNone(ConnectionConfigGenerator.xingyi_database().get('host'))
 
     def test_single_response(self):
-        task_id = 'cb87c23662f911ecb688d45d6456a14d'
-        query = QueryManager.state_query + f""" where task_id = '{task_id}';"""
+        kw = {'task_id' : 'cb87c23662f911ecb688d45d6456a14d'}
+        query = QueryManager.get_state_query(**kw)
         result = DBConnection.execute_query(query=query, single=True,
                                             **ConnectionConfigGenerator.rd2_database(schema="audience_result"))
         self.assertEqual(task_id, result['task_id'])
 
     def test_multi_response(self):
-        query = QueryManager.state_query + " where create_time > '2021-12-20 00:00:00' and create_time < '2021-12-22 00:00:00'"
+        query = QueryManager.get_state_query + " where create_time > '2021-12-20 00:00:00' and create_time < '2021-12-22 00:00:00'"
         result = DBConnection.execute_query(query=query,
                                             **ConnectionConfigGenerator.rd2_database(schema="audience_result"))
         self.assertIsInstance(result, List)

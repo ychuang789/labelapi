@@ -119,14 +119,14 @@ def table_cls_maker(engine: create_engine, add_new=False):
         return ms, mr
 
 
-def status_changer(task_id: str, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
+def status_changer(model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
     engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO)
     session = Session(engine, autoflush=False)
     ms = table_cls_maker(engine, add_new=True)
-    err_msg = f'{task_id} {status.value} by the external user'
+    err_msg = f'{model_job_id} {status.value} by the external user'
 
     try:
-        session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: status.value,
+        session.query(ms).filter(ms.task_id == model_job_id).update({ms.training_status: status.value,
                                                                 ms.error_message: err_msg})
         session.commit()
     except Exception as e:

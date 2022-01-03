@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 import pymysql
 from retry import retry
@@ -129,11 +129,16 @@ class QueryManager:
                            INNER JOIN `audience-toolkit-django`.labeling_jobs_label l USING(labeling_job_id)
                            WHERE d.labeling_job_id = {get_data}'"""
 
-        if kwargs.get('task_id') and not kwargs.get('model_report'):
-            return f"""select * from model_status where task_id = '{kwargs.get('task_id')}'"""
+        if kwargs.get('model_job_id') and not kwargs.get('model_report'):
+            return f"""select * from model_status where job_id = {kwargs.get('model_job_id')}"""
 
-        if kwargs.get('task_id') and kwargs.get('model_report'):
-            return f"""select * from model_report where task_id = '{kwargs.get('task_id')}'"""
+        if kwargs.get('model_job_id') and kwargs.get('model_report'):
+            return f"""select * from model_report where job_id = {kwargs.get('model_job_id')}"""
+
+    @staticmethod
+    def get_model_job_id(job_id: int):
+        if job_id:
+            return f"""SELECT model_name, model_path FROM model_status WHERE job_id = {job_id};"""
 
 
 
