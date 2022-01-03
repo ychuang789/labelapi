@@ -9,11 +9,11 @@ from sqlalchemy.orm import Session
 from models.audience_data_interfaces import PreprocessInterface
 from models.model_creator import ModelTypeNotFoundError, ParamterMissingError, ModelSelector
 from models.trainable_models.tw_model import TermWeightModel
-from settings import DatabaseConfig, MODEL_TYPE_DICT
+from settings import DatabaseConfig
 from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
 from utils.model_table_creator import table_cls_maker
-from utils.selections import ModelType, ModelTaskStatus, DatasetType
+from utils.selections import ModelTaskStatus, DatasetType
 
 
 class ModelingWorker(PreprocessInterface):
@@ -47,15 +47,6 @@ class ModelingWorker(PreprocessInterface):
 
         session = Session(engine, autoflush=False)
         ms, mr = table_cls_maker(engine)
-        # meta = MetaData()
-        # meta.reflect(engine, only=['model_status', 'model_report', 'term_weights'])
-        # Base = automap_base(metadata=meta)
-        # Base.prepare()
-        #
-        # # build table cls
-        # ms = Base.classes.model_status
-        # mr = Base.classes.model_report
-        # # tw = Base.classes.term_weights
 
         self.logger.info(f"start modeling task: {task_id}")
 
@@ -67,20 +58,23 @@ class ModelingWorker(PreprocessInterface):
             self.logger.error(err_msg)
             session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.UNTRAINABLE.value,
                                                                     ms.error_message: err_msg})
+            session.commit()
             session.close()
             engine.dispose()
-            raise AttributeError(err_msg)
+            return
 
         session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.STARTED.value})
+        session.commit()
 
         try:
             self.logger.info(f'preparing the datasets for task: {task_id}')
             self.data_preprocess()
-            self.model.fit(self.training_set, self.training_y)
+            self.model.fit(self.training_set, self.training_y, **self.model_information)
 
             if isinstance(self.model, TermWeightModel):
                 bulk_list = get_term_weights_objects(task_id, self.model.label_term_weights)
                 session.add_all(bulk_list)
+                session.commit()
 
                 # session.bulk_save_objects(bulk_list)
 
@@ -145,11 +139,13 @@ class ModelingWorker(PreprocessInterface):
             self.logger.error(err_msg)
             session.query(ms).filter(ms.task_id == task_id).update(
                 {ms.training_status: ModelTaskStatus.FAILED.value, ms.error_message: err_msg})
+            session.commit()
             session.close()
             engine.dispose()
-            raise AttributeError(err_msg)
+            return
 
         session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.STARTED.value})
+        session.commit()
 
         try:
             self.logger.info(f'preparing the datasets for task: {task_id}')

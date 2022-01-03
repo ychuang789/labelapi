@@ -73,7 +73,7 @@ class ModelSelector():
     def __init__(self, model_name: Union[str, ModelType], target_name: Union[str, PredictTarget],
                  is_train = True, **kwargs):
         self.model_name = model_name if isinstance(model_name, str) else model_name.value
-        self.target_name = target_name if isinstance(target_name, str) else target_name.value
+        self.target_name = target_name.lower() if isinstance(target_name, str) else target_name.value
         self.model_path = kwargs.pop('model_path', None)
         self.pattern = kwargs.pop('patterns', None)
         self.is_train = is_train

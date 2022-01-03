@@ -5,8 +5,8 @@ from celery import Celery
 from dump.dump_production import DumpFlow
 
 from utils.helper import get_logger, get_config
-from utils.model_core import ModelingWorker
-from utils.predict_core import PredictWorker
+from workers.model_core import ModelingWorker
+from workers.predict_core import PredictWorker
 
 
 configuration = get_config()
@@ -53,7 +53,7 @@ def dump_result(**kwargs):
     dump_workflow.dump_zip()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.training', track_started=True)
-def training(task_id, **kwargs):
+def preparing(task_id, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
     model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],

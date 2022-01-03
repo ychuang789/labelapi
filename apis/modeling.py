@@ -6,11 +6,10 @@ from fastapi import  status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from celery_worker import training, testing
+from celery_worker import preparing, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig
 from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
-from utils.helper import  uuid_validator
-from utils.model_core import ModelingWorker
+from workers.model_core import ModelingWorker
 from utils.model_table_creator import create_model_table, status_changer
 from dependencies import get_token_header
 
@@ -21,7 +20,7 @@ router = APIRouter(prefix='/model',
                    )
 
 @router.post('/train/', description='training a model and save it')
-def model_training(training_config: ModelingTrainingConfig):
+def model_preparing(training_config: ModelingTrainingConfig):
     task_id = uuid.uuid1().hex
 
     config = training_config.__dict__
@@ -30,7 +29,7 @@ def model_training(training_config: ModelingTrainingConfig):
     create_model_table()
 
     try:
-        training.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
+        preparing.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
         ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
                                      predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'],
                                      job_id=config['MODEL_JOB_ID'])

@@ -20,6 +20,9 @@ post_young = "小弟我出社會工作不到兩年，今天辦了人生第一張
 input_female = InputExample(id_="1", s_area_id="ptt_woman_talk", author="Alice", title="", content=post_female,
                             post_time=datetime.now(), label="female")
 
+input_female_2 = InputExample(id_="1", s_area_id="ptt_woman_talk", author="John", title="", content=post_female_2,
+                            post_time=datetime.now(), label="female")
+
 input_young = InputExample(id_="1", s_area_id="1", author="Alice", title="", content=post_young,
                            post_time=datetime.now())
 
@@ -29,53 +32,50 @@ y = [[d.label] for d in data]
 
 
 class TestRuleBaseModel(TestCase):
+    model_dir = '0_rules'
     content_rules = {"young": ["工作.{0,3}([一兩三]|[1-3])年"]}
     name_rules = {"female": ["alice"]}
     source_rules = {"female": ["ptt_woman_talk"]}
 
     def setUp(self) -> None:
-        self.content_rule_base_model = RuleModel(self.content_rules)
-        self.name_rule_base_model = RuleModel(self.name_rules)
-        self.source_rule_base_model = RuleModel(self.source_rules)
+        self.content_rule_base_model = RuleModel(self.model_dir, self.content_rules)
+        self.name_rule_base_model = RuleModel(self.model_dir, self.name_rules)
+        self.source_rule_base_model = RuleModel(self.model_dir, self.source_rules)
+        self.name_eval = RuleModel(self.model_dir, self.source_rules)
 
     def test_predict_content(self):
-        """
-        預測內文規則
-        """
+
         label = "young"
         rs, prob = self.content_rule_base_model.predict([input_young], target=PredictTarget.CONTENT.value)
         self.assertTrue(label in rs[0])
 
     def test_predict_name(self):
-        """
-        預測作者名稱規則
-        """
+
         label = "female"
         rs, prob = self.name_rule_base_model.predict([input_young], target=PredictTarget.AUTHOR_NAME.value)
         self.assertTrue(label in rs[0])
 
     def test_predict_source(self):
-        """
-        預測作者來源規則
-        """
+
         label = "female"
         rs, prob = self.source_rule_base_model.predict([input_female], target=PredictTarget.S_AREA_ID.value)
         self.assertTrue(label in rs[0])
 
+
+
 class TestKeyWordBaseModel(TestCase):
+    model_dir = '0_rules'
     source_rules = {"female": [("woman_talk", KeywordMatchType.END), ("_talk", KeywordMatchType.PARTIALLY)]}
     patterns = read_from_dir(ModelType.KEYWORD_MODEL.value, PredictTarget.AUTHOR_NAME.value)
 
     def test_predict_source(self):
-        """
-        預測作者來源規則
-        """
-        self.source_rule_base_model = KeywordModel(self.source_rules)
+
+        self.source_rule_base_model = KeywordModel(self.model_dir, self.source_rules)
         label = "female"
         rs, prob = self.source_rule_base_model.predict([input_female], target=PredictTarget.S_AREA_ID.value)
         self.assertTrue(label in rs[0])
 
     def test_eval(self):
-        self.source_rule_base_model = KeywordModel(self.patterns)
+        self.source_rule_base_model = KeywordModel(self.model_dir, self.patterns)
         self.source_rule_base_model.eval(data, y)
 

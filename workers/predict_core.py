@@ -11,10 +11,10 @@ from utils.database_core import check_break_status, get_batch_by_timedelta, upda
     update2state_temp_result_table, update2state_nodata, create_table
 from utils.helper import get_logger
 from utils.input_example import InputExample
-from utils.model_core import ModelingWorker
+from workers.model_core import ModelingWorker
 from utils.selections import PredictTarget
-from utils.task_generate_production_core import TaskGenerateOutput
-from utils.task_info_core import TaskInfo
+from workers.production_core import TaskGenerateOutput
+from workers.production_info_core import TaskInfo
 
 
 class PredictWorker():
@@ -33,6 +33,11 @@ class PredictWorker():
         self.row_number = 0
         self.start_time = datetime.now()
         self.model_job_list = model_job_list
+
+        if model_job_list:
+            for i in model_job_list:
+                self.model_information = DBConnection.execute_query(query=QueryManager.get_model_job_id(i),
+                                                                single=True, **ConnectionConfigGenerator.rd2_database(schema="audience_result"))
 
     def run_task(self):
         """processing the labeling task"""
@@ -67,7 +72,7 @@ class PredictWorker():
             self.count += len(element)
 
             try:
-                _output, row_num = self.data_labeler(element, pred, self.task_info.get('PATTERN'), self.model_job_list)
+                _output, row_num = self.data_labeler(element, pred, self.task_info.get('PATTERN'))
 
                 self.row_number += row_num
 
@@ -114,15 +119,13 @@ class PredictWorker():
 
         self.data_generator(list(self.table_dict.keys()))
 
-    def data_labeler(self, df: pd.DataFrame,
-                     predict_type: str, pattern: Optional[Dict] = None,
-                     model_job_list: Optional[List[int]] = None):
+    def data_labeler(self, df: pd.DataFrame, predict_type: str, pattern: Optional[Dict] = None):
 
         model_info = {"patterns": pattern} if pattern else {}
         start = datetime.now()
         self.logger.info(f'start labeling at {start} ...')
         """predicting worker"""
-        df = self.predicting_worker(df, predict_type, model_job_list, **model_info)
+        df = self.predicting_worker(df, predict_type, **model_info)
 
         df.rename(columns={'post_time': 'create_time'}, inplace=True)
         df['source_author'] = df['s_id'] + '_' + df['author']
@@ -214,45 +217,45 @@ class PredictWorker():
         self.logger.info(f'finish task {self.task_id} generate_production, total time: '
                      f'{(datetime.now() - self.start_time).total_seconds() / 60} minutes')
 
-    def predicting_worker(self, df, predict_type, model_job_list: Optional[List[int]] = None, **model_info):
+    def predicting_worker(self, df, predict_type,  **model_info):
 
-        output_df = pd.DataFrame(columns=list(df.columns))
+        if self.model_information:
+            output_df = pd.DataFrame(columns=list(df.columns))
+            for _model_information in self.model_information:
 
-        for job_id in model_job_list:
-            _model_information = DBConnection.execute_query(query=QueryManager.get_model_job_id(job_id),
-                                                         single=True,**ConnectionConfigGenerator.rd2_database(schema="audience_result"))
+                model_info.update({'model_path': _model_information.get('model_path')})
 
-            model_info.update({'model_path': _model_information.get('model_path')})
+                worker = ModelingWorker(model_name=_model_information.get('model_name'),
+                                       predict_type=predict_type,
+                                       **model_info)
+                worker.init_model(is_train=False)
+                temp_list = []
+                for i in range(len(df)):
+                    _input_data = InputExample(
+                        id_=df['id'].iloc[i],
+                        s_area_id=df['s_area_id'].iloc[i],
+                        author=df['author'].iloc[i],
+                        title=df['title'].iloc[i],
+                        content=df['content'].iloc[i],
+                        post_time=df['post_time'].iloc[i]
+                    )
+                    rs, prob = worker.model.predict([_input_data], target=predict_type)
 
-            worker = ModelingWorker(model_name=_model_information.get('model_name'),
-                                   predict_type=predict_type,
-                                   **model_info)
-            worker.init_model(is_train=False)
-            temp_list = []
-            for i in range(len(df)):
-                _input_data = InputExample(
-                    id_=df['id'].iloc[i],
-                    s_area_id=df['s_area_id'].iloc[i],
-                    author=df['author'].iloc[i],
-                    title=df['title'].iloc[i],
-                    content=df['content'].iloc[i],
-                    post_time=df['post_time'].iloc[i]
-                )
-                rs, prob = worker.model.predict([_input_data], target=predict_type)
+                    if rs:
+                        if len(rs) == 1:
+                            temp_list.append(rs[0][0])
+                    else:
+                        temp_list.append('')
 
-                if rs:
-                    if len(rs) == 1:
-                        temp_list.append(rs[0][0])
-                else:
-                    temp_list.append('')
+                df['panel'] = temp_list
+                df['task_id'] = [self.task_id for i in range(len(df))]
 
-            df['panel'] = temp_list
-            df['task_id'] = [self.task_id for i in range(len(df))]
+                output_df = output_df.append(df)
 
-            output_df = output_df.append(df)
+            return output_df
 
-        return output_df
-
+        else:
+            raise ValueError('Model job id is not set yet, no model reference')
 
     def break_checker(self):
         if check_break_status(self.task_id) == 'BREAK':
