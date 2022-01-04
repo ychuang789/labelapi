@@ -22,17 +22,15 @@ class PredictWorker():
     def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', verbose = False, **kwargs):
         self.task_id = task_id
         self.logger = get_logger(logger_name, verbose=verbose)
+        self.model_job_list = model_job_list
+        self.start_date = datetime.strptime(kwargs.pop('START_TIME'), "%Y-%m-%dT%H:%M:%S")
+        self.end_date = datetime.strptime(kwargs.pop('END_TIME'), "%Y-%m-%dT%H:%M:%S")
+        self.site_connection_info: Dict = kwargs.pop('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
         self.task_info = kwargs
-        self.start_date = kwargs.get('START_TIME')
-        self.end_date = kwargs.get('END_TIME')
-        self.start_date_d = datetime.strptime(self.start_date, "%Y-%m-%dT%H:%M:%S")
-        self.end_date_d = datetime.strptime(self.end_date, "%Y-%m-%dT%H:%M:%S")
-        self.site_connection_info: Dict = kwargs.get('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
-        self.table_dict: Dict = {}
+        self.table_dict = {}
         self.count = 0
         self.row_number = 0
         self.start_time = datetime.now()
-        self.model_job_list = model_job_list
 
         if model_job_list:
             for i in model_job_list:
@@ -47,8 +45,8 @@ class PredictWorker():
         for idx, elements in enumerate(get_batch_by_timedelta(self.task_info.get('INPUT_SCHEMA'),
                                                               self.task_info.get('PREDICT_TYPE'),
                                                               self.task_info.get('INPUT_TABLE'),
-                                                              self.start_date_d,
-                                                              self.end_date_d,
+                                                              self.start_date,
+                                                              self.end_date,
                                                               site_input=self.site_connection_info)):
 
             self.logger.info(f'Start {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.{self.task_info.get("INPUT_TABLE")}_batch_{idx} ...')

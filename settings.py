@@ -767,6 +767,37 @@ CONFLICT_GROUPS = {
     'MARRIAGE': ('/unmarried', '/married'),
 }
 
+LABEL = {'男性': 'male',
+         '女性': 'female',
+         '未婚': 'unmarried',
+         '已婚': 'married',
+         '孩子': 'child',
+         '有子女': 'parenting',
+         '青年': 'young',
+         '上班族': 'employee',
+         '學生': 'student'}
+
+MODEL_PATH_FIELD_DIRECTORY = 'model_files'
+
+# MODEL_TYPE_DICT = {
+#     'trainable':[ModelType.RANDOM_FOREST_MODEL.value, ModelType.TERM_WEIGHT_MODEL.value],
+#     'untrainable':[ModelType.KEYWORD_MODEL.value, ModelType.RULE_MODEL.value]
+# }
+
+MODEL_INFORMATION = {
+    "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
+    "RULE_MODEL" : "models.rule_based_models.rule_model.RuleModel",
+    "RANDOM_FOREST_MODEL" : "models.trainable_models.rf_model.RandomForestModel",
+    "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
+}
+
+
+
+
+# ==============================
+#          Application
+# ==============================
+
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
     API_TITLE: str  = 'Audience API'
@@ -806,6 +837,10 @@ class DatabaseConfig:
                               f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
     DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
 
+# ==============================
+#          API request
+# ==============================
+
 class TaskConfig(BaseModel):
     load_dotenv()
     MODEL_TYPE: str = 'keyword_model'
@@ -831,35 +866,6 @@ class DumpConfig(BaseModel):
     INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
     OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
 
-class ModelingTrainingConfig(BaseModel):
-    #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
-    QUEUE: str = "queue2"
-    DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
-    MODEL_JOB_ID: int = 0
-    PREDICT_TYPE: str = PredictTarget.CONTENT.name
-    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "feature_model": "SGD",
-                                               "patterns": None,
-                                               }
-
-
-class ModelingTestingConfig(BaseModel):
-    QUEUE: str = "queue2"
-    DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
-    MODEL_JOB_ID: int = 0
-    PREDICT_TYPE: str = PredictTarget.CONTENT.name
-    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "feature_model": "SGD",
-                                               "patterns": None,
-                                               }
-
-
-class ModelingAbort(BaseModel):
-    MODEL_JOB_ID: int = 0
 
 class TaskList:
     load_dotenv()
@@ -883,29 +889,39 @@ class TaskSampleResult:
     NUMBER: int = 50
     OFFSET: int = 1000
 
-LABEL = {'男性': 'male',
-         '女性': 'female',
-         '未婚': 'unmarried',
-         '已婚': 'married',
-         '孩子': 'child',
-         '有子女': 'parenting',
-         '青年': 'young',
-         '上班族': 'employee',
-         '學生': 'student'}
+class ModelingTrainingConfig(BaseModel):
+    #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
+    QUEUE: str = "queue2"
+    DATASET_DB: str = 'audience-toolkit-django'
+    DATASET_NO: int = 1
+    MODEL_JOB_ID: int = 0
+    PREDICT_TYPE: str = PredictTarget.CONTENT.name
+    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+                                               "feature_model": "SGD",
+                                               "patterns": None,
+                                               }
 
-MODEL_PATH_FIELD_DIRECTORY = 'model_files'
+class ModelingTestingConfig(BaseModel):
+    QUEUE: str = "queue2"
+    DATASET_DB: str = 'audience-toolkit-django'
+    DATASET_NO: int = 1
+    MODEL_JOB_ID: int = 0
+    PREDICT_TYPE: str = PredictTarget.CONTENT.name
+    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+                                               "feature_model": "SGD",
+                                               "patterns": None,
+                                               }
 
-MODEL_TYPE_DICT = {
-    'trainable':[ModelType.RANDOM_FOREST_MODEL.value, ModelType.TERM_WEIGHT_MODEL.value],
-    'untrainable':[ModelType.KEYWORD_MODEL.value, ModelType.RULE_MODEL.value]
-}
+class ModelingAbort(BaseModel):
+    MODEL_JOB_ID: int = 0
 
-MODEL_INFORMATION = {
-    "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
-    "RULE_MODEL" : "models.rule_based_models.rule_model.RuleModel",
-    "RANDOM_FOREST_MODEL" : "models.trainable_models.rf_model.RandomForestModel",
-    "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
-}
+class ModelingDelete(BaseModel):
+    MODEL_JOB_ID: int = None
+
+
+
 # class DatabaseInfo:
 #     load_dotenv()
 #     host = os.getenv('INPUT_HOST')

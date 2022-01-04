@@ -7,10 +7,10 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from celery_worker import preparing, testing
-from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig
+from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
 from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
 from workers.model_core import ModelingWorker
-from utils.model_table_creator import create_model_table, status_changer
+from utils.model_table_creator import create_model_table, status_changer, delete_record
 from dependencies import get_token_header
 
 router = APIRouter(prefix='/model',
@@ -19,7 +19,7 @@ router = APIRouter(prefix='/model',
                    responses={404: {"description": "Not found"}},
                    )
 
-@router.post('/train/', description='training a model and save it')
+@router.post('/train/', description='preparing a model')
 def model_preparing(training_config: ModelingTrainingConfig):
     task_id = uuid.uuid1().hex
 
@@ -92,5 +92,16 @@ def model_abort(abort_request_body: ModelingAbort):
         err_msg = f'{model_job_id} is successfully aborted'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
     except Exception as e:
-        err_msg = f'{model_job_id} abortion failed with {e}'
+        err_msg = f'{model_job_id} abortion is failed since {e}'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+@router.delete('/delete/')
+def model_delete(deletion: ModelingDelete):
+    delete_model_job_id = deletion.MODEL_JOB_ID
+    try:
+        delete_record(delete_model_job_id)
+        err_msg =f'{delete_model_job_id} is successfully deleted'
+        return  JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg =f'{delete_model_job_id} deletion is failed since {e}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))

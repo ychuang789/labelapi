@@ -243,7 +243,7 @@ class ModelingWorker(PreprocessInterface):
                 session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.PENDING.value})
                 session.commit()
         except Exception as e:
-            err_msg = f'failed to add a new record in model_status since {e}'
+            session.rollback()
             raise e
         finally:
             session.close()

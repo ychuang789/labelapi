@@ -52,9 +52,13 @@ class DBConnection(object):
         connection = cls.get_connection(**kwargs)
         cursor = connection.cursor()
         cursor.execute(query)
-        result = None if alter else cursor.fetchall()
-        cursor.close()
-        return result
+        if alter:
+            connection.commit()
+        else:
+            result = None if alter else cursor.fetchall()
+            # cursor.close()
+            return result
+
 
 class ConnectionConfigGenerator:
 

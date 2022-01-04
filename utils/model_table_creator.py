@@ -4,12 +4,12 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import declarative_base, relationship, Session
 
 from settings import DatabaseConfig
-from utils.selections import ModelTaskStatus
+from utils.selections import ModelTaskStatus, ModelRecordTable
 
 Base = declarative_base()
 
 class ModelStatus(Base):
-    __tablename__ = 'model_status'
+    __tablename__ = ModelRecordTable.model_status.value
     task_id = Column(String(32), primary_key=True)
     model_name = Column(String(100))
     training_status = Column(String(32))
@@ -19,8 +19,16 @@ class ModelStatus(Base):
     error_message = Column(LONGTEXT)
     create_time = Column(DateTime, nullable=False)
     # one-to-many collection
-    report = relationship("ModelReport")
-    term_weight = relationship("TermWeights")
+    report = relationship(
+        "ModelReport",
+        back_populates='model_status',
+        cascade="all, delete",
+        passive_deletes=True)
+    term_weight = relationship(
+        "TermWeights",
+        back_populates='model_status',
+        cascade="all, delete",
+        passive_deletes=True)
 
     def __init__(self, task_id, model_name, training_status,
                  ext_status, feature, model_path,
@@ -40,13 +48,13 @@ class ModelStatus(Base):
                f"{self.create_time})>"
 
 class ModelReport(Base):
-    __tablename__ = 'model_report'
+    __tablename__ = ModelRecordTable.model_report.value
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_type = Column(String(10))
     accuracy = Column(DOUBLE, nullable=False)
     report = Column(String(1000), nullable=False)
     create_time = Column(DateTime, nullable=False)
-    task_id = Column(String(32), ForeignKey('model_status.task_id'))
+    task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
 
     def __init__(self, dataset_type, accuracy, report, create_time, task_id):
         self.dataset_type = dataset_type
@@ -60,12 +68,12 @@ class ModelReport(Base):
                f"{self.create_time}, {self.task_id})"
 
 class TermWeights(Base):
-    __tablename__ = 'term_weights'
+    __tablename__ = ModelRecordTable.term_weights.value
     id = Column(Integer, primary_key=True, autoincrement=True)
     label = Column(String(100), nullable=False)
     term = Column(String(20), nullable=False)
     weight = Column(DOUBLE, nullable=False)
-    task_id = Column('task_id', String(32), ForeignKey('model_status.task_id'))
+    task_id = Column('task_id', String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
 
     def __init__(self, label, term, weight, task_id):
         self.label = label
@@ -76,7 +84,6 @@ class TermWeights(Base):
     def __repr__(self):
         return f"TermWeights({self.label}, {self.term}, {self.weight}, " \
                f"{self.task_id})"
-
 
 
 def create_model_table() -> None:
@@ -130,13 +137,29 @@ def status_changer(model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskS
                                                                 ms.error_message: err_msg})
         session.commit()
     except Exception as e:
+        session.rollback()
         raise e
     finally:
         session.close()
         engine.dispose()
 
 
+def delete_record(model_job_id: int):
+    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO)
+    session = Session(engine, autoflush=False)
+    ms = table_cls_maker(engine, add_new=True)
+    err_msg = f'{model_job_id} delete by the external user'
 
+    try:
+        record = session.query(ms).filter(ms.job_id == model_job_id).first()
+        session.delete(record)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
+        engine.dispose()
 
 
 

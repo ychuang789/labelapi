@@ -1,5 +1,3 @@
-import json
-
 from fastapi.testclient import TestClient
 from audience_api import app
 
