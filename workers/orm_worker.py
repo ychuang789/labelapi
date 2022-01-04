@@ -33,7 +33,6 @@ class ORMWorker():
         show_table = inspector.get_table_names()
         if not set(tables).issubset(show_table):
             self.base.metadata.create_all(self.engine, checkfirst=True)
-            # self.engine.dispose()
 
     def table_cls_maker(self, table_attr: Union[List[str]]) -> Dict:
         meta = MetaData()
@@ -42,25 +41,6 @@ class ORMWorker():
         Base.prepare()
         # build table cls
         return {i: getattr(Base.classes, i) for i in table_attr}
-
-        # if status_only:
-        #     meta.reflect(self.engine, only=['model_status'])
-        #     Base = automap_base(metadata=meta)
-        #     Base.prepare()
-        #
-        #     # build table cls
-        #     ms = Base.classes.model_status
-        #     return ms
-        # else:
-        #     meta.reflect(self.engine, only=['model_status', 'model_report', 'term_weights'])
-        #     Base = automap_base(metadata=meta)
-        #     Base.prepare()
-        #
-        #     # build table cls
-        #     ms = Base.classes.model_status
-        #     mr = Base.classes.model_report
-        #
-        #     return ms, mr
 
     def status_changer(self, model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
         ms = self.table_cls_dict.get(ModelRecordTable.model_status.value)

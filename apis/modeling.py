@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+import json
 import uuid
 
 from fastapi import  status
@@ -10,8 +11,9 @@ from celery_worker import preparing, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
 from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
 from workers.model_core import ModelingWorker
-from utils.model_table_creator import create_model_table, status_changer, delete_record
+from utils.model_table_creator import create_model_table
 from dependencies import get_token_header
+from workers.orm_worker import ORMWorker
 
 router = APIRouter(prefix='/model',
                    tags=['model'],
@@ -70,38 +72,61 @@ def model_testing(testing_config: ModelingTestingConfig):
 
 @router.get('/{model_job_id}')
 def model_status(model_job_id: int):
+    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        err_msg = conn.get_status(model_job_id=model_job_id)
+        result = json.dumps(err_msg, ensure_ascii=False)
+    except Exception as e:
+        result = f'failed to get status since {e}'
+    finally:
+        conn.dispose()
 
-    condition = {'model_job_id': model_job_id}
-    result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-                                      **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
+    # condition = {'model_job_id': model_job_id}
+    # result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
+    #                                   **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 
 @router.get('/{model_job_id}/report/')
 def model_report(model_job_id):
+    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        err_msg = conn.get_report(model_job_id=model_job_id)
+        result = json.dumps(err_msg, ensure_ascii=False)
+    except Exception as e:
+        result = f'failed to get report since {e}'
+    finally:
+        conn.dispose()
 
-    condition = {'model_job_id': model_job_id, 'model_report': 'report'}
-    result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-                                        **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
+    # condition = {'model_job_id': model_job_id, 'model_report': 'report'}
+    # result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
+    #                                     **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
+
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 
 @router.post('/abort/')
 def model_abort(abort_request_body: ModelingAbort):
     model_job_id = abort_request_body.MODEL_JOB_ID
+    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        status_changer(model_job_id)
-        err_msg = f'{model_job_id} is successfully aborted'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+        msg = conn.status_changer(model_job_id=model_job_id)
+        err_msg = f'{model_job_id} is successfully aborted, additional message: {msg}'
     except Exception as e:
         err_msg = f'{model_job_id} abortion is failed since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
 @router.delete('/delete/')
 def model_delete(deletion: ModelingDelete):
     delete_model_job_id = deletion.MODEL_JOB_ID
+    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        delete_record(delete_model_job_id)
-        err_msg =f'{delete_model_job_id} is successfully deleted'
-        return  JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+        msg = conn.delete_record(model_job_id=delete_model_job_id)
+        err_msg = f'{delete_model_job_id} is successfully deleted, additional message: {msg}'
     except Exception as e:
-        err_msg =f'{delete_model_job_id} deletion is failed since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+        err_msg = f'{delete_model_job_id} deletion is failed since {e}'
+    finally:
+        conn.dispose()
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
