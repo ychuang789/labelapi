@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from utils.data_helper import PreprocessWorker
+from workers.preprocess_core import PreprocessWorker
 
 
 class PreprocessInterface(ABC):

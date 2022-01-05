@@ -10,7 +10,7 @@ from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
 
 from utils.selections import ModelTaskStatus, DatasetType, ModelRecordTable
-from workers.orm_worker import ORMWorker
+from workers.orm_core import ORMWorker
 
 
 class ModelingWorker(PreprocessInterface):
@@ -173,7 +173,6 @@ class ModelingWorker(PreprocessInterface):
             raise e
         finally:
             self.orm_cls.dispose()
-
 
     def init_model(self, is_train=True) -> None:
         try:

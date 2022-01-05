@@ -3,7 +3,6 @@ from decimal import Decimal
 
 from fastapi import APIRouter
 
-import json
 import uuid
 
 from fastapi import  status
@@ -12,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from celery_worker import preparing, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
-from workers.orm_worker import ORMWorker
+from workers.orm_core import ORMWorker
 
 router = APIRouter(prefix='/model',
                    tags=['model'],

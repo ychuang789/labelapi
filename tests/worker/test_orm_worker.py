@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from settings import DatabaseConfig
-from workers.orm_worker import ORMWorker
+from workers.orm_core import ORMWorker
 
 
 class TestORMWorker(TestCase):

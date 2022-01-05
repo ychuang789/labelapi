@@ -1,8 +1,7 @@
 import uvicorn
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 
 from apis import modeling, predicting
-from dependencies import get_query_token
 from utils.helper import get_logger, get_config
 
 configuration = get_config()
@@ -10,9 +9,9 @@ _logger = get_logger('label_API')
 description = """
 A backend API which support labeling, modeling and predicting jobs of django site for Audience.          
 
-#### Item   
+#### Tools   
 
-##### Predict     
+##### Task     
 
 1. create_task : a post api which create a labeling task via the information in the request body.    
 2. task_list : return the recent tasks and tasks information.     
@@ -22,13 +21,14 @@ A backend API which support labeling, modeling and predicting jobs of django sit
 6. dump_tasks : dump tasks to ZIP.   
 
 ##### Model   
-
-1. model_training : train and validate a model with saving it to model directory.   
-2. model_testing : test a model with a external test data.        
-3. model_status : get the model status information with a target task_id.      
-4. model_report : get the model report information with a target task_id.  
-5. model_abort : break a task with a target task_id.   
-
+ 
+1. model_preparing : train and validate a model with saving it to model directory, if the model cannot be trained, save the record to model_status.      
+2. model_testing : test a model with a external test data.         
+3. model_status : get the model status information with a target job_id.       
+4. model_report : get the model report information with a target job_id.   
+5. model_abort : break a task with a target job_id.   
+6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.    
+ 
 """
 
 app = FastAPI(title=configuration.API_TITLE,
@@ -40,14 +40,6 @@ app = FastAPI(title=configuration.API_TITLE,
 app.include_router(predicting.router)
 app.include_router(modeling.router)
 
-@app.get("/")
-def root():
-    return "Use /docs to head to openapi user-interface"
 
 if __name__ == '__main__':
     uvicorn.run("__main__:app", host=configuration.API_HOST, debug=True)
-
-
-
-
-

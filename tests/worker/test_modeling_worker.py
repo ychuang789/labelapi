@@ -13,7 +13,7 @@ class TestModelingWorker1(TestCase):
     dataset_number = 1
     model_job_id = 0
     dataset_schema = 'audience-toolkit-django'
-    model_info = {"model_path": model_path,"feature_model": TWFeatureModel.SGD.name}
+    model_info = {"model_path": model_path, "feature_model": TWFeatureModel.SGD.name}
     task_id = uuid.uuid1().hex
 
 

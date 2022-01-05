@@ -1,11 +1,11 @@
-from typing import Union, List, Dict, Tuple
+from typing import List, Dict
 
 from sqlalchemy import create_engine, inspect, MetaData
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 
 from settings import DatabaseConfig
-from utils.model_table_creator import ModelStatus, ModelReport, TermWeights, Base
+from utils.model_table_creator import Base
 from utils.selections import ModelTaskStatus, ModelRecordTable
 
 
@@ -20,12 +20,12 @@ class ORMWorker():
         self.table_name_list = [item.value for item in ModelRecordTable]
         self.table_cls_dict = self.table_cls_maker(self.table_name_list)
 
+    def __str__(self):
+        return f"table class object : {','.join(list(self.table_cls_dict.keys()))}"
+
     def dispose(self):
         self.close_session()
         self.engine.dispose()
-
-    def __str__(self):
-        return f"table class object : {','.join(list(self.table_cls_dict.keys()))}"
 
     def create_table_cls(self):
         inspector = inspect(self.engine)
@@ -34,7 +34,7 @@ class ORMWorker():
         if not set(tables).issubset(show_table):
             self.base.metadata.create_all(self.engine, checkfirst=True)
 
-    def table_cls_maker(self, table_attr: Union[List[str]]) -> Dict:
+    def table_cls_maker(self, table_attr: List[str]) -> Dict:
         meta = MetaData()
         meta.reflect(self.engine, only=table_attr)
         Base = automap_base(metadata=meta)
@@ -81,8 +81,6 @@ class ORMWorker():
         report = self.session.query(mr).filter(mr.task_id == record.task_id).all()
 
         return report
-
-
 
     def close_session(self):
         self.session.close()

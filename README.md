@@ -1,6 +1,6 @@
 # Audience API v 2.2
 
-###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2021-12-14
+###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-01-05
 
 中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pptx)
 
@@ -27,21 +27,33 @@
 
 ## Description
 
-此 WEB API 專案基於協助貼標站台進行貼標任務而建立，支援使用者選擇貼標模型與規則，並且可以呼叫 API 回傳抽樣結果檢查貼概況。此專案共有五個 API 服務:
+此 WEB API 專案基於協助貼標站台進行貼標任務而建立，支援使用者選擇貼標模型與規則，並且可以呼叫 API 回傳抽樣結果檢查貼概況。API 服務:
+
++ Task
 
 1. create_task : 依據使用者定義之情況，建立任務流程 (貼標 -> 上架)，並執行任務
 2. task_list : 回傳近期執行之任務與之相關資訊
 3. check_status : 輸入任務ID，檢查任務進度(貼標狀態、上架狀態)
 4. sample_result : 輸入任務ID，回傳抽樣之上架資料
 5. abort_task : 依據使用者輸入之任務 ID，終止任務
+6. dump_tasks : 產出上架資料
 
-貼標專案流程為，從使用者定義之情況建立貼標任務 (如 日期資訊、資料庫資訊等) ，訪問資料庫擷取相關資料進行貼標，貼標完資料根據來源分別儲存至不同的結果資料表。過程的任務資訊 (如 任務開始時間、任務狀態、貼標時間) 和驗證資訊 (如 接收資料長度、產出資料長度、上架資料筆數、貼標率等) 會儲存於使用者預先定義的結果資料庫中的 state 資料表。
++ Model
 
-使用者可以透過`tasks_list`, `check_status`, `sample_result`, `abort_task` 等 API 查詢任務狀態和取得抽樣貼標結果，或是透過任務ID直接查詢 state 資料表來來取得相關資訊，更甚者提前終止任務。
+1. model_preparing : 模型準備，訓練、驗證機器學習模型，儲存規則模型資訊
+2. model_testing : 測試模型，目前版本僅提供機器學習模型測試
+3. model_status : 輸入 job_id，回傳模型狀態資訊 ( job_id 對應前台 `ModelingJob.id`)
+4. model_report : 輸入 job_id，回傳所以對應之驗證報告
+5. model_abort : 輸入 job_id，中斷模型準備或測試任務
+6. model_delete : 輸入 job_id，刪除對應之所有紀錄  
+
+貼標專案流程為，從使用者定義之情況建立貼標任務 Task (如 日期資訊、資料庫資訊等) ，訪問資料庫擷取相關資料進行貼標，選取 Model 準備好的模型，貼標完資料根據來源分別儲存至不同的結果資料表。過程的任務資訊 (如 任務開始時間、任務狀態、貼標時間) 和驗證資訊 (如 接收資料長度、產出資料長度、上架資料筆數、貼標率等) 會儲存於使用者預先定義的結果資料庫中的 state 資料表。
 
 ---
 
 These WEB APIs is built for the usage of data labeling tasks supporting users selecting models and rules to labeling the target range of data, and result sampling. There are four APIs in this project:
+
++ Task
 
 1. create_task : According to the user defined condition, set up a task flow (labeling and generate production) and execute the flow
 2. task_list : return the recent executed tasks with tasks' information
@@ -49,15 +61,32 @@ These WEB APIs is built for the usage of data labeling tasks supporting users se
 4. sample_result : Input a task id, return a sampling dataset back.
 5. abort_task : According to the user defined task_id, abort the task
 
-The total flow in brief of `create_task` is that the API will query the database via conditions and information which place by users, label those data, and output the data to a target database storing by `source_id` . The progress and validation information will be stored in the table, name `state`, inside the user define output schema which will be automatically created at the first time that user call `create_task` API.
++ Model
 
-Users can track the progress and sampling result  data by calling the rest of APIs `tasks_list`, `check_status`, and `sample_result`, abort the task in advanced by `abort_task` if results of sample_result are not as expected, or directly query the table `state` by giving the `task_id` information to gain such information.
+1. model_preparing : train and validate a model with saving it to model directory, if the model cannot be trained, save the record to model_status.      
+2. model_testing : test a model with a external test data.         
+3. model_status : get the model status information with a target job_id.       
+4. model_report : get the model report information with a target job_id.   
+5. model_abort : break a task with a target job_id.   
+6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.    
+
+The total flow in brief of `create_task` is that the API will query the database via conditions and information which place by users, label those data, and output the data to a target database storing by `source_id` . The progress and validation information will be stored in the table, name `state`, inside the user define output schema which will be automatically created at the first time that user call `create_task` API.
 
 
 
 ## Work Flow
 
+#### Task
+
 <img src="graph/workflow_chain_v3.png">
+
+#### Model
+
+<img src="graph/model_api.png">
+
+<img src="graph/model_worker.png">
+
+
 
 ## Built With
 
@@ -69,6 +98,8 @@ Users can track the progress and sampling result  data by calling the rest of AP
   + Python 3.8
   + Celery 5.1.2
   + FastAPI 0.68.1
+  + Scikit-learn
+  + Sqlalchemy
 + Test with
   + Windows 10 Python 3.8
   + Ubuntu 18.04.5 LTS Python 3.8
@@ -164,6 +195,8 @@ Make sure the redis is running beforehand or you should fail to initialize celer
 
 **Windows**
 
++ Task
+
 ```bash
 # if you wanna run the task with coroutine
 # make sure installing the gevent before `pip install gevent`
@@ -172,7 +205,18 @@ $ make run_worker_1
 # if you want to run multi workers try
 # noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_2
+
+```
+
++ Model
+
+```bash
+# if you wanna run the task with coroutine
+# make sure installing the gevent before `pip install gevent`
 $ make run_worker_3
+
+# if you want to run multi workers try
+# noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_4
 ```
 
@@ -186,6 +230,8 @@ For detailed option command of celery, `-l` means loglevel; `-P` **CANNOT** be s
 
 **Ubuntu**
 
++ Task
+
 ```bash
 # if you wanna run the task with coroutine
 # make sure installing the gevent before `pip install gevent`
@@ -194,7 +240,18 @@ $ make run_worker_1
 # if you want to run multi workers try
 # noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_2
+
+```
+
++ Model
+
+```bash
+# if you wanna run the task with coroutine
+# make sure installing the gevent before `pip install gevent`
 $ make run_worker_3
+
+# if you want to run multi workers try
+# noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_4
 ```
 
@@ -550,8 +607,6 @@ Response example :
 | field_content | s_id                                      |
 | match_content | The content which is matched to labeling. |
 
-
-
 #### abort_task
 
 If you detect something wrong from sample result or accidentally misrunning some tasks, you can <u>terminate</u> the task from worker by this API. It will not stop the worker. The task information in the state table will be marked as *BREAK* and you cannot re-run it by the same `task_id` (please re-create a task).
@@ -576,6 +631,12 @@ Response example :
 	"error_message" : f"successfully send break status to task <task_id> in state"
 }
 ```
+
+
+
+Model_
+
+
 
 ## Error code 
 
