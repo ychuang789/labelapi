@@ -2,29 +2,27 @@ import json
 from datetime import datetime
 from typing import Dict
 
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.orm import Session
-
 from models.audience_data_interfaces import PreprocessInterface
 from models.model_creator import ModelTypeNotFoundError, ParamterMissingError, ModelSelector
 from models.trainable_models.tw_model import TermWeightModel
-from settings import DatabaseConfig
+
 from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
-from utils.model_table_creator import table_cls_maker
-from utils.selections import ModelTaskStatus, DatasetType
+
+from utils.selections import ModelTaskStatus, DatasetType, ModelRecordTable
+from workers.orm_worker import ORMWorker
 
 
 class ModelingWorker(PreprocessInterface):
     """
-    Training, validation and testing the model, auto-create the model while initializing.
+    Training, validation and testing the model.
     Using data preprocessing adapter to scrape, transform, preprocess the dataset before modeling.
-    Saving the modeling status and report to `audience_result`.modeling_status and `audience_result`.modeling_report
+    Saving the modeling status and report to `audience_result`.modeling_status and `audience_result`.modeling_report.
     """
     def __init__(self, model_name: str, predict_type: str,
-                 dataset_number: int = None, dataset_schema: str = None, logger_name: str = 'modeling',
-                 verbose = False, **model_information):
+                 dataset_number: int = None, dataset_schema: str = None,
+                 orm_cls: ORMWorker = None, logger_name: str = 'modeling',
+                 verbose: bool = False, **model_information):
         super().__init__(model_name=model_name, predict_type=predict_type,
                          dataset_number=dataset_number, dataset_schema=dataset_schema,
                          logger_name=logger_name, verbose=verbose, _preprocessor=None)
@@ -35,100 +33,88 @@ class ModelingWorker(PreprocessInterface):
         self.dataset_schema = dataset_schema
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_information = model_information
+        self.orm_cls = orm_cls if orm_cls else ORMWorker(echo=verbose)
 
-    def run_task(self, task_id: str, sql_debug=False) -> None:
+    def run_task(self, task_id: str, job_id: int = None) -> None:
 
-        try:
-            engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=sql_debug)
-        except Exception as e:
-            err_msg = f'connection failed, additional error message {e}'
-            self.logger.error(err_msg)
-            raise e
-
-        session = Session(engine, autoflush=False)
-        ms, mr = table_cls_maker(engine)
+        self.add_task_info(task_id=task_id, job_id=job_id, ext_test=False)
+        ms = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_status.value)
+        mr = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_report.value)
 
         self.logger.info(f"start modeling task: {task_id}")
-
         self.logger.info(f'Initializing the model {self.model_name .lower()}...')
         self.init_model()
 
         if not hasattr(self.model, 'fit'):
             err_msg = f'{self.model.name} is not trainable'
             self.logger.error(err_msg)
-            session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.UNTRAINABLE.value,
-                                                                    ms.error_message: err_msg})
-            session.commit()
-            session.close()
-            engine.dispose()
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.UNTRAINABLE.value,
+                                                                                 ms.error_message: err_msg})
+            self.orm_cls.session.commit()
+            self.orm_cls.dispose()
             return
 
-        session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.STARTED.value})
-        session.commit()
-
         try:
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                {ms.training_status: ModelTaskStatus.STARTED.value})
+            self.orm_cls.session.commit()
             self.logger.info(f'preparing the datasets for task: {task_id}')
             self.data_preprocess()
             self.model.fit(self.training_set, self.training_y, **self.model_information)
 
             if isinstance(self.model, TermWeightModel):
                 bulk_list = get_term_weights_objects(task_id, self.model.label_term_weights)
-                session.add_all(bulk_list)
-                session.commit()
+                self.orm_cls.session.add_all(bulk_list)
+                self.orm_cls.session.commit()
 
                 # session.bulk_save_objects(bulk_list)
 
             self.logger.info(f"evaluating the model ...")
             dev_report = self.model.eval(self.dev_set, self.dev_y)
-            session.add(mr(task_id=task_id,
-                           dataset_type=DatasetType.DEV.value,
-                           accuracy=dev_report.get('accuracy', -1),
-                           report=json.dumps(dev_report, ensure_ascii=False),
-                           create_time=datetime.now()
-                           ))
+            self.orm_cls.session.add(mr(task_id=task_id,
+                                        dataset_type=DatasetType.DEV.value,
+                                        accuracy=dev_report.get('accuracy', -1),
+                                        report=json.dumps(dev_report, ensure_ascii=False),
+                                        create_time=datetime.now()
+                                        ))
             self.logger.info(f"testing the model ...")
             test_report = self.model.eval(self.testing_set, self.testing_y)
-            session.add(mr(task_id=task_id,
-                           dataset_type=DatasetType.TEST.value,
-                           accuracy=test_report.get('accuracy', -1),
-                           report=json.dumps(test_report, ensure_ascii=False),
-                           create_time=datetime.now()
-                           ))
-            session.query(ms).filter(ms.task_id == task_id).update({
+            self.orm_cls.session.add(mr(task_id=task_id,
+                                        dataset_type=DatasetType.TEST.value,
+                                        accuracy=test_report.get('accuracy', -1),
+                                        report=json.dumps(test_report, ensure_ascii=False),
+                                        create_time=datetime.now()
+                                        ))
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({
                 ms.training_status: ModelTaskStatus.FINISHED.value
             })
-            session.commit()
+            self.orm_cls.session.commit()
             self.logger.info(f"modeling task: {task_id} is finished")
         except Exception as e:
-            session.rollback()
+            self.orm_cls.session.rollback()
             err_msg = f"modeling task: {task_id} is failed since {e}"
             self.logger.error(err_msg)
-            session.query(ms).filter(ms.task_id==task_id).update({ms.training_status:ModelTaskStatus.FAILED.value,
-                                                                  ms.error_message: err_msg})
-            session.commit()
-
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.FAILED.value,
+                                                                                 ms.error_message: err_msg})
+            self.orm_cls.session.commit()
             raise e
         finally:
-            session.close()
-            engine.dispose()
+            self.orm_cls.dispose()
 
-    def eval_outer_test_data(self, task_id: str, sql_debug=False) -> None:
+    def eval_outer_test_data(self, job_id: int) -> None:
 
-        try:
-            engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=sql_debug)
-        except Exception as e:
-            err_msg = f'connection failed, additional error message {e}'
-            self.logger.error(err_msg)
-            raise e
+        ms = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_status.value)
+        mr = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_report.value)
 
-        session = Session(engine, autoflush=False)
-        ms, mr = table_cls_maker(engine)
+        if not (result := self.orm_cls.session.query(ms).filter(ms.job_id == job_id).first()):
+            err_msg = f'Model is not train or prepare yet, execute training API first'
+            self.orm_cls.dispose()
+            raise ValueError(err_msg)
+        else:
+            task_id = result.task_id
+            self.add_task_info(task_id=task_id, ext_test=True)
 
         self.logger.info(f"start eval_outer_test_data task: {task_id}")
-
-        if not (_task := session.query(ms).filter(ms.task_id == task_id)):
-            raise ValueError(f'model is not train yet, execute model_training first')
-
 
         if not self.model:
             self.logger.info(f'Initializing the model {self.model_name.lower()}...')
@@ -137,63 +123,56 @@ class ModelingWorker(PreprocessInterface):
         if not hasattr(self.model, 'eval'):
             err_msg = f'{self.model.name} cannot be evaluated'
             self.logger.error(err_msg)
-            session.query(ms).filter(ms.task_id == task_id).update(
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
                 {ms.training_status: ModelTaskStatus.FAILED.value, ms.error_message: err_msg})
-            session.commit()
-            session.close()
-            engine.dispose()
+            self.orm_cls.session.commit()
+            self.orm_cls.dispose()
             return
 
-        session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.STARTED.value})
-        session.commit()
-
         try:
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                {ms.ext_status: ModelTaskStatus.STARTED.value})
+            self.orm_cls.session.commit()
+
             self.logger.info(f'preparing the datasets for task: {task_id}')
             self.data_preprocess(is_train=False)
-        except Exception as e:
-            err_msg = f'failed to prepare the dataset for the model since {e}'
-            self.logger.error(err_msg)
-            raise e
 
-        try:
             self.logger.info(f"load the model {self.model_information.get('model_path', None)} ...")
-            self.model.load()
 
             self.logger.info(f"evaluating with ext_test data ...")
             report = self.model.eval(self.testing_set, self.testing_y)
 
-            session.add(mr(task_id=task_id,
-                           dataset_type=DatasetType.EXT_TEST.value,
-                           accuracy=report.get('accuracy', -1),
-                           report=json.dumps(report, ensure_ascii=False),
-                           create_time=datetime.now()
-                           ))
+            self.orm_cls.session.add(mr(task_id=task_id,
+                                        dataset_type=DatasetType.EXT_TEST.value,
+                                        accuracy=report.get('accuracy', -1),
+                                        report=json.dumps(report, ensure_ascii=False),
+                                        create_time=datetime.now()
+                                        ))
 
-            session.query(ms).filter(ms.task_id == task_id).update({
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({
                 ms.ext_status: ModelTaskStatus.FINISHED.value
             })
-            session.commit()
+            self.orm_cls.session.commit()
             self.logger.info(f"modeling task: {task_id} is finished")
 
         except FileNotFoundError as f:
-            session.rollback()
+            self.orm_cls.session.rollback()
             err_msg = f"modeling task: {task_id} is failed since {f}"
             self.logger.error(err_msg)
-            session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
-                                                                  ms.error_message: err_msg})
-            session.commit()
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
+                                                                                 ms.error_message: err_msg})
+            self.orm_cls.session.commit()
             raise f
         except Exception as e:
-            session.rollback()
+            self.orm_cls.session.rollback()
             err_msg = f"modeling task: {task_id} is failed since {e}"
             self.logger.error(err_msg)
-            session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
-                                                                  ms.error_message: err_msg})
-            session.commit()
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
+                                                                                 ms.error_message: err_msg})
+            self.orm_cls.session.commit()
             raise e
         finally:
-            session.close()
-            engine.dispose()
+            self.orm_cls.dispose()
 
 
     def init_model(self, is_train=True) -> None:
@@ -212,42 +191,28 @@ class ModelingWorker(PreprocessInterface):
             self.logger.error(e)
             raise e
 
-    @staticmethod
-    def add_task_info(task_id, model_name, predict_type, model_path, job_id=None, sql_debug=False, ext_test=False):
-        try:
-            engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=sql_debug)
-        except Exception as e:
-            err_msg = f'connection failed, additional error message {e}'
-            raise err_msg
+    def add_task_info(self, task_id, job_id=None, ext_test=False):
 
-        session = Session(engine)
-        meta = MetaData()
-        meta.reflect(engine, only=['model_status'])
-        Base = automap_base(metadata=meta)
-        Base.prepare()
-
-        # build table cls
-        ms = Base.classes.model_status
+        ms = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_status.value)
 
         try:
             if not ext_test:
-                session.add(ms(task_id=task_id,
-                               model_name=model_name,
-                               training_status=ModelTaskStatus.PENDING.value,
-                               feature=predict_type,
-                               model_path=model_path,
-                               create_time=datetime.now(),
-                               job_id=job_id))
-                session.commit()
+                self.orm_cls.session.add(ms(task_id=task_id,
+                                            model_name=self.model_name,
+                                            training_status=ModelTaskStatus.PENDING.value,
+                                            feature=self.predict_type,
+                                            model_path=self.model_information.get('model_path'),
+                                            create_time=datetime.now(),
+                                            job_id=job_id
+                                            ))
+                self.orm_cls.session.commit()
             else:
-                session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.PENDING.value})
-                session.commit()
+                self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.PENDING.value})
+                self.orm_cls.session.commit()
         except Exception as e:
-            session.rollback()
+            self.orm_cls.session.rollback()
+            self.orm_cls.dispose()
             raise e
-        finally:
-            session.close()
-            engine.dispose()
 
     def data_preprocess(self, is_train: bool = True):
         if is_train:

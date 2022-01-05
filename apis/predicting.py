@@ -17,7 +17,7 @@ _logger = get_logger('label_API')
 
 router = APIRouter(prefix='/tasks',
                    tags=['predict'],
-                   dependencies=[Depends(get_token_header)],
+                   # dependencies=[Depends(get_token_header)],
                    responses={404: {"description": "Not found"}},
                    )
 

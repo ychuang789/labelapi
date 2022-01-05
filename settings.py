@@ -4,9 +4,6 @@ from datetime import date
 from pydantic import BaseModel, BaseSettings
 from typing import Dict, Optional, List, Union
 
-from tornado.process import task_id
-
-from utils.input_example import InputExample
 from utils.selections import ModelType, PredictTarget
 
 SOURCE: Dict = {
@@ -791,9 +788,6 @@ MODEL_INFORMATION = {
     "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
 }
 
-
-
-
 # ==============================
 #          Application
 # ==============================
@@ -812,7 +806,7 @@ class DevelopConfig(BaseSettings):
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
     CELERY_ACKS_LATE: bool = True
-    CELERY_SERIALIZER: str = 'pickle'
+    # CELERY_SERIALIZER: str = ['pickle']
     DUMP_ZIP: bool = False
 
 class ProductionConfig(DevelopConfig):
@@ -910,7 +904,6 @@ class ModelingTestingConfig(BaseModel):
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "feature_model": "SGD",
                                                "patterns": None,
                                                }
 

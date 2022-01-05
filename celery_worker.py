@@ -20,7 +20,7 @@ celery_app.conf.update(timezone=configuration.CELERY_TIMEZONE)
 celery_app.conf.update(result_extended=configuration.CELERY_RESULT_EXTENDED)
 celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTED)
 celery_app.conf.update(task_acks_late=configuration.CELERY_ACKS_LATE)
-celery_app.conf.update(task_serializer=configuration.CELERY_SERIALIZER)
+# celery_app.conf.update(task_serializer=configuration.CELERY_SERIALIZER)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking
@@ -52,7 +52,7 @@ def dump_result(**kwargs):
     _logger.info('dump to zip...')
     dump_workflow.dump_zip()
 
-@celery_app.task(name=f'{configuration.CELERY_NAME}.training', track_started=True)
+@celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', track_started=True)
 def preparing(task_id, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
@@ -61,20 +61,18 @@ def preparing(task_id, **kwargs):
                            dataset_number=kwargs['DATASET_NO'],
                            dataset_schema=kwargs['DATASET_DB'],
                            **kwargs['MODEL_INFO'])
-    model.run_task(task_id)
+    model.run_task(task_id=task_id, job_id=kwargs['MODEL_JOB_ID'])
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
-def testing(task_id, **kwargs):
-
-
+def testing(job_id, **kwargs):
     _logger = get_logger('modeling')
-    _logger.info(f'start task {task_id}')
+    _logger.info(f'start job {job_id}')
     model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],
                            predict_type=kwargs['PREDICT_TYPE'],
                            dataset_number=kwargs['DATASET_NO'],
                            dataset_schema=kwargs['DATASET_DB'],
                            **kwargs['MODEL_INFO'])
-    model.eval_outer_test_data(task_id)
+    model.eval_outer_test_data(job_id)
 
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)

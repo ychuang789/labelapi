@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends
+from datetime import datetime
+from decimal import Decimal
+
+from fastapi import APIRouter
 
 import json
 import uuid
@@ -9,61 +12,37 @@ from fastapi.responses import JSONResponse
 
 from celery_worker import preparing, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
-from utils.connection_helper import DBConnection, QueryManager, ConnectionConfigGenerator
-from workers.model_core import ModelingWorker
-from utils.model_table_creator import create_model_table
-from dependencies import get_token_header
 from workers.orm_worker import ORMWorker
 
 router = APIRouter(prefix='/model',
                    tags=['model'],
-                   dependencies=[Depends(get_token_header)],
+                   # dependencies=[Depends(get_token_header)],
                    responses={404: {"description": "Not found"}},
                    )
 
-@router.post('/train/', description='preparing a model')
+@router.post('/prepare/', description='preparing a model')
 def model_preparing(training_config: ModelingTrainingConfig):
     task_id = uuid.uuid1().hex
 
     config = training_config.__dict__
-    config.update({'task_id':task_id})
 
-    create_model_table()
 
     try:
         preparing.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
-        ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
-                                     predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'],
-                                     job_id=config['MODEL_JOB_ID'])
     except Exception as e:
         err_msg = f'failed to add training task info to modeling_status since {e}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
+    config.update({'task_id': task_id})
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
-    # return JSONResponse(status_code=status.HTTP_200_OK, content=model.__class__.__name__)
 
 @router.post('/test/', description='testing a model')
 def model_testing(testing_config: ModelingTestingConfig):
 
-    condition = {'model_job_id': testing_config.MODEL_JOB_ID}
-    result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-                                        **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
-    if not result:
-        err_msg = f'Model is not train or prepare yet, execute training API first'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-    else:
-        task_id = result['task_id']
-
     config = testing_config.__dict__
-    config.update({'task_id': task_id})
-
-    create_model_table()
 
     try:
-        testing.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
-        ModelingWorker.add_task_info(task_id=task_id, model_name=config['MODEL_TYPE'],
-                                     predict_type=config['PREDICT_TYPE'], model_path=config['MODEL_PATH'],
-                                     ext_test=True)
+        testing.apply_async(args=(config.get('MODEL_JOB_ID'),), kwargs=config, queue=config.get('QUEUE'))
     except Exception as e:
         err_msg = f'failed to add testing task info to modeling_status since {e}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
@@ -75,15 +54,16 @@ def model_status(model_job_id: int):
     conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
         err_msg = conn.get_status(model_job_id=model_job_id)
-        result = json.dumps(err_msg, ensure_ascii=False)
+        result = {c.name: (getattr(err_msg, c.name) if not isinstance(getattr(err_msg, c.name), datetime)
+                                      else getattr(err_msg,c.name).strftime("%Y-%m-%d %H:%M:%S"))
+                             for c in err_msg.__table__.columns}
+    except AttributeError:
+        result = f'model_job task: {model_job_id} is not exists'
     except Exception as e:
         result = f'failed to get status since {e}'
     finally:
         conn.dispose()
 
-    # condition = {'model_job_id': model_job_id}
-    # result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-    #                                   **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 
 @router.get('/{model_job_id}/report/')
@@ -91,15 +71,26 @@ def model_report(model_job_id):
     conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
         err_msg = conn.get_report(model_job_id=model_job_id)
-        result = json.dumps(err_msg, ensure_ascii=False)
+
+        result = []
+        for err in err_msg:
+            _result_dict = {}
+            for c in err.__table__.columns:
+                key = c.name
+                if isinstance(getattr(err, c.name), datetime):
+                    value = getattr(err, c.name).strftime("%Y-%m-%d %H:%M:%S")
+                elif isinstance(getattr(err, c.name), Decimal):
+                    value = float(getattr(err, c.name))
+                else:
+                    value = getattr(err, c.name)
+                _result_dict.update({key: value})
+            result.append(_result_dict)
+    except AttributeError:
+        result = f'model_job task: {model_job_id} is not exists'
     except Exception as e:
         result = f'failed to get report since {e}'
     finally:
         conn.dispose()
-
-    # condition = {'model_job_id': model_job_id, 'model_report': 'report'}
-    # result = DBConnection.execute_query(query=QueryManager.get_model_query(**condition),
-    #                                     **ConnectionConfigGenerator.rd2_database(schema=DatabaseConfig.OUTPUT_SCHEMA))
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 

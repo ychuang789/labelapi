@@ -34,7 +34,7 @@ A backend API which support labeling, modeling and predicting jobs of django sit
 app = FastAPI(title=configuration.API_TITLE,
               description=description,
               version=configuration.API_VERSION,
-              dependencies=[Depends(get_query_token)]
+              # dependencies=[Depends(get_query_token)]
               )
 
 app.include_router(predicting.router)

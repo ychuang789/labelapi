@@ -82,6 +82,8 @@ class ORMWorker():
 
         return report
 
+
+
     def close_session(self):
         self.session.close()
 

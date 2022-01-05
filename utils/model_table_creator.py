@@ -1,4 +1,6 @@
-from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData
+from dataclasses import dataclass
+
+from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData, null
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import declarative_base, relationship, Session
@@ -18,21 +20,22 @@ class ModelStatus(Base):
     model_path = Column(String(100))
     error_message = Column(LONGTEXT)
     create_time = Column(DateTime, nullable=False)
+    job_id = Column(Integer)
     # one-to-many collection
     report = relationship(
         "ModelReport",
-        back_populates='model_status',
+        backref='model_status',
         cascade="all, delete",
         passive_deletes=True)
     term_weight = relationship(
         "TermWeights",
-        back_populates='model_status',
+        backref='model_status',
         cascade="all, delete",
         passive_deletes=True)
 
     def __init__(self, task_id, model_name, training_status,
                  ext_status, feature, model_path,
-                 error_message, create_time):
+                 error_message, create_time, job_id):
         self.task_id = task_id
         self.model_name = model_name
         self.training_status = training_status
@@ -41,11 +44,13 @@ class ModelStatus(Base):
         self.model_path = model_path
         self.error_message = error_message
         self.create_time = create_time
+        self.job_id = job_id
 
     def __repr__(self):
         return f"<ModelStatus({self.task_id}, {self.model_name}, {self.training_status}, " \
                f"{self.ext_status}, {self.feature}, {self.model_path}, {self.error_message}, " \
-               f"{self.create_time})>"
+               f"{self.create_time}, {self.job_id})>"
+
 
 class ModelReport(Base):
     __tablename__ = ModelRecordTable.model_report.value

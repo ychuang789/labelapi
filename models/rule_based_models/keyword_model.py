@@ -106,21 +106,21 @@ class KeywordModel(RuleBaseModel):
         else:
             return None, None
 
-    def eval(self, examples: List[InputExample], y_true):
-        for index, y in enumerate(y_true):
-            y_true[index] = y
-
-        if self.mlb:
-            predict_labels, first_matched_keyword = self.predict(examples)
-            y_true = self.mlb.transform(y_true)
-            y_pred = self.mlb.transform(predict_labels)
-            acc = accuracy_score(y_true=y_true, y_pred=y_pred)
-            report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True, zero_division=1,
-                                           target_names=self.mlb.classes)
-            report['accuracy'] = acc
-            return report
-        else:
-            raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
+    # def eval(self, examples: List[InputExample], y_true):
+    #     for index, y in enumerate(y_true):
+    #         y_true[index] = y
+    #
+    #     if self.mlb:
+    #         predict_labels, first_matched_keyword = self.predict(examples)
+    #         y_true = self.mlb.transform(y_true)
+    #         y_pred = self.mlb.transform(predict_labels)
+    #         acc = accuracy_score(y_true=y_true, y_pred=y_pred)
+    #         report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True, zero_division=1,
+    #                                        target_names=self.mlb.classes)
+    #         report['accuracy'] = acc
+    #         return report
+    #     else:
+    #         raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
 
 def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT.value,
                          case_sensitive: bool = False) -> List[str]:
