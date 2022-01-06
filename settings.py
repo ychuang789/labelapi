@@ -745,6 +745,10 @@ SOURCE: Dict = {
     ]
 }
 
+# ==============================
+#             Dump
+# ==============================
+
 TABLE_PREFIX = 'wh_panel_mapping_'
 
 TABLE_GROUPS_FOR_INDEX = {
@@ -758,10 +762,9 @@ TABLE_GROUPS_FOR_INDEX = {
     'Blog': ['blog']
 }
 
-# don't delete or edit items in conflict_group, only add item
 CONFLICT_GROUPS = {
-    'GENDER': ('/male', '/female'),
-    'MARRIAGE': ('/unmarried', '/married'),
+    'GENDER': ['/male', '/female'],
+    'MARRIAGE': ['/unmarried', '/married'],
 }
 
 LABEL = {'男性': 'male',
@@ -774,12 +777,15 @@ LABEL = {'男性': 'male',
          '上班族': 'employee',
          '學生': 'student'}
 
-MODEL_PATH_FIELD_DIRECTORY = 'model_files'
+DUMP_COLUMNS = ('source_author', 'panel', 'create_time')
 
-# MODEL_TYPE_DICT = {
-#     'trainable':[ModelType.RANDOM_FOREST_MODEL.value, ModelType.TERM_WEIGHT_MODEL.value],
-#     'untrainable':[ModelType.KEYWORD_MODEL.value, ModelType.RULE_MODEL.value]
-# }
+SITE_SCHEMA = 'audience-toolkit-django'
+
+# ==============================
+#            Model
+# ==============================
+
+MODEL_PATH_FIELD_DIRECTORY = 'model_files'
 
 MODEL_INFORMATION = {
     "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
@@ -806,7 +812,6 @@ class DevelopConfig(BaseSettings):
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
     CELERY_ACKS_LATE: bool = True
-    # CELERY_SERIALIZER: str = ['pickle']
     DUMP_ZIP: bool = False
 
 class ProductionConfig(DevelopConfig):
@@ -830,6 +835,7 @@ class DatabaseConfig:
                               f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
                               f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
     DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
+    DUMP_TO_SCHEMA: str = os.getenv('DUMP_TO_SCHEMA')
 
 # ==============================
 #          API request
@@ -854,12 +860,10 @@ class AbortionConfig(BaseModel):
     TASK_ID: str = 'string'
 
 class DumpConfig(BaseModel):
-    GROUP: str = "GENDER"
-    TASK_IDS: List[str] = None
-    PREVIOUS_YEAR: int = 2019
-    INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
-    OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
-
+    ID_LIST: Union[List[str], List[int]] = None
+    OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
+    NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
+    DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
 
 class TaskList:
     load_dotenv()
@@ -912,50 +916,3 @@ class ModelingAbort(BaseModel):
 
 class ModelingDelete(BaseModel):
     MODEL_JOB_ID: int = None
-
-
-
-# class DatabaseInfo:
-#     load_dotenv()
-#     host = os.getenv('INPUT_HOST')
-#     port = int(os.getenv('INPUT_PORT'))
-#     user = os.getenv('INPUT_USER')
-#     password = os.getenv('INPUT_PASSWORD')
-#     output_host = os.getenv('OUTPUT_HOST')
-#     output_port = int(os.getenv('OUTPUT_PORT'))
-#     output_user = os.getenv('OUTPUT_USER')
-#     output_password = os.getenv('OUTPUT_PASSWORD')
-#     input_schema = os.getenv('INPUT_SCHEMA')
-#     output_schema = os.getenv('OUTPUT_SCHEMA')
-#     rule_schemas = os.getenv('RULE_SHEMAS')
-#     output_engine_info = f'mysql+pymysql://{output_user}:{output_password}@{output_host}:{output_port}/{output_schema}?charset=utf8mb4'
-
-# class CreateTaskRequestBody(BaseModel):
-#     model_type: str = 'keyword_model'
-#     predict_type: str = 'author_name'
-#     start_time: datetime = "2020-01-01 00:00:00"
-#     end_time: datetime = "2021-01-01 00:00:00"
-#     target_schema: str = os.getenv('INPUT_SCHEMA')
-#     target_table: str = "ts_page_content"
-#     output_schema: str = os.getenv('OUTPUT_SCHEMA')
-#     countdown: int = 5
-#     queue: str = "queue1"
-
-# class TaskListRequestBody:
-#     load_dotenv()
-#     host = os.getenv('OUTPUT_HOST')
-#     port = int(os.getenv('OUTPUT_PORT'))
-#     user = os.getenv('OUTPUT_USER')
-#     password = os.getenv('OUTPUT_PASSWORD')
-#     output_schema = os.getenv('OUTPUT_SCHEMA')
-#     order_column: str = 'create_time'
-#     number: int = 5
-#     offset: int = 1000
-#     engine_info: str = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
-#     table: str = 'state'
-
-# class SampleResultRequestBody:
-#     order_column: str = "create_time"
-#     number: int = 50
-#     offset: int = 1000
-#     schema_name: str = 'audience_result'

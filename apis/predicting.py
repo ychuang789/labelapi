@@ -225,13 +225,6 @@ def abort_task(abort_request_body: AbortionConfig):
 def dump_tasks(dump_request_body: DumpConfig):
     config = dump_request_body.__dict__
 
-    if not config.get('task_ids') or len(config.get('task_ids')) == 0:
-        err_info = {
-            "error_code": 404,
-            "error_message": f"task_ids cannot be null or empty in dump_tasks"
-        }
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-
     try:
         dump_result.apply_async(kwargs=config)
         err_info = {

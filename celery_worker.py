@@ -2,7 +2,7 @@ import json
 from dotenv import load_dotenv
 
 from celery import Celery
-from dump.dump_production import DumpFlow
+from dump.groups.dump_core import DumpWorker
 
 from utils.helper import get_logger, get_config
 from workers.model_core import ModelingWorker
@@ -35,22 +35,23 @@ def dump_result(**kwargs):
     _logger = get_logger('dump')
 
     _logger.info('start dumping...')
-    dump_workflow = DumpFlow().generate_dump_flow(kwargs.get('group'), kwargs.get('task_ids'), kwargs.get('previous'))
+    dump_workflow = DumpWorker(id_list=kwargs.get('ID_LIST'),
+                               old_table_database=kwargs.get('OLD_TABLE_DATABASE'),
+                               new_table_database=kwargs.get('NEW_TABLE_DATABASE'),
+                               dump_database=kwargs.get('DUMP_DATABASE'))
 
-    if dump_workflow:
-        _logger.info('dump group is not found...plz re-check it')
-        return None
+    _logger.info(dump_workflow)
 
     try:
         _logger.info('start merging data')
-        dump_workflow.run_merge()
-
+        table_result = dump_workflow.run_merge()
+        _logger.info(f'{table_result}')
     except Exception as e:
         _logger.error(f'failed to execute dumping flow, additional message {e}')
         raise e
 
-    _logger.info('dump to zip...')
-    dump_workflow.dump_zip()
+    # _logger.info('dump to zip...')
+    # dump_workflow.dump_zip()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', track_started=True)
 def preparing(task_id, **kwargs):
