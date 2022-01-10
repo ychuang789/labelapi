@@ -9,7 +9,7 @@ from models.trainable_models.tw_model import TermWeightModel
 from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
 
-from utils.selections import ModelTaskStatus, DatasetType, ModelRecordTable
+from utils.selections import ModelTaskStatus, DatasetType, TableRecord
 from workers.orm_core import ORMWorker
 
 
@@ -37,8 +37,8 @@ class ModelingWorker(PreprocessInterface):
 
     def run_task(self, task_id: str, job_id: int = None) -> None:
 
-        ms = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_status.value)
-        mr = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_report.value)
+        ms = self.orm_cls.table_cls_dict.get(TableRecord.model_status.value)
+        mr = self.orm_cls.table_cls_dict.get(TableRecord.model_report.value)
 
         try:
             if self.orm_cls.session.query(ms).filter(ms.job_id == job_id).first():
@@ -106,8 +106,8 @@ class ModelingWorker(PreprocessInterface):
 
     def eval_outer_test_data(self, job_id: int) -> None:
 
-        ms = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_status.value)
-        mr = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_report.value)
+        ms = self.orm_cls.table_cls_dict.get(TableRecord.model_status.value)
+        mr = self.orm_cls.table_cls_dict.get(TableRecord.model_report.value)
 
         if not (result := self.orm_cls.session.query(ms).filter(ms.job_id == job_id).first()):
             err_msg = f'Model is not train or prepare yet, execute training API first'
@@ -193,7 +193,7 @@ class ModelingWorker(PreprocessInterface):
 
     def add_task_info(self, task_id, job_id=None, ext_test=False):
 
-        ms = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_status.value)
+        ms = self.orm_cls.table_cls_dict.get(TableRecord.model_status.value)
 
         try:
             if not ext_test:

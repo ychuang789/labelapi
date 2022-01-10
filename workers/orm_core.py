@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from settings import DatabaseConfig
 from utils.model_table_creator import Base
-from utils.selections import ModelTaskStatus, ModelRecordTable
+from utils.selections import ModelTaskStatus, TableRecord
 
 
 class ORMWorker():
@@ -17,7 +17,7 @@ class ORMWorker():
         self.engine = create_engine(self.connection_info, echo=echo)
         self.create_table_cls()
         self.session = Session(self.engine, autoflush=auto_flush)
-        self.table_name_list = [item.value for item in ModelRecordTable]
+        self.table_name_list = [item.value for item in TableRecord]
         self.table_cls_dict = self.table_cls_maker(self.table_name_list)
 
     def __str__(self):
@@ -29,7 +29,7 @@ class ORMWorker():
 
     def create_table_cls(self):
         inspector = inspect(self.engine)
-        tables = [item.value for item in ModelRecordTable]
+        tables = [item.value for item in TableRecord]
         show_table = inspector.get_table_names()
         if not set(tables).issubset(show_table):
             self.base.metadata.create_all(self.engine, checkfirst=True)
@@ -43,7 +43,7 @@ class ORMWorker():
         return {i: getattr(Base.classes, i) for i in table_attr}
 
     def status_changer(self, model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
-        ms = self.table_cls_dict.get(ModelRecordTable.model_status.value)
+        ms = self.table_cls_dict.get(TableRecord.model_status.value)
         err_msg = f'{model_job_id} {status.value} by the external user'
 
         try:
@@ -56,7 +56,7 @@ class ORMWorker():
             raise e
 
     def delete_record(self, model_job_id: int):
-        ms = self.table_cls_dict.get(ModelRecordTable.model_status.value)
+        ms = self.table_cls_dict.get(TableRecord.model_status.value)
         err_msg = f'{model_job_id} is deleted'
 
         try:
@@ -69,13 +69,13 @@ class ORMWorker():
             raise e
 
     def get_status(self, model_job_id: int):
-        ms = self.table_cls_dict.get(ModelRecordTable.model_status.value)
+        ms = self.table_cls_dict.get(TableRecord.model_status.value)
         record = self.session.query(ms).filter(ms.job_id == model_job_id).first()
         return record
 
     def get_report(self, model_job_id: int):
-        ms = self.table_cls_dict.get(ModelRecordTable.model_status.value)
-        mr = self.table_cls_dict.get(ModelRecordTable.model_report.value)
+        ms = self.table_cls_dict.get(TableRecord.model_status.value)
+        mr = self.table_cls_dict.get(TableRecord.model_report.value)
 
         record = self.session.query(ms).filter(ms.job_id == model_job_id).first()
         report = self.session.query(mr).filter(mr.task_id == record.task_id).all()
