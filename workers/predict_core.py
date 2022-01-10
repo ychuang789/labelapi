@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Dict, Optional, List
 
 import pandas as pd
+import pymysql
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
 from settings import DatabaseConfig, SOURCE, LABEL
@@ -31,14 +33,12 @@ class PredictWorker():
         self.count = 0
         self.row_number = 0
         self.start_time = datetime.now()
-
-        if model_job_list:
-            for i in model_job_list:
-                self.model_information = DBConnection.execute_query(query=QueryManager.get_model_job_id(i),
-                                                                single=True, **ConnectionConfigGenerator.rd2_database(schema="audience_result"))
+        self.model_information = get_jobs_ids(model_job_list)
+        # self.model_information = DBConnection.execute_query(query=QueryManager.get_model_job_ids(model_job_list),
+        #                                                     single=True if len(model_job_list) == 1 else False,
+        #                                                     **ConnectionConfigGenerator.rd2_database(DatabaseConfig.OUTPUT_SCHEMA))
 
     def run_task(self):
-        """processing the labeling task"""
         if not self.break_checker():
             return
 
@@ -117,7 +117,7 @@ class PredictWorker():
 
         self.data_generator(list(self.table_dict.keys()))
 
-    def data_labeler(self, df: pd.DataFrame, predict_type: str, pattern: Optional[Dict] = None):
+    def data_labeler(self, df: pd.DataFrame, predict_type: str, pattern: Optional[List[Dict]] = None):
 
         model_info = {"patterns": pattern} if pattern else {}
         start = datetime.now()
@@ -215,17 +215,19 @@ class PredictWorker():
         self.logger.info(f'finish task {self.task_id} generate_production, total time: '
                      f'{(datetime.now() - self.start_time).total_seconds() / 60} minutes')
 
-    def predicting_worker(self, df, predict_type,  **model_info):
+    def predicting_worker(self, df, predict_type, **model_info):
 
         if self.model_information:
-            output_df = pd.DataFrame(columns=list(df.columns))
-            for _model_information in self.model_information:
 
-                model_info.update({'model_path': _model_information.get('model_path')})
+            output_df = pd.DataFrame(columns=list(df.columns))
+            for idx, _model_information in enumerate(self.model_information):
+                _model_info = model_info.get('patterns')[idx] if model_info.get('patterns') else None
+
+                info_dict = {'model_path': _model_information.get('model_path'), 'patterns': _model_info}
 
                 worker = ModelingWorker(model_name=_model_information.get('model_name'),
                                        predict_type=predict_type,
-                                       **model_info)
+                                       **info_dict)
                 worker.init_model(is_train=False)
                 temp_list = []
                 for i in range(len(df)):
@@ -259,5 +261,17 @@ class PredictWorker():
         if check_break_status(self.task_id) == 'BREAK':
             self.logger.info(f"task {self.task_id} is abort by the external user")
             return False
+        else:
+            return True
 
 
+def get_jobs_ids(model_job_ids):
+    connection = pymysql.connect(**ConnectionConfigGenerator.rd2_database("audience_result"))
+    cursor = connection.cursor()
+    cursor.execute(QueryManager.get_model_job_ids(model_job_ids))
+    if len(model_job_ids) <= 1:
+        result = cursor.fetchone()
+    else:
+        result = cursor.fetchall()
+    connection.close()
+    return result

@@ -523,4 +523,5 @@ def check_break_status(task_id: str,
         return result['stat']
     except Exception as e:
         raise e
-
+    finally:
+        connection.close()

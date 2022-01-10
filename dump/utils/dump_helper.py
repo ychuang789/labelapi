@@ -188,7 +188,7 @@ def merge_data(old_data: pd.DataFrame, _current_data: pd.DataFrame,
 
         if old_overlap_data.empty:
             logger.info(f'there is no overlap data of conflict group')
-            return output
+            continue
 
         assert len(old_overlap_data) == len(new_overlap_data), 'overlap conflict data should have same number of rows'
 

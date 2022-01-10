@@ -48,14 +48,17 @@ class DBConnection(object):
         return cls.connection
 
     @classmethod
-    def execute_query(cls, query: str, alter=False, **kwargs):
+    def execute_query(cls, query: str, alter=False, single=False, **kwargs):
         connection = cls.get_connection(**kwargs)
         cursor = connection.cursor()
         cursor.execute(query)
         if alter:
             connection.commit()
         else:
-            result = None if alter else cursor.fetchall()
+            if single:
+                result = None if alter else cursor.fetchone()
+            else:
+                result = None if alter else cursor.fetchall()
             # cursor.close()
             return result
 
@@ -143,6 +146,14 @@ class QueryManager:
     def get_model_job_id(job_id: int):
         if job_id:
             return f"""SELECT model_name, model_path FROM model_status WHERE job_id = {job_id};"""
+
+    @staticmethod
+    def get_model_job_ids(job_ids: List[int]):
+        """ sort by the same order with job_ids"""
+        return f"""SELECT * 
+                    FROM audience_result.model_status
+                    WHERE job_id in {tuple(job_ids)}
+                    ORDER BY FIND_IN_SET(job_id, '{','.join([str(i) for i in job_ids])}');"""
 
 
 

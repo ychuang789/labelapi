@@ -6,6 +6,9 @@ from definition import RULE_FOLDER
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
+class PredictTable(Enum):
+    state = 'state'
+
 class ModelRecordTable(Enum):
     model_status = 'model_status'
     model_report = 'model_report'

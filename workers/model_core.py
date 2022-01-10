@@ -37,24 +37,27 @@ class ModelingWorker(PreprocessInterface):
 
     def run_task(self, task_id: str, job_id: int = None) -> None:
 
-        self.add_task_info(task_id=task_id, job_id=job_id, ext_test=False)
         ms = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_status.value)
         mr = self.orm_cls.table_cls_dict.get(ModelRecordTable.model_report.value)
 
-        self.logger.info(f"start modeling task: {task_id}")
-        self.logger.info(f'Initializing the model {self.model_name .lower()}...')
-        self.init_model()
-
-        if not hasattr(self.model, 'fit'):
-            err_msg = f'{self.model.name} is not trainable'
-            self.logger.error(err_msg)
-            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.UNTRAINABLE.value,
-                                                                                 ms.error_message: err_msg})
-            self.orm_cls.session.commit()
-            self.orm_cls.dispose()
-            return
-
         try:
+            if self.orm_cls.session.query(ms).filter(ms.job_id == job_id).first():
+                self.orm_cls.delete_record(model_job_id=job_id)
+            self.add_task_info(task_id=task_id, job_id=job_id, ext_test=False)
+
+            self.logger.info(f"start modeling task: {task_id}")
+            self.logger.info(f'Initializing the model {self.model_name.lower()}...')
+            self.init_model()
+
+            if not hasattr(self.model, 'fit'):
+                err_msg = f'{self.model.name} is not trainable'
+                self.logger.error(err_msg)
+                self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                    {ms.training_status: ModelTaskStatus.UNTRAINABLE.value,
+                     ms.error_message: err_msg})
+                self.orm_cls.session.commit()
+                return
+
             self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
                 {ms.training_status: ModelTaskStatus.STARTED.value})
             self.orm_cls.session.commit()
@@ -114,22 +117,20 @@ class ModelingWorker(PreprocessInterface):
             task_id = result.task_id
             self.add_task_info(task_id=task_id, ext_test=True)
 
-        self.logger.info(f"start eval_outer_test_data task: {task_id}")
-
-        if not self.model:
-            self.logger.info(f'Initializing the model {self.model_name.lower()}...')
-            self.init_model(is_train=False)
-
-        if not hasattr(self.model, 'eval'):
-            err_msg = f'{self.model.name} cannot be evaluated'
-            self.logger.error(err_msg)
-            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
-                {ms.training_status: ModelTaskStatus.FAILED.value, ms.error_message: err_msg})
-            self.orm_cls.session.commit()
-            self.orm_cls.dispose()
-            return
-
         try:
+            self.logger.info(f"start eval_outer_test_data task: {task_id}")
+            if not self.model:
+                self.logger.info(f'Initializing the model {self.model_name.lower()}...')
+                self.init_model(is_train=False)
+
+            if not hasattr(self.model, 'eval'):
+                err_msg = f'{self.model.name} cannot be evaluated'
+                self.logger.error(err_msg)
+                self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                    {ms.training_status: ModelTaskStatus.FAILED.value, ms.error_message: err_msg})
+                self.orm_cls.session.commit()
+                return
+
             self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
                 {ms.ext_status: ModelTaskStatus.STARTED.value})
             self.orm_cls.session.commit()

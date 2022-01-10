@@ -57,7 +57,7 @@ class ORMWorker():
 
     def delete_record(self, model_job_id: int):
         ms = self.table_cls_dict.get(ModelRecordTable.model_status.value)
-        err_msg = f'{model_job_id} delete by the external user'
+        err_msg = f'{model_job_id} is deleted'
 
         try:
             record = self.session.query(ms).filter(ms.job_id == model_job_id).first()

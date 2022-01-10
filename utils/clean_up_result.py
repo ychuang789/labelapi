@@ -21,7 +21,7 @@ def clean_data(df: pd.DataFrame) -> Union[pd.DataFrame, None]:
     duplicated_author = group.loc[group.source_author.duplicated() == True]
 
     if duplicated_author.empty:
-        return
+        return duplicated_author
 
     iter_item = group[group.duplicated(['source_author'])]['source_author'].to_list()
     delete_dict = {}
@@ -42,10 +42,10 @@ def clean_data(df: pd.DataFrame) -> Union[pd.DataFrame, None]:
 
 def run_cleaning(df: pd.DataFrame) -> pd.DataFrame:
     df['source_author'] = df['source_author'].str.strip()
-    remove_duplicates_df = clean_data(df) if clean_data(df) else None
+    remove_duplicates_df = clean_data(df)
     uniq_df = df.sort_values(by='create_time').drop_duplicates(subset=['source_author', 'panel'], keep='last')
 
-    if not remove_duplicates_df:
+    if remove_duplicates_df.empty:
         return uniq_df
 
     output = pd.merge(uniq_df, remove_duplicates_df, on=['source_author', 'panel']).drop(['counts'], axis=1)

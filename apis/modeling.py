@@ -25,7 +25,6 @@ def model_preparing(training_config: ModelingTrainingConfig):
 
     config = training_config.__dict__
 
-
     try:
         preparing.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
     except Exception as e:

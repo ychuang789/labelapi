@@ -24,9 +24,7 @@ celery_app.conf.update(task_acks_late=configuration.CELERY_ACKS_LATE)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
 # @memory_usage_tracking
-def label_data(task_id: str, kwargs_json: str) -> None:
-    kwargs = json.loads(kwargs_json)
-    load_dotenv()
+def label_data(task_id: str, **kwargs) -> None:
     labeling_worker = PredictWorker(task_id, kwargs.pop('MODEL_JOB_LIST'), **kwargs)
     labeling_worker.run_task()
 

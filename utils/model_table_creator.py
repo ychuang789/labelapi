@@ -1,14 +1,64 @@
-from dataclasses import dataclass
-
-from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData, null
+from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import declarative_base, relationship, Session
 
 from settings import DatabaseConfig
-from utils.selections import ModelTaskStatus, ModelRecordTable
+from utils.selections import ModelTaskStatus, ModelRecordTable, PredictTable
 
 Base = declarative_base()
+
+class State(Base):
+    __tablename__ = PredictTable.state.value
+    task_id = Column(String(32), primary_key=True)
+    stat = Column(String(32), nullable=False)
+    prod_stat = Column(String(10))
+    model_type = Column(String(32), nullable=False)
+    predict_type = Column(String(32), nullable=False)
+    date_range = Column(LONGTEXT, nullable=False)
+    target_table = Column(String(32), nullable=False)
+    create_time = Column(DateTime, nullable=False)
+    peak_memory = Column(Float)
+    length_receive_table = Column(Integer)
+    length_output_table = Column(Integer)
+    length_prod_table = Column(String(100))
+    result = Column(TEXT)
+    uniq_source_author = Column(String(100))
+    rate_of_label = Column(String(100))
+    run_time = Column(Float)
+    check_point = Column(DateTime)
+    error_message = Column(LONGTEXT)
+
+    def __init__(self, task_id, stat, prod_stat, model_type, predict_type, date_range,
+                 target_table, create_time, peak_memory, length_receive_table,
+                 length_output_table, length_prod_table, result, uniq_source_author,
+                 rate_of_label, run_time, check_point, error_message):
+        self.task_id = task_id
+        self.stat = stat
+        self.prod_stat = prod_stat
+        self.model_type = model_type
+        self.predict_type = predict_type
+        self.date_range = date_range
+        self.target_table = target_table
+        self.create_time = create_time
+        self.peak_memory = peak_memory
+        self.length_receive_table = length_receive_table
+        self.length_output_table = length_output_table
+        self.length_prod_table = length_prod_table
+        self.result = result
+        self.uniq_source_author = uniq_source_author
+        self.rate_of_label = rate_of_label
+        self.run_time = run_time
+        self.check_point = check_point
+        self.error_message = error_message
+
+    def __repr__(self):
+        return f"State({self.task_id}, {self.stat}, {self.prod_stat}, {self.model_type}, {self.predict_type}, " \
+               f"{self.date_range}, {self.target_table}, {self.create_time}, {self.peak_memory}, {self.length_receive_table}," \
+               f"{self.length_output_table}, {self.length_prod_table}, {self.result}, {self.uniq_source_author}, " \
+               f"{self.rate_of_label}, {self.run_time}, {self.check_point}, {self.error_message})"
+
+
 
 class ModelStatus(Base):
     __tablename__ = ModelRecordTable.model_status.value
@@ -47,9 +97,9 @@ class ModelStatus(Base):
         self.job_id = job_id
 
     def __repr__(self):
-        return f"<ModelStatus({self.task_id}, {self.model_name}, {self.training_status}, " \
+        return f"ModelStatus({self.task_id}, {self.model_name}, {self.training_status}, " \
                f"{self.ext_status}, {self.feature}, {self.model_path}, {self.error_message}, " \
-               f"{self.create_time}, {self.job_id})>"
+               f"{self.create_time}, {self.job_id})"
 
 
 class ModelReport(Base):

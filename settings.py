@@ -847,7 +847,7 @@ class TaskConfig(BaseModel):
     PREDICT_TYPE: str = 'author_name'
     START_TIME: date = "2020-01-01"
     END_TIME: date = "2021-01-01"
-    PATTERN: Optional[Dict] = None
+    PATTERN: Optional[List] = None
     INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
     INPUT_TABLE: str = os.getenv('INPUT_TABLE')
     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
@@ -860,10 +860,11 @@ class AbortionConfig(BaseModel):
     TASK_ID: str = 'string'
 
 class DumpConfig(BaseModel):
-    ID_LIST: Union[List[str], List[int]] = None
+    ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
     OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
     NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
     DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
+    QUEUE: str = "queue1"
 
 class TaskList:
     load_dotenv()
@@ -916,3 +917,6 @@ class ModelingAbort(BaseModel):
 
 class ModelingDelete(BaseModel):
     MODEL_JOB_ID: int = None
+
+
+

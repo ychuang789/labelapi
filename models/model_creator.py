@@ -97,15 +97,14 @@ class ModelSelector():
         else:
             raise ValueError(f'model_name {self.model_name} is unknown')
 
-        if isinstance(self.model, SupervisedModel):
-            if not self.is_train:
+        if not self.is_train:
+            if isinstance(self.model, SupervisedModel):
                 self.model.load()
-
-        if isinstance(self.model, RuleBaseModel):
-            if self.pattern:
-                self.model.load(self.pattern)
-            else:
-                raise ParamterMissingError(f'patterns are missing')
+            if isinstance(self.model, RuleBaseModel):
+                if self.pattern:
+                    self.model.load(self.pattern)
+                else:
+                    raise ParamterMissingError(f'patterns are missing')
 
         return self.model
 

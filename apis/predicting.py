@@ -194,7 +194,7 @@ def sample_result(task_id: str):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@router.post('/tasks/abort/', description='aborting a task no matter it is executing')
+@router.post('/abort/', description='aborting a task no matter it is executing')
 def abort_task(abort_request_body: AbortionConfig):
     config = abort_request_body.__dict__
     task_id = config.get('TASK_ID', None)
@@ -221,12 +221,12 @@ def abort_task(abort_request_body: AbortionConfig):
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@router.post('/tasks/dump/', description='run dump workflow with task_id')
+@router.post('/dump/', description='run dump workflow with task_id')
 def dump_tasks(dump_request_body: DumpConfig):
     config = dump_request_body.__dict__
 
     try:
-        dump_result.apply_async(kwargs=config)
+        dump_result.apply_async(kwargs=config, queue=config.get('QUEUE'))
         err_info = {
             "error_code": 200,
             "error_message": config
@@ -236,6 +236,6 @@ def dump_tasks(dump_request_body: DumpConfig):
     except Exception as e:
         err_info = {
             "error_code": 500,
-            "error_message": f"task failed because of {e}"
+            "error_message": f"dump flow is failed since of {e}"
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
