@@ -24,22 +24,24 @@ class TaskGenerateOutput(object):
     def scrap_success_data_to_df(self, task_id: str, schema: str, table: str ,logger: get_logger) -> pd.DataFrame:
         logger.info(f'start scraping label data ...')
         _from_success_table = f'SELECT * FROM {table} WHERE task_id = "{task_id}"'
+        connection = connect_database(schema, output=True)
         try:
-            connection = connect_database(schema, output=True)
             cursor = connection.cursor()
             cursor.execute(_from_success_table)
             result = to_dataframe(cursor.fetchall())
-            connection.close()
+            cursor.close()
             return result
         except Exception as e:
             logger.error(e)
             raise e
+        finally:
+            connection.close()
 
     def write_to_output_table(self, df: pd.DataFrame, schema: str, table_name: str, logger):
         # _table_name = f"wh_panel_mapping_{table_name}_production"
         _table_name = f"wh_panel_mapping_{table_name}"
+        _connection = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
         try:
-            _connection = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
             _exist_tables = [i[0] for i in _connection.execute('SHOW TABLES').fetchall()]
             if _table_name not in _exist_tables:
                 create_table(_table_name, logger, schema)
@@ -54,5 +56,8 @@ class TaskGenerateOutput(object):
 
         except Exception as e:
             raise e
+
+        finally:
+            _connection.close()
 
 

@@ -26,7 +26,12 @@ celery_app.conf.update(task_acks_late=configuration.CELERY_ACKS_LATE)
 # @memory_usage_tracking
 def label_data(task_id: str, **kwargs) -> None:
     labeling_worker = PredictWorker(task_id, kwargs.pop('MODEL_JOB_LIST'), **kwargs)
-    labeling_worker.run_task()
+    try:
+        labeling_worker.run_task()
+    except Exception as e:
+        raise e
+    finally:
+        labeling_worker._dispose()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', track_started=True)
 def dump_result(**kwargs):

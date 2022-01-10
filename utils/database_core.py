@@ -133,17 +133,16 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
                  f'`match_content` LONGTEXT NOT NULL' \
                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                  f'AUTO_INCREMENT=1 ;'
-    func = connect_database
+    connection = connect_database(schema=schema, output=True)
     try:
-        with func(schema, output=True).cursor() as cursor:
-            logger.info('connecting to database...')
-            logger.info('creating table...')
-            cursor.execute(insert_sql)
-            func(schema, output=True).close()
-            logger.info(f'successfully created table {table_ID}')
+        cursor = connection.cursor()
+        cursor.execute(insert_sql)
+        cursor.close()
     except Exception as e:
         logger.error(e)
         raise e
+    finally:
+        connection.close()
 
 
 def create_state_table(logger: get_logger, schema=None):
@@ -449,10 +448,6 @@ def get_batch_by_timedelta(schema, predict_type, table,
             yield result, begin_date
             begin_date += interval
             connection.close()
-
-
-
-
 
 def check_state_result_for_task_info(task_id: str, schema: str):
     connection = connect_database(schema=schema, output=True)

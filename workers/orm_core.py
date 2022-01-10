@@ -11,10 +11,10 @@ from utils.selections import ModelTaskStatus, TableRecord
 
 class ORMWorker():
     def __init__(self, connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO,
-                 auto_flush=False, echo=False):
+                 auto_flush=False, echo=False, **kwargs):
         self.connection_info = connection_info
         self.base = Base
-        self.engine = create_engine(self.connection_info, echo=echo)
+        self.engine = create_engine(self.connection_info, echo=echo, **kwargs)
         self.create_table_cls()
         self.session = Session(self.engine, autoflush=auto_flush)
         self.table_name_list = [item.value for item in TableRecord]
@@ -27,10 +27,14 @@ class ORMWorker():
         self.close_session()
         self.engine.dispose()
 
-    def create_table_cls(self):
+    def show_tables(self):
         inspector = inspect(self.engine)
-        tables = [item.value for item in TableRecord]
         show_table = inspector.get_table_names()
+        return show_table
+
+    def create_table_cls(self):
+        tables = [item.value for item in TableRecord]
+        show_table = self.show_tables()
         if not set(tables).issubset(show_table):
             self.base.metadata.create_all(self.engine, checkfirst=True)
 

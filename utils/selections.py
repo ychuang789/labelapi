@@ -6,6 +6,15 @@ from definition import RULE_FOLDER
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
+class PredictingProgressStatus(Enum):
+    SUCCESS = 'SUCCESS'
+    PENDING = 'PENDING'
+    FAILURE = 'FAILURE'
+    BREAK = 'BREAK'
+    PROD_SUCCESS = 'finish'
+    PROD_NODATA = 'no_data'
+
+
 class TableRecord(Enum):
     state = 'state'
     model_status = 'model_status'
