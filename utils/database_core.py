@@ -1,4 +1,3 @@
-import os
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, Dict
@@ -6,8 +5,6 @@ from typing import Optional, Dict
 import pymysql
 import pandas as pd
 from retry import retry
-from sqlmodel import SQLModel, create_engine
-from sqlalchemy import create_engine as C
 
 from utils.helper import get_logger
 from settings import DatabaseConfig
@@ -19,15 +16,6 @@ def connect_database(schema = None, output = False, site_input: Optional[Dict] =
         _config.update({
             'cursorclass': pymysql.cursors.DictCursor
         })
-        # _config = {
-        #     'host': site_input.get('host'),
-        #     'port': site_input.get('port'),
-        #     'user': site_input.get('username'),
-        #     'password': site_input.get('password'),
-        #     'db': site_input.get('schema'),
-        #     'charset': 'utf8mb4',
-        #     'cursorclass': pymysql.cursors.DictCursor
-        # }
     else:
         if not output:
             _config = {
@@ -49,7 +37,6 @@ def connect_database(schema = None, output = False, site_input: Optional[Dict] =
                 'charset': 'utf8mb4',
                 'cursorclass': pymysql.cursors.DictCursor
             }
-
     try:
         connection = pymysql.connect(**_config)
         return connection
@@ -91,42 +78,147 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
     finally:
         connection.close()
 
-
-def create_state_table(logger: get_logger, schema=None):
-    insert_sql = f'CREATE TABLE IF NOT EXISTS `state`(' \
-                 f'`task_id` VARCHAR(32) NOT NULL,' \
-                 f'`stat` VARCHAR(32) NOT NULL,' \
-                 f'`prod_stat` VARCHAR (10),' \
-                 f'`model_type` VARCHAR(32) NOT NULL,' \
-                 f'`predict_type` VARCHAR(32) NOT NULL,' \
-                 f'`date_range` TEXT,' \
-                 f'`target_table` VARCHAR(32) NOT NULL,' \
-                 f'`create_time` DATETIME NOT NULL,' \
-                 f'`peak_memory` FLOAT(10),' \
-                 f'`length_receive_table` INT(11),' \
-                 f'`length_output_table` INT(11),' \
-                 f'`length_prod_table` VARCHAR (100),' \
-                 f'`result` TEXT,' \
-                 f'`uniq_source_author` VARCHAR(100),' \
-                 f'`rate_of_label` INT(11),' \
-                 f'`run_time` FLOAT(10),' \
-                 f'`check_point` DATETIME,' \
-                 f'`error_message` LONGTEXT' \
-                 f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
-                 f'AUTO_INCREMENT=1 ;'
-    func = connect_database
+# TODO: refactor
+def drop_table(table_name: str, schema=None) :
+    drop_sql = f'DROP TABLE {table_name};'
+    connection = connect_database(schema=schema, output=True)
     try:
-        with func(schema, output=True).cursor() as cursor:
-            logger.info('connecting to database...')
-            logger.info('creating table...')
-            cursor.execute(insert_sql)
-            func(schema, output=True).close()
-            logger.info(f'successfully created table.')
+        cursor = connection.cursor()
+        cursor.execute(drop_sql)
+        cursor.close()
     except Exception as e:
-        logger.error(e)
+        raise e
+    finally:
+        connection.close()
+
+# TODO: refactor
+def get_tasks_query_recent(order_column, number):
+    q = f'SELECT * FROM state ' \
+        f'ORDER BY {order_column} DESC ' \
+        f'LIMIT {number} '
+    schema = DatabaseConfig.OUTPUT_SCHEMA
+    connection = connect_database(schema, output=True)
+    cur = connection.cursor()
+    # cursor.executescript(sql_as_string)
+    cur.execute(q)
+    r = cur.fetchall()
+    connection.close()
+    return r
+
+# TODO: refactor
+def get_table_info(id):
+    q = f"""SELECT result 
+    FROM state WHERE 
+    task_id = '{id}'
+    """
+    connection = connect_database(schema=DatabaseConfig.OUTPUT_SCHEMA, output=True)
+    cur = connection.cursor()
+    cur.execute(q)
+    result = cur.fetchone()
+    if len(result.get('result')) == 0:
+        return None
+    else:
+        return result.get('result').split(',')
+
+# TODO: refactor
+def get_sample_query(_id, tablename, number):
+    q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
+        f"AND rand() <= 0.2 " \
+        f"LIMIT {number})"
+    return q
+
+# TODO: refactor
+def query_state_by_id(_id):
+    q = f"SELECT * FROM state WHERE task_id = '{_id}'"
+    schema = DatabaseConfig.OUTPUT_SCHEMA
+    connection = connect_database(schema, output=True)
+    cur = connection.cursor()
+    # cursor.executescript(sql_as_string)
+    cur.execute(q)
+    r = cur.fetchone()
+    connection.close()
+    return r
+
+# TODO: refactor
+def get_result_query(_id, tablename):
+    q = f"SELECT * FROM {tablename} WHERE task_id = '{_id} '"
+    return q
+
+# TODO: refactor to DBConnection
+def add_column(schema, table, col_name, col_type, **kwargs):
+
+    if kwargs:
+        condition = ''
+        for k,v in kwargs.items():
+            condition += f' {k} {v}'
+    else:
+        condition = ''
+    connection = connect_database(schema=schema, output=True)
+    q = f'ALTER TABLE {table} ' \
+        f'ADD COLUMN {col_name} {col_type}'
+
+    q += condition
+    with connection.cursor() as cursor:
+        cursor.execute(q)
+        connection.close()
+
+# TODO: refactor
+def send_break_signal_to_state(task_id: str, schema: str = 'audience_result') -> None:
+    connection = connect_database(schema=schema, output=True)
+    insert_sql = f'UPDATE state ' \
+                 f'SET stat = "BREAK" ' \
+                 f'where task_id = "{task_id}"'
+    try:
+        cursor = connection.cursor()
+        cursor.execute(insert_sql)
+        connection.commit()
+        connection.close()
+    except Exception as e:
         raise e
 
 
+
+def get_timedelta_query(predict_type, table, start_time, end_time):
+    q = f"SELECT * FROM {table} " \
+        f"WHERE author IS NOT NULL " \
+        f"AND s_id IS NOT NULL " \
+        f"AND {predict_type} IS NOT NULL " \
+        f"AND post_time >= '{start_time}' " \
+        f"AND post_time <= '{end_time}';"
+
+    return q
+
+def get_batch_by_timedelta(schema, predict_type, table,
+                           begin_date: datetime, last_date: datetime,
+                           interval: timedelta = timedelta(hours=6),
+                           site_input: Optional[Dict] = None):
+    while begin_date <= last_date:
+        try:
+            connection = connect_database(schema=schema, site_input=site_input)
+        except Exception as e:
+            return str(e), begin_date
+
+
+        if begin_date + interval > last_date:
+
+            break
+
+        else:
+            start_date_interval = begin_date + interval
+            cursor = connection.cursor()
+
+            cursor.execute(get_timedelta_query(predict_type, table, begin_date, start_date_interval))
+            result = to_dataframe(cursor.fetchall())
+            yield result, begin_date
+            begin_date += interval
+            connection.close()
+
+def alter_column_type(schema: str, table_name: str, column_name: str, datatype: str) -> None:
+    q = f"""ALTER TABLE {table_name} MODIFY {column_name} {datatype};"""
+    connection = connect_database(schema, output=True)
+    cur = connection.cursor()
+    cur.execute(q)
+    connection.close()
 
 # def insert2state(task_id, status, model_type, predict_type,
 #                  date_range, target_table, time, result,
@@ -217,23 +309,6 @@ def create_state_table(logger: get_logger, schema=None):
 #     except Exception as e:
 #         raise e
 
-
-def drop_table(table_name: str, logger: get_logger, schema=None) :
-    """drop table name"""
-    drop_sql = f'DROP TABLE {table_name};'
-    func = connect_database
-    try:
-        with func(schema=schema, output=True).cursor() as cursor:
-            logger.info('connecting to database...')
-            logger.info('dropping table...')
-            cursor.execute(drop_sql)
-            func(schema=schema, output=True).close()
-            logger.info(f'successfully dropped table {table_name}')
-    except Exception as e:
-        logger.error('Cannot drop the table')
-        raise e
-
-
 # def get_create_task_query(target_table, predict_type, start_time, end_time, get_all = False):
 #
 #     if not get_all:
@@ -249,221 +324,37 @@ def drop_table(table_name: str, logger: get_logger, schema=None) :
 
 # def get_count_query():
 #     return 'SELECT COUNT(task_id) FROM celery_taskmeta'
-
-def get_tasks_query_recent(order_column, number):
-    q = f'SELECT * FROM state ' \
-        f'ORDER BY {order_column} DESC ' \
-        f'LIMIT {number} '
-    schema = DatabaseConfig.OUTPUT_SCHEMA
-    connection = connect_database(schema, output=True)
-    cur = connection.cursor()
-    # cursor.executescript(sql_as_string)
-    cur.execute(q)
-    r = cur.fetchall()
-    connection.close()
-    return r
-
-def get_table_info(id):
-    q = f"""SELECT result 
-    FROM state WHERE 
-    task_id = '{id}'
-    """
-    connection = connect_database(schema=DatabaseConfig.OUTPUT_SCHEMA, output=True)
-    cur = connection.cursor()
-    cur.execute(q)
-    result = cur.fetchone()
-    if len(result.get('result')) == 0:
-        return None
-    else:
-        return result.get('result').split(',')
-
-
-def get_sample_query(_id, tablename, number):
-    q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
-        f"AND rand() <= 0.2 " \
-        f"LIMIT {number})"
-    return q
-
-def query_state_by_id(_id):
-    q = f"SELECT * FROM state WHERE task_id = '{_id}'"
-    schema = DatabaseConfig.OUTPUT_SCHEMA
-    connection = connect_database(schema, output=True)
-    cur = connection.cursor()
-    # cursor.executescript(sql_as_string)
-    cur.execute(q)
-    r = cur.fetchone()
-    connection.close()
-    return r
-
-
-def get_result_query(_id, tablename):
-    q = f"SELECT * FROM {tablename} WHERE task_id = '{_id} '"
-    return q
-
-def add_column(schema, table, col_name, col_type, **kwargs):
-
-    if kwargs:
-        condition = ''
-        for k,v in kwargs.items():
-            condition += f' {k} {v}'
-    else:
-        condition = ''
-    connection = connect_database(schema=schema, output=True)
-    q = f'ALTER TABLE {table} ' \
-        f'ADD COLUMN {col_name} {col_type}'
-
-    q += condition
-    with connection.cursor() as cursor:
-        cursor.execute(q)
-        connection.close()
-
-def get_distinct_count(schema, tablename, condition=None, start_time=None, end_time=None):
-    info = f"mysql+pymysql://{os.getenv('INPUT_USER')}:{os.getenv('INPUT_PASSWORD')}@" \
-           f"{os.getenv('INPUT_HOST')}:{os.getenv('INPUT_PORT')}/{schema}?charset=utf8mb4"
-    connection = C(info).connect()
-    # if date_info:
-    if not connection:
-        q = f'SELECT count(distinct s_id, author) ' \
-            f'FROM {tablename} ' \
-            f'WHERE author IS NOT NULL ' \
-            f'AND s_id IS NOT NULL ' \
-            f"AND post_time >= '{start_time}' " \
-            f"AND post_time <= '{end_time}';"
-    else:
-        q = f'SELECT count(distinct s_id, author) ' \
-            f'FROM {tablename} ' \
-            f'WHERE author IS NOT NULL ' \
-            f'AND s_id IS NOT NULL ' \
-            f'AND s_id in {condition} ' \
-            f"AND post_time >= '{start_time}' " \
-            f"AND post_time <= '{end_time}';"
-    # else:
-    #     if not connection:
-    #         q = f'SELECT count(distinct s_id, author) ' \
-    #             f'FROM {tablename} ' \
-    #             f'WHERE author IS NOT NULL and s_id IS NOT NULL;'
-    #     else:
-    #         q = f'SELECT count(distinct s_id, author) ' \
-    #             f'FROM {tablename} ' \
-    #             f'WHERE author IS NOT NULL and s_id IS NOT NULL ' \
-    #             f'and s_id in {condition};'
-    count = connection.execute(q).fetchone()[0]
-    connection.close()
-
-    return count
-
-def get_label_source_from_state(task_id):
-    connection = C(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
-    q = f'SELECT target_table FROM state WHERE task_id = "{task_id}"; '
-    source_name = connection.execute(q).fetchone()[0]
-    connection.close()
-
-    return source_name
-
-
-def get_timedelta_query(predict_type, table, start_time, end_time):
-    q = f"SELECT * FROM {table} " \
-        f"WHERE author IS NOT NULL " \
-        f"AND s_id IS NOT NULL " \
-        f"AND {predict_type} IS NOT NULL " \
-        f"AND post_time >= '{start_time}' " \
-        f"AND post_time <= '{end_time}';"
-
-    return q
-
-def get_batch_by_timedelta(schema, predict_type, table,
-                           begin_date: datetime, last_date: datetime,
-                           interval: timedelta = timedelta(hours=6),
-                           site_input: Optional[Dict] = None):
-    while begin_date <= last_date:
-        try:
-            connection = connect_database(schema=schema, site_input=site_input)
-        except Exception as e:
-            return str(e), begin_date
-
-
-        if begin_date + interval > last_date:
-
-            break
-
-        else:
-            start_date_interval = begin_date + interval
-            cursor = connection.cursor()
-
-            cursor.execute(get_timedelta_query(predict_type, table, begin_date, start_date_interval))
-            result = to_dataframe(cursor.fetchall())
-            yield result, begin_date
-            begin_date += interval
-            connection.close()
-
-def check_state_result_for_task_info(task_id: str, schema: str):
-    connection = connect_database(schema=schema, output=True)
-    sql = f"""select result,rate_of_label from state where task_id = "{task_id}";"""
-
-    cursor = connection.cursor()
-    cursor.execute(sql)
-    result = cursor.fetchone()
-    connection.close()
-
-    if ',' in result.get('result'):
-        return result.get('rate_of_label')
-    else:
-        return None
-
-def check_state_prod_length_for_task_info(task_id: str, schema: str):
-    connection = connect_database(schema=schema, output=True)
-    sql = f"""select result,length_prod_table from state where task_id = "{task_id}";"""
-
-    cursor = connection.cursor()
-    cursor.execute(sql)
-    result = cursor.fetchone()
-    connection.close()
-
-    if ',' in result.get('result'):
-        return result.get('length_prod_table')
-    else:
-        return None
-
-
-def check_state_exist(logger):
-    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
-    _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-    if 'state' not in _exist_tables:
-        create_state_table(logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
-    engine.close()
-
-def alter_column_type(schema: str, table_name: str, column_name: str, datatype: str) -> None:
-    q = f"""ALTER TABLE {table_name} MODIFY {column_name} {datatype};"""
-    connection = connect_database(schema, output=True)
-    cur = connection.cursor()
-    cur.execute(q)
-    connection.close()
-
-
-def send_break_signal_to_state(task_id: str, schema: str = 'audience_result') -> None:
-    connection = connect_database(schema=schema, output=True)
-    insert_sql = f'UPDATE state ' \
-                 f'SET stat = "BREAK" ' \
-                 f'where task_id = "{task_id}"'
-    try:
-        cursor = connection.cursor()
-        cursor.execute(insert_sql)
-        connection.commit()
-        connection.close()
-    except Exception as e:
-        raise e
-
-def check_break_status(task_id: str,
-                       schema: str = 'audience_result'):
-    connection = connect_database(schema=schema, output=True)
-    sql = f"""select stat from state where task_id = '{task_id}'"""
-
-    try:
-        cursor = connection.cursor()
-        cursor.execute(sql)
-        result = cursor.fetchone()
-        return result['stat']
-    except Exception as e:
-        raise e
-    finally:
-        connection.close()
+#
+# def create_state_table(logger: get_logger, schema=None):
+#     insert_sql = f'CREATE TABLE IF NOT EXISTS `state`(' \
+#                  f'`task_id` VARCHAR(32) NOT NULL,' \
+#                  f'`stat` VARCHAR(32) NOT NULL,' \
+#                  f'`prod_stat` VARCHAR (10),' \
+#                  f'`model_type` VARCHAR(32) NOT NULL,' \
+#                  f'`predict_type` VARCHAR(32) NOT NULL,' \
+#                  f'`date_range` TEXT,' \
+#                  f'`target_table` VARCHAR(32) NOT NULL,' \
+#                  f'`create_time` DATETIME NOT NULL,' \
+#                  f'`peak_memory` FLOAT(10),' \
+#                  f'`length_receive_table` INT(11),' \
+#                  f'`length_output_table` INT(11),' \
+#                  f'`length_prod_table` VARCHAR (100),' \
+#                  f'`result` TEXT,' \
+#                  f'`uniq_source_author` VARCHAR(100),' \
+#                  f'`rate_of_label` INT(11),' \
+#                  f'`run_time` FLOAT(10),' \
+#                  f'`check_point` DATETIME,' \
+#                  f'`error_message` LONGTEXT' \
+#                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
+#                  f'AUTO_INCREMENT=1 ;'
+#     func = connect_database
+#     try:
+#         with func(schema, output=True).cursor() as cursor:
+#             logger.info('connecting to database...')
+#             logger.info('creating table...')
+#             cursor.execute(insert_sql)
+#             func(schema, output=True).close()
+#             logger.info(f'successfully created table.')
+#     except Exception as e:
+#         logger.error(e)
+#         raise e

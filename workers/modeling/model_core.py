@@ -10,7 +10,7 @@ from utils.data_helper import get_term_weights_objects
 from utils.helper import get_logger
 
 from utils.selections import ModelTaskStatus, DatasetType, TableRecord
-from workers.orm_core import ORMWorker
+from workers.orm_core.model_orm_core import ModelORM
 
 
 class ModelingWorker(PreprocessInterface):
@@ -21,7 +21,7 @@ class ModelingWorker(PreprocessInterface):
     """
     def __init__(self, model_name: str, predict_type: str,
                  dataset_number: int = None, dataset_schema: str = None,
-                 orm_cls: ORMWorker = None, logger_name: str = 'modeling',
+                 orm_cls: ModelORM = None, logger_name: str = 'modeling',
                  verbose: bool = False, **model_information):
         super().__init__(model_name=model_name, predict_type=predict_type,
                          dataset_number=dataset_number, dataset_schema=dataset_schema,
@@ -33,7 +33,7 @@ class ModelingWorker(PreprocessInterface):
         self.dataset_schema = dataset_schema
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_information = model_information
-        self.orm_cls = orm_cls if orm_cls else ORMWorker(echo=verbose)
+        self.orm_cls = orm_cls if orm_cls else ModelORM(echo=verbose)
 
     def run_task(self, task_id: str, job_id: int = None) -> None:
 
@@ -42,7 +42,7 @@ class ModelingWorker(PreprocessInterface):
 
         try:
             if self.orm_cls.session.query(ms).filter(ms.job_id == job_id).first():
-                self.orm_cls.delete_record(model_job_id=job_id)
+                self.orm_cls.model_delete_record(model_job_id=job_id)
             self.add_task_info(task_id=task_id, job_id=job_id, ext_test=False)
 
             self.logger.info(f"start modeling task: {task_id}")

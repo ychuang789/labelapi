@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from celery_worker import preparing, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
-from workers.orm_core import ORMWorker
+from workers.orm_core.model_orm_core import ModelORM
 
 router = APIRouter(prefix='/model',
                    tags=['model'],
@@ -49,9 +49,9 @@ def model_testing(testing_config: ModelingTestingConfig):
 
 @router.get('/{model_job_id}')
 def model_status(model_job_id: int):
-    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        err_msg = conn.get_status(model_job_id=model_job_id)
+        err_msg = conn.model_get_status(model_job_id=model_job_id)
         result = {c.name: (getattr(err_msg, c.name) if not isinstance(getattr(err_msg, c.name), datetime)
                                       else getattr(err_msg,c.name).strftime("%Y-%m-%d %H:%M:%S"))
                              for c in err_msg.__table__.columns}
@@ -66,9 +66,9 @@ def model_status(model_job_id: int):
 
 @router.get('/{model_job_id}/report/')
 def model_report(model_job_id):
-    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        err_msg = conn.get_report(model_job_id=model_job_id)
+        err_msg = conn.model_get_report(model_job_id=model_job_id)
 
         result = []
         for err in err_msg:
@@ -95,9 +95,9 @@ def model_report(model_job_id):
 @router.post('/abort/')
 def model_abort(abort_request_body: ModelingAbort):
     model_job_id = abort_request_body.MODEL_JOB_ID
-    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        msg = conn.status_changer(model_job_id=model_job_id)
+        msg = conn.model_status_changer(model_job_id=model_job_id)
         err_msg = f'{model_job_id} is successfully aborted, additional message: {msg}'
     except Exception as e:
         err_msg = f'{model_job_id} abortion is failed since {e}'
@@ -109,9 +109,9 @@ def model_abort(abort_request_body: ModelingAbort):
 @router.delete('/delete/')
 def model_delete(deletion: ModelingDelete):
     delete_model_job_id = deletion.MODEL_JOB_ID
-    conn = ORMWorker(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        msg = conn.delete_record(model_job_id=delete_model_job_id)
+        msg = conn.model_delete_record(model_job_id=delete_model_job_id)
         err_msg = f'{delete_model_job_id} is successfully deleted, additional message: {msg}'
     except Exception as e:
         err_msg = f'{delete_model_job_id} deletion is failed since {e}'

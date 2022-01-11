@@ -1,9 +1,7 @@
 from typing import Dict
-from utils.database_core import connect_database, get_label_source_from_state, \
-    check_state_result_for_task_info, check_state_prod_length_for_task_info
 from utils.helper import get_logger
-from utils.selections import TableRecord, PredictingProgressStatus
-from workers.orm_core import ORMWorker
+from utils.selections import TableRecord, PredictTaskStatus
+from workers.orm_core.model_orm_core import ModelORM
 
 
 class TaskInfo(object):
@@ -13,7 +11,7 @@ class TaskInfo(object):
         self.table = table
         self.row_count = row_count
         self.logger = logger
-        self.orm_cls = orm_cls if orm_cls else ORMWorker()
+        self.orm_cls = orm_cls if orm_cls else ModelORM()
         self.state = self.orm_cls.table_cls_dict.get(TableRecord.state.value)
         self.result = self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).first()
 
@@ -49,7 +47,7 @@ class TaskInfo(object):
 
 
         _task_info_statement = {
-            self.state.prod_stat : PredictingProgressStatus.PROD_SUCCESS.value,
+            self.state.prod_stat : PredictTaskStatus.PROD_SUCCESS.value,
             self.state.length_prod_table: new_length_prod_table,
             self.state.rate_of_label : new_rate_of_label
         }
@@ -61,31 +59,6 @@ class TaskInfo(object):
         self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).update(kwargs)
         self.orm_cls.session.commit()
 
-        # task_id = kwargs.get('task_id')
-        # # input_data_size = kwargs.get('input_data_size')
-        # length_prod_table = kwargs.get('length_prod_table')
-        # # max_memory_usage = kwargs.get('max_memory_usage')
-        # # run_time = kwargs.get('run_time')
-        # rate_of_label = kwargs.get('rate_of_label')
-        #
-        #
-        # update_sql = f'UPDATE state ' \
-        #              f'SET prod_stat = "finish", ' \
-        #              f'length_prod_table = "{length_prod_table}", ' \
-        #              f'rate_of_label = "{rate_of_label}" ' \
-        #              f'where task_id = "{task_id}"'
-        #
-        # try:
-        #     _connection = connect_database(schema, output=True)
-        #     cursor = _connection.cursor()
-        #     cursor.execute(update_sql)
-        #     _connection.commit()
-        #     _connection.close()
-        #     logger.info(f'successfully write into table state.')
-        #
-        # except Exception as e:
-        #     logger.error(e)
-        #     raise e
 
     def get_source_distinct_count(self):
 
@@ -94,21 +67,6 @@ class TaskInfo(object):
                   if c.name in ['result', 'uniq_source_author']}
         return output
 
-        # q = f"""select result,uniq_source_author from state where task_id = "{task_id}";"""
-        #
-        # try:
-        #     _connection = connect_database(schema, output=True)
-        #     cursor = _connection.cursor()
-        #     cursor.execute(q)
-        #     source_distinct_count_str_wiht_result = cursor.fetchone()
-        #     _connection.close()
-        #     logger.info(f'successfully get uniq_source_author number from table state.')
-        #
-        # except Exception as e:
-        #     logger.error(e)
-        #     raise e
-        #
-        # return source_distinct_count_str_wiht_result
 
     def _check_state_result_for_task_info(self):
 

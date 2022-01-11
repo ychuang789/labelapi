@@ -2,8 +2,8 @@ from celery import Celery
 from dump.groups.dump_core import DumpWorker
 
 from utils.helper import get_logger, get_config
-from workers.model_core import ModelingWorker
-from workers.predict_core import PredictWorker
+from workers.modeling.model_core import ModelingWorker
+from workers.predicting.predict_core import PredictWorker
 
 
 configuration = get_config()

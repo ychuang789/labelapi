@@ -1,9 +1,5 @@
-
-from unittest import TestCase
-
 from settings import LABEL
 from utils.run_label_task import read_from_dir
-from workers.predict_core import PredictWorker
 
 pattern = read_from_dir('keyword_model', 'author_name')
 inv = {v: k for k, v in LABEL.items()}

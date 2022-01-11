@@ -102,3 +102,5 @@ def uuid_validator(uuid_str: str) -> bool:
         return False
     except ValueError:
         return False
+    except Exception:
+        return False

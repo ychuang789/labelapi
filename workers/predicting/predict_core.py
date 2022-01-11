@@ -8,16 +8,17 @@ from utils.clean_up_result import run_cleaning
 from utils.database_core import get_batch_by_timedelta, create_table
 from utils.helper import get_logger
 from utils.input_example import InputExample
-from workers.model_core import ModelingWorker
-from utils.selections import PredictTarget, TableRecord, PredictingProgressStatus
-from workers.orm_core import ORMWorker
-from workers.production_core import TaskGenerateOutput
-from workers.production_info_core import TaskInfo
+from workers.modeling.model_core import ModelingWorker
+from utils.selections import PredictTarget, TableRecord, PredictTaskStatus
+from workers.orm_core.model_orm_core import ModelORM
+from workers.orm_core.predict_orm_core import PredictORM
+from workers.predicting.production_core import TaskGenerateOutput
+from workers.predicting.production_info_core import TaskInfo
 
 
 class PredictWorker():
 
-    def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', orm_cls: ORMWorker = None,verbose = False, **kwargs):
+    def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', orm_cls: ModelORM = None, verbose = False, **kwargs):
         self.task_id = task_id
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_job_list = model_job_list
@@ -29,7 +30,7 @@ class PredictWorker():
         self.count = 0
         self.row_number = 0
         self.start_time = datetime.now()
-        self.orm_cls = orm_cls if orm_cls else ORMWorker(echo=verbose, pool_size=0, max_overflow=-1)
+        self.orm_cls = orm_cls if orm_cls else PredictORM(echo=verbose, pool_size=0, max_overflow=-1)
         self.state = self.orm_cls.table_cls_dict.get(TableRecord.state.value)
         self.model_information = self.get_jobs_ids()
 
@@ -51,7 +52,7 @@ class PredictWorker():
 
             if isinstance(element, str):
                 change_status = {
-                    self.state.stat: PredictingProgressStatus.FAILURE.value,
+                    self.state.stat: PredictTaskStatus.FAILURE.value,
                     self.state.check_point: date_checkpoint,
                     self.state.error_message: elements
                 }
@@ -91,7 +92,7 @@ class PredictWorker():
 
             except Exception as e:
                 change_status = {
-                    self.state.stat: PredictingProgressStatus.FAILURE.value,
+                    self.state.stat: PredictTaskStatus.FAILURE.value,
                     self.state.check_point: date_checkpoint,
                     self.state.error_message: e
                 }
@@ -103,7 +104,7 @@ class PredictWorker():
                 raise e
 
         change_status = {
-            self.state.stat: PredictingProgressStatus.SUCCESS.value,
+            self.state.stat: PredictTaskStatus.SUCCESS.value,
             self.state.result: ','.join(self.table_dict.keys()),
             self.state.length_receive_table: self.count,
             self.state.length_output_table: self.row_number,
@@ -120,7 +121,7 @@ class PredictWorker():
 
         if len(list(self.table_dict.keys())) == 0:
             change_status = {
-                self.state.prod_stat: PredictingProgressStatus.PROD_NODATA.value
+                self.state.prod_stat: PredictTaskStatus.PROD_NODATA.value
             }
             self._update_state(change_status)
             return
@@ -285,7 +286,7 @@ class PredictWorker():
     def add_task_info(self):
         self.orm_cls.session.add(self.state(
             task_id=self.task_id,
-            stat=PredictingProgressStatus.PENDING.value,
+            stat=PredictTaskStatus.PENDING.value,
             model_type=self.task_info.get('MODEL_TYPE'),
             predict_type=self.task_info.get('PREDICT_TYPE'),
             date_range= f"{self.start_date.strftime('%Y-%m-%d')} - {self.end_date.strftime('%Y-%m-%d')}",
