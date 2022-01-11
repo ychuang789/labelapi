@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 
-from apis import modeling, predicting
+from apis import modeling_api, predicting_api
 from utils.helper import get_logger, get_config
 
 configuration = get_config()
@@ -37,8 +37,8 @@ app = FastAPI(title=configuration.API_TITLE,
               # dependencies=[Depends(get_query_token)]
               )
 
-app.include_router(predicting.router)
-app.include_router(modeling.router)
+app.include_router(predicting_api.router)
+app.include_router(modeling_api.router)
 
 
 if __name__ == '__main__':

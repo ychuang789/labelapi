@@ -157,7 +157,7 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
     df.rename(columns={'post_time': 'create_time'}, inplace=True)
     df['source_author'] = df['s_id'] + '_' + df['author']
     df['field_content'] = df['s_id']
-    if predict_type == PredictTarget.AUTHOR_NAME.value:
+    if predict_type == PredictTarget.AUTHOR.value:
         df['match_content'] = df['author']
     else:
         df['match_content'] = df[predict_type]

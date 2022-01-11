@@ -52,7 +52,7 @@ class TestRuleBaseModel(TestCase):
     def test_predict_name(self):
 
         label = "female"
-        rs, prob = self.name_rule_base_model.predict([input_young], target=PredictTarget.AUTHOR_NAME.value)
+        rs, prob = self.name_rule_base_model.predict([input_young], target=PredictTarget.AUTHOR.value)
         self.assertTrue(label in rs[0])
 
     def test_predict_source(self):
@@ -66,7 +66,7 @@ class TestRuleBaseModel(TestCase):
 class TestKeyWordBaseModel(TestCase):
     model_dir = '0_rules'
     source_rules = {"female": [("woman_talk", KeywordMatchType.END), ("_talk", KeywordMatchType.PARTIALLY)]}
-    patterns = read_from_dir(ModelType.KEYWORD_MODEL.value, PredictTarget.AUTHOR_NAME.value)
+    patterns = read_from_dir(ModelType.KEYWORD_MODEL.value, PredictTarget.AUTHOR.value)
 
     def test_predict_source(self):
 

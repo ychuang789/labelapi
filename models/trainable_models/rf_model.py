@@ -20,7 +20,7 @@ class RandomForestModel(SupervisedModel):
         self.available_features = {
             PredictTarget.TITLE,
             PredictTarget.CONTENT,
-            PredictTarget.AUTHOR_NAME,
+            PredictTarget.AUTHOR,
         }
         self.vectorizer = None
         self.is_multi_label = is_multi_label

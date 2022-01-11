@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Dict, Optional, List
 
 import pandas as pd
-from sqlalchemy import create_engine
 
 from settings import DatabaseConfig, SOURCE, LABEL
 from utils.clean_up_result import run_cleaning
@@ -30,15 +29,12 @@ class PredictWorker():
         self.count = 0
         self.row_number = 0
         self.start_time = datetime.now()
-        # self.model_information = DBConnection.execute_query(query=QueryManager.get_model_job_ids(model_job_list),
-        #                                                     single=True if len(model_job_list) == 1 else False,
-        #                                                     **ConnectionConfigGenerator.rd2_database(DatabaseConfig.OUTPUT_SCHEMA))
         self.orm_cls = orm_cls if orm_cls else ORMWorker(echo=verbose, pool_size=0, max_overflow=-1)
         self.state = self.orm_cls.table_cls_dict.get(TableRecord.state.value)
         self.model_information = self.get_jobs_ids()
 
     def run_task(self):
-        # TODO: refactor with orm
+
         if not self.break_checker():
             return
 
@@ -54,14 +50,12 @@ class PredictWorker():
             element, date_checkpoint = elements
 
             if isinstance(element, str):
-                change_config = {
+                change_status = {
                     self.state.stat: PredictingProgressStatus.FAILURE.value,
                     self.state.check_point: date_checkpoint,
                     self.state.error_message: elements
                 }
-                self._update_state(change_config)
-                # update2state(self.task_id, '', self.logger, schema=DatabaseConfig.OUTPUT_SCHEMA, success=False,
-                #              check_point=date_checkpoint, error_message=elements)
+                self._update_state(change_status)
                 return
 
             if not self.break_checker():
@@ -71,12 +65,12 @@ class PredictWorker():
                 continue
 
             # change the `author` back to `author_name` to fit the label modeling
-            pred = "author_name" if self.task_info.get('PREDICT_TYPE') == "author" else self.task_info.get('PREDICT_TYPE')
+            # pred = "author_name" if self.task_info.get('PREDICT_TYPE') == "author" else self.task_info.get('PREDICT_TYPE')
 
             self.count += len(element)
 
             try:
-                _output, row_num = self.data_labeler(element, pred, self.task_info.get('PATTERN'))
+                _output, row_num = self.data_labeler(element, self.task_info.get('PREDICT_TYPE'), self.task_info.get('PATTERN'))
 
                 self.row_number += row_num
 
@@ -87,39 +81,28 @@ class PredictWorker():
                         self.table_dict.update({k: v})
 
                 if self.table_dict:
-                    change_config = {
+                    change_status = {
                         self.state.result: ','.join(self.table_dict.keys()),
                     }
-                    self._update_state(change_config)
-
-                    # update2state_temp_result_table(self.task_id,
-                    #                                DatabaseConfig.OUTPUT_SCHEMA,
-                    #                                ','.join(self.table_dict.keys()),
-                    #                                self.logger)
+                    self._update_state(change_status)
 
                 self.logger.info(f'task {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.'
                              f'{self.task_info.get("INPUT_TABLE")}_batch_{idx} finished labeling...')
 
             except Exception as e:
-                change_config = {
+                change_status = {
                     self.state.stat: PredictingProgressStatus.FAILURE.value,
                     self.state.check_point: date_checkpoint,
                     self.state.error_message: e
                 }
-                self._update_state(change_config)
-
-                # update2state(self.task_id, '', self.logger,
-                #              schema=DatabaseConfig.OUTPUT_SCHEMA,
-                #              success=False,
-                #              check_point=date_checkpoint,
-                #              error_message=e)
+                self._update_state(change_status)
 
                 err_msg = f'task {self.task_id} failed at {self.task_info.get("INPUT_SCHEMA")}.' \
                           f'{self.task_info.get("INPUT_TABLE")}_batch_{idx}, additional error message {e}'
                 self.logger.error(err_msg)
                 raise e
 
-        change_config = {
+        change_status = {
             self.state.stat: PredictingProgressStatus.SUCCESS.value,
             self.state.result: ','.join(self.table_dict.keys()),
             self.state.length_receive_table: self.count,
@@ -128,22 +111,18 @@ class PredictWorker():
             self.state.run_time: (datetime.now() - self.start_time).total_seconds() / 60
 
         }
-        self._update_state(change_config)
+        self._update_state(change_status)
         self.logger.info(
             f'task {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.{self.task_info.get("INPUT_TABLE")} done.')
-        # update2state(self.task_id, ','.join(self.table_dict.keys()), self.logger, self.count, self.row_number, finish_time,
-        #              schema=DatabaseConfig.OUTPUT_SCHEMA,
-        #              uniq_source_author=','.join([str(len(i)) for i in self.table_dict.values()]))
 
         if not self.break_checker():
             return
 
         if len(list(self.table_dict.keys())) == 0:
-            change_config = {
+            change_status = {
                 self.state.prod_stat: PredictingProgressStatus.PROD_NODATA.value
             }
-            self._update_state(change_config)
-            # update2state_nodata(self.task_id, DatabaseConfig.OUTPUT_SCHEMA, self.logger)
+            self._update_state(change_status)
             return
 
         self.data_generator(list(self.table_dict.keys()))
@@ -159,7 +138,7 @@ class PredictWorker():
         df.rename(columns={'post_time': 'create_time'}, inplace=True)
         df['source_author'] = df['s_id'] + '_' + df['author']
         df['field_content'] = df['s_id']
-        if predict_type == PredictTarget.AUTHOR_NAME.value:
+        if predict_type == PredictTarget.AUTHOR.value:
             df['match_content'] = df['author']
         else:
             df['match_content'] = df[predict_type]
@@ -170,9 +149,6 @@ class PredictWorker():
         df_output = _df_output.loc[_df_output['panel'] != '']
 
         self.logger.info(f'write the output into database ...')
-
-        # engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, pool_size=0, max_overflow=-1).connect()
-        # exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
 
         exist_tables = self.orm_cls.show_tables()
         result_table_dict = {}
@@ -192,7 +168,6 @@ class PredictWorker():
             _df_write = _df_write.replace({"panel": LABEL})
             _df_write['panel'] = '/' + _df_write['panel'].astype(str)
 
-            # _table_name= f'wh_panel_mapping_{k}'
             _table_name = k
             if _table_name not in exist_tables:
                 create_table(_table_name, self.logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
@@ -210,9 +185,7 @@ class PredictWorker():
             result_table_dict.update({_table_name: temp_unique_source_author_total})
 
             output_number_row += len(_df_write)
-        # engine.close()
 
-        # return result_table_list, output_number_row
         return result_table_dict, output_number_row
 
     def data_generator(self, output_table):
@@ -292,12 +265,6 @@ class PredictWorker():
         else:
             return True
 
-        # if check_break_status(self.task_id) == 'BREAK':
-        #     self.logger.info(f"task {self.task_id} is abort by the external user")
-        #     return False
-        # else:
-        #     return True
-
     def get_jobs_ids(self):
         ms = self.orm_cls.table_cls_dict.get(TableRecord.model_status.value)
         result = []
@@ -305,14 +272,6 @@ class PredictWorker():
             record = self.orm_cls.session.query(ms).filter(ms.job_id == i).first()
             result.append({c.name: getattr(record, c.name, None) for c in record.__table__.columns})
 
-        # connection = pymysql.connect(**ConnectionConfigGenerator.rd2_database("audience_result"))
-        # cursor = connection.cursor()
-        # cursor.execute(QueryManager.get_model_job_ids(self.model_job_list))
-        # if len(self.model_job_list) <= 1:
-        #     result = cursor.fetchone()
-        # else:
-        #     result = cursor.fetchall()
-        # connection.close()
         return result
 
     def _update_state(self,_config_dict: Dict):
@@ -322,3 +281,15 @@ class PredictWorker():
     def _dispose(self):
         self.orm_cls.session.close()
         self.orm_cls.dispose()
+
+    def add_task_info(self):
+        self.orm_cls.session.add(self.state(
+            task_id=self.task_id,
+            stat=PredictingProgressStatus.PENDING.value,
+            model_type=self.task_info.get('MODEL_TYPE'),
+            predict_type=self.task_info.get('PREDICT_TYPE'),
+            date_range= f"{self.start_date.strftime('%Y-%m-%d')} - {self.end_date.strftime('%Y-%m-%d')}",
+            target_schema=self.task_info.get('INPUT_SCHEMA'),
+            create_time=datetime.now()
+        ))
+        self.orm_cls.session.commit()

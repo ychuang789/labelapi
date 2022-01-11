@@ -1,17 +1,14 @@
 import uuid
-from datetime import datetime
 
-from fastapi import status, APIRouter, Depends
+from fastapi import status, APIRouter
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine
 
 from celery_worker import label_data, dump_result
-from settings import DatabaseConfig, TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
+from settings import TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
 from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
-    get_sample_query, create_state_table, insert2state, query_state_by_id, get_table_info, send_break_signal_to_state
+    get_sample_query, query_state_by_id, get_table_info, send_break_signal_to_state
 from utils.helper import get_logger
-from dependencies import get_token_header
 
 _logger = get_logger('label_API')
 
@@ -34,34 +31,39 @@ def create_task(create_request_body: TaskConfig):
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    try:
-        engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
-        _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
-        if 'state' not in _exist_tables:
-            create_state_table(_logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
-        engine.close()
-    except Exception as e:
-        err_info = {
-            "error_code": 503,
-            "error_message": f"cannot connect to output schema, additional error message: {e}"
-        }
-        _logger.error(err_info)
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+    # try:
+    #     engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
+    #     _exist_tables = [i[0] for i in engine.execute('SHOW TABLES').fetchall()]
+    #     if 'state' not in _exist_tables:
+    #         create_state_table(_logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
+    #     engine.close()
+    # except Exception as e:
+    #     err_info = {
+    #         "error_code": 503,
+    #         "error_message": f"cannot connect to output schema, additional error message: {e}"
+    #     }
+    #     _logger.error(err_info)
+    #     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-    if config.get('PREDICT_TYPE') == 'author_name':
-        config['PREDICT_TYPE'] = "author"
-    else:
-        pass
+    # if config.get('PREDICT_TYPE') == 'author_name':
+    #     config['PREDICT_TYPE'] = "author"
 
-    _logger.info('start labeling task flow ...')
+    # config.update({"date_range": f"{config.get('START_TIME')} - {config.get('END_TIME')}"})
+    # _logger.info('start labeling task flow ...')
+
     try:
         task_id = uuid.uuid1().hex
-        result = label_data.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
-        config.update({"date_range": f"{config.get('START_TIME')} - {config.get('END_TIME')}"})
-        insert2state(task_id, result.state, config.get('MODEL_TYPE'), config.get('PREDICT_TYPE'),
-                     config.get('date_range'), config.get('INPUT_SCHEMA'), datetime.now(), "",
-                     _logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
+        label_data.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
+        # insert2state(task_id, result.state, config.get('MODEL_TYPE'), config.get('PREDICT_TYPE'),
+        #              config.get('date_range'), config.get('INPUT_SCHEMA'), datetime.now(), "",
+        #              _logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
+        config.update({"task_id": task_id})
 
+        err_info = {
+            "error_code": 200,
+            "error_message": config
+        }
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
     except Exception as e:
         err_info = {
             "error_code": 500,
@@ -69,14 +71,6 @@ def create_task(create_request_body: TaskConfig):
         }
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-
-    config.update({"task_id": task_id})
-
-    err_info = {
-        "error_code": 200,
-        "error_message": config
-    }
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @router.get('/', description="Return a subset of task_id and task_info, "
                                     "you can pick a 'SUCCESS' task_id and get it's ")

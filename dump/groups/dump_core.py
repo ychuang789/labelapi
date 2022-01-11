@@ -37,7 +37,6 @@ class DumpWorker(IGroups):
 
         if isinstance(self.id_list[0], int):
             task_ids = [v for item in self.get_site_ids() for v in item.values()]
-
         elif isinstance(self.id_list[0], str):
             task_ids = self.id_list
         else:

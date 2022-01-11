@@ -21,7 +21,7 @@ class RuleBaseModel(ABC):
         self.model_dir_name = model_dir_name
         self.model_type = model_type
         self.case_sensitive = case_sensitive
-        self.target = feature
+        self.target = feature if isinstance(feature, PredictTarget) else PredictTarget(feature)
         self.logger = get_logger(logger_name, verbose=verbose)
 
     @abstractmethod

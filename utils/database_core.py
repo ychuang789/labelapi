@@ -12,14 +12,6 @@ from sqlalchemy import create_engine as C
 from utils.helper import get_logger
 from settings import DatabaseConfig
 
-
-def create_db(db_path, config_db):
-    if os.path.exists(f'../{db_path}'):
-        pass
-    else:
-        engine = create_engine(f'{config_db}', encoding='utf-8')
-        SQLModel.metadata.create_all(engine)
-
 @retry(tries=5, delay=3)
 def connect_database(schema = None, output = False, site_input: Optional[Dict] = None):
     if site_input:
@@ -58,7 +50,6 @@ def connect_database(schema = None, output = False, site_input: Optional[Dict] =
                 'cursorclass': pymysql.cursors.DictCursor
             }
 
-
     try:
         connection = pymysql.connect(**_config)
         return connection
@@ -66,7 +57,6 @@ def connect_database(schema = None, output = False, site_input: Optional[Dict] =
     except Exception as e:
         logging.error('Fail to connect to database.')
         raise e
-
 
 def to_dataframe(data):
     return pd.DataFrame.from_dict(data)
@@ -78,49 +68,6 @@ def scrap_data_to_dict(query: str, schema: str):
     result = cur.fetchall()
     connection.close()
     return result
-
-
-
-# def get_label_data_count(task_id):
-#     connection = C(Database.OUTPUT_ENGINE_INFO).connect()
-#     q = f'SELECT length_output_table FROM state where task_id = "{task_id}";'
-#     _count = connection.execute(q).fetchone()[0]
-#     connection.close()
-#     return _count
-
-
-# def get_data_by_batch(count, predict_type, batch_size,
-#                       schema, table, date_info = False, **kwargs) -> pd.DataFrame:
-#
-#     if not date_info:
-#         # if not chunk_by_source:
-#         for offset in range(0, count, batch_size):
-#             func = connect_database
-#             with func(schema=schema).cursor() as cursor:
-#                 q = f"SELECT * FROM {table} " \
-#                     f"WHERE {predict_type} IS NOT NULL " \
-#                     f"LIMIT {batch_size} OFFSET {offset}"
-#                 cursor.execute(q)
-#                 result = to_dataframe(cursor.fetchall())
-#                 yield result
-#                 func(schema=schema).close()
-#
-#     else:
-#         # if not chunk_by_source:
-#         for offset in range(0, count, batch_size):
-#             func = connect_database
-#             with func(schema=schema).cursor() as cursor:
-#                 q = f"SELECT * FROM {table} " \
-#                     f"WHERE {predict_type} IS NOT NULL " \
-#                     f"AND post_time >= '{kwargs.get('start_time')}' " \
-#                     f"AND post_time <= '{kwargs.get('end_time')}' "\
-#                     f"LIMIT {batch_size} OFFSET {offset}"
-#                 cursor.execute(q)
-#                 result = to_dataframe(cursor.fetchall())
-#                 yield result
-#                 func(schema=schema).close()
-
-
 
 def create_table(table_ID: str, logger: get_logger, schema=None):
     insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_ID}`(' \
@@ -181,94 +128,94 @@ def create_state_table(logger: get_logger, schema=None):
 
 
 
-def insert2state(task_id, status, model_type, predict_type,
-                 date_range, target_table, time, result,
-                 logger: get_logger, schema=None):
+# def insert2state(task_id, status, model_type, predict_type,
+#                  date_range, target_table, time, result,
+#                  logger: get_logger, schema=None):
+#
+#     connection = connect_database(schema=schema, output=True)
+#
+#     insert_sql = f'INSERT INTO state ' \
+#                  f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
+#                  f'VALUES (' \
+#                  f'"{task_id}", ' \
+#                  f'"{status}", ' \
+#                  f'"{model_type}", ' \
+#                  f'"{predict_type}", ' \
+#                  f'"{date_range}", ' \
+#                  f'"{target_table}", ' \
+#                  f'"{time}", ' \
+#                  f'"{result}");'
+#     try:
+#         cursor = connection.cursor()
+#         logger.info('connecting to database...')
+#         cursor.execute(insert_sql)
+#         logger.info(f'successfully insert state into table.')
+#         connection.commit()
+#         connection.close()
+#     except Exception as e:
+#         raise e
 
-    connection = connect_database(schema=schema, output=True)
-
-    insert_sql = f'INSERT INTO state ' \
-                 f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
-                 f'VALUES (' \
-                 f'"{task_id}", ' \
-                 f'"{status}", ' \
-                 f'"{model_type}", ' \
-                 f'"{predict_type}", ' \
-                 f'"{date_range}", ' \
-                 f'"{target_table}", ' \
-                 f'"{time}", ' \
-                 f'"{result}");'
-    try:
-        cursor = connection.cursor()
-        logger.info('connecting to database...')
-        cursor.execute(insert_sql)
-        logger.info(f'successfully insert state into table.')
-        connection.commit()
-        connection.close()
-    except Exception as e:
-        raise e
-
-def update2state_temp_result_table(task_id, schema, result, logger: get_logger):
-    connection = connect_database(schema=schema, output=True)
-    insert_sql = f'UPDATE state ' \
-                 f'SET result = "{result}" ' \
-                 f'where task_id = "{task_id}"'
-    try:
-        cursor = connection.cursor()
-        logger.info('connecting to database...')
-        cursor.execute(insert_sql)
-        logger.info(f'successfully write state into table.')
-        connection.commit()
-        connection.close()
-    except Exception as e:
-        raise e
-
-def update2state_nodata(task_id, schema, logger: get_logger):
-    connection = connect_database(schema=schema, output=True)
-    insert_sql = f'UPDATE state ' \
-                 f'SET prod_stat = "no_data" ' \
-                 f'where task_id = "{task_id}"'
-    try:
-        cursor = connection.cursor()
-        logger.info('connecting to database...')
-        cursor.execute(insert_sql)
-        logger.info(f'successfully write state into table.')
-        connection.commit()
-        connection.close()
-    except Exception as e:
-        raise e
-
-def update2state(task_id, result, logger: get_logger, input_row_length = None,
-                 output_row_length = None, run_time=None, schema=None, success=True,
-                 check_point=None, uniq_source_author=None, error_message=None):
-
-    connection = connect_database(schema=schema, output=True)
-    if success:
-        insert_sql = f'UPDATE state ' \
-                     f'SET stat = "SUCCESS", result = "{result}", ' \
-                     f'uniq_source_author = "{uniq_source_author}", ' \
-                     f'length_receive_table = {input_row_length}, ' \
-                     f'length_output_table = {output_row_length}, ' \
-                     f'run_time = {run_time} ' \
-                     f'where task_id = "{task_id}"'
-    else:
-        insert_sql = f'UPDATE state ' \
-                     f'SET stat = "FAILURE", ' \
-                     f'result = "{result}", ' \
-                     f'check_point = "{check_point}", ' \
-                     f'error_message = "{error_message}"' \
-                     f'where task_id = "{task_id}"'
-
-
-    try:
-        cursor = connection.cursor()
-        logger.info('connecting to database...')
-        cursor.execute(insert_sql)
-        logger.info(f'successfully write state into table.')
-        connection.commit()
-        connection.close()
-    except Exception as e:
-        raise e
+# def update2state_temp_result_table(task_id, schema, result, logger: get_logger):
+#     connection = connect_database(schema=schema, output=True)
+#     insert_sql = f'UPDATE state ' \
+#                  f'SET result = "{result}" ' \
+#                  f'where task_id = "{task_id}"'
+#     try:
+#         cursor = connection.cursor()
+#         logger.info('connecting to database...')
+#         cursor.execute(insert_sql)
+#         logger.info(f'successfully write state into table.')
+#         connection.commit()
+#         connection.close()
+#     except Exception as e:
+#         raise e
+#
+# def update2state_nodata(task_id, schema, logger: get_logger):
+#     connection = connect_database(schema=schema, output=True)
+#     insert_sql = f'UPDATE state ' \
+#                  f'SET prod_stat = "no_data" ' \
+#                  f'where task_id = "{task_id}"'
+#     try:
+#         cursor = connection.cursor()
+#         logger.info('connecting to database...')
+#         cursor.execute(insert_sql)
+#         logger.info(f'successfully write state into table.')
+#         connection.commit()
+#         connection.close()
+#     except Exception as e:
+#         raise e
+#
+# def update2state(task_id, result, logger: get_logger, input_row_length = None,
+#                  output_row_length = None, run_time=None, schema=None, success=True,
+#                  check_point=None, uniq_source_author=None, error_message=None):
+#
+#     connection = connect_database(schema=schema, output=True)
+#     if success:
+#         insert_sql = f'UPDATE state ' \
+#                      f'SET stat = "SUCCESS", result = "{result}", ' \
+#                      f'uniq_source_author = "{uniq_source_author}", ' \
+#                      f'length_receive_table = {input_row_length}, ' \
+#                      f'length_output_table = {output_row_length}, ' \
+#                      f'run_time = {run_time} ' \
+#                      f'where task_id = "{task_id}"'
+#     else:
+#         insert_sql = f'UPDATE state ' \
+#                      f'SET stat = "FAILURE", ' \
+#                      f'result = "{result}", ' \
+#                      f'check_point = "{check_point}", ' \
+#                      f'error_message = "{error_message}"' \
+#                      f'where task_id = "{task_id}"'
+#
+#
+#     try:
+#         cursor = connection.cursor()
+#         logger.info('connecting to database...')
+#         cursor.execute(insert_sql)
+#         logger.info(f'successfully write state into table.')
+#         connection.commit()
+#         connection.close()
+#     except Exception as e:
+#         raise e
 
 
 def drop_table(table_name: str, logger: get_logger, schema=None) :
@@ -287,21 +234,21 @@ def drop_table(table_name: str, logger: get_logger, schema=None) :
         raise e
 
 
-def get_create_task_query(target_table, predict_type, start_time, end_time, get_all = False):
+# def get_create_task_query(target_table, predict_type, start_time, end_time, get_all = False):
+#
+#     if not get_all:
+#         q = f"SELECT * FROM {target_table} " \
+#             f"WHERE {predict_type} IS NOT NULL " \
+#             f"AND post_time >= '{start_time}'" \
+#             f"AND post_time <= '{end_time}'"
+#     else:
+#         q = f"SELECT * FROM {target_table} " \
+#             f"WHERE {predict_type} IS NOT NULL"
+#
+#     return q
 
-    if not get_all:
-        q = f"SELECT * FROM {target_table} " \
-            f"WHERE {predict_type} IS NOT NULL " \
-            f"AND post_time >= '{start_time}'" \
-            f"AND post_time <= '{end_time}'"
-    else:
-        q = f"SELECT * FROM {target_table} " \
-            f"WHERE {predict_type} IS NOT NULL"
-
-    return q
-
-def get_count_query():
-    return 'SELECT COUNT(task_id) FROM celery_taskmeta'
+# def get_count_query():
+#     return 'SELECT COUNT(task_id) FROM celery_taskmeta'
 
 def get_tasks_query_recent(order_column, number):
     q = f'SELECT * FROM state ' \

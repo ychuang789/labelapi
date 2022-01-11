@@ -45,7 +45,7 @@ class ModelType(Enum):
     TERM_WEIGHT_MODEL = "term_weight_model"
 
 class PredictTarget(Enum):
-    AUTHOR_NAME = "author_name"
+    AUTHOR = "author"
     CONTENT = "content"
     S_AREA_ID = "s_area_id"
     TITLE = "title"
