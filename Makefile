@@ -34,3 +34,6 @@ run_api:
 
 run_tasks:
 	@eval "python run_task_cli.py --file $(DB_NAME_FILE) --number_of_queue $(NUMBER_OF_QUEUE) --year $(YEAR)"
+
+test_api:
+	@eval "pytest tests/api/"

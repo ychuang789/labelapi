@@ -16,13 +16,7 @@ class TestConnection(TestCase):
         query = QueryManager.get_state_query(**kw)
         result = DBConnection.execute_query(query=query, single=True,
                                             **ConnectionConfigGenerator.rd2_database(schema="audience_result"))
-        self.assertEqual(task_id, result['task_id'])
-
-    def test_multi_response(self):
-        query = QueryManager.get_state_query + " where create_time > '2021-12-20 00:00:00' and create_time < '2021-12-22 00:00:00'"
-        result = DBConnection.execute_query(query=query,
-                                            **ConnectionConfigGenerator.rd2_database(schema="audience_result"))
-        self.assertIsInstance(result, List)
+        self.assertEqual(kw['task_id'], result['task_id'])
 
 
 

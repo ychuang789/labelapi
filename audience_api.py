@@ -28,7 +28,6 @@ A backend API which support labeling, modeling and predicting jobs of django sit
 4. model_report : get the model report information with a target job_id.   
 5. model_abort : break a task with a target job_id.   
 6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.    
- 
 """
 
 app = FastAPI(title=configuration.API_TITLE,
