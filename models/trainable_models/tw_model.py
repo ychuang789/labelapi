@@ -12,7 +12,7 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from models.audience_model_interfaces import SupervisedModel, MODEL_ROOT
 from models.trainable_models.term_weight_feature_extractor import TermWeightFeatureModel
 from utils.data.input_example import InputExample
-from utils.enum_config import PredictTarget
+from utils.enum_config import PredictTarget, NATag
 
 
 class TermWeightModel(SupervisedModel):
@@ -21,7 +21,7 @@ class TermWeightModel(SupervisedModel):
         TERM = "term"
         WEIGHT = "weight"
 
-    def __init__(self, model_dir_name, feature=PredictTarget.CONTENT, na_tag=None, **kwargs):
+    def __init__(self, model_dir_name, feature=PredictTarget.CONTENT, na_tag=NATag.na_tag.value, **kwargs):
         super().__init__(model_dir_name=model_dir_name, feature=feature, na_tag=na_tag, **kwargs)
         self.dict_file_name = "term_dict.csv"
         self.label_term_weights: Dict[str, List[Tuple[str, float]]] = defaultdict(list)

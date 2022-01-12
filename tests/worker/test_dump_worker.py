@@ -5,7 +5,6 @@ from settings import DatabaseConfig
 
 class TestDumpWorker(TestCase):
     """ Use 2021 gender data as Testcase"""
-
     id_list = [14,15,16,17,18,20]
     old_table_database = DatabaseConfig.DUMP_FROM_SCHEMA
     new_table_database = DatabaseConfig.OUTPUT_SCHEMA

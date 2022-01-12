@@ -6,6 +6,9 @@ from definition import RULE_FOLDER
 INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
+class NATag(Enum):
+    na_tag = '一般'
+
 class TableRecord(Enum):
     state = 'state'
     model_status = 'model_status'

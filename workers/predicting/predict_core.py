@@ -7,7 +7,7 @@ from settings import DatabaseConfig, SOURCE, LABEL
 from utils.data.data_cleaning import run_cleaning
 from utils.database.database_helper import get_batch_by_timedelta, create_table
 from utils.data.input_example import InputExample
-from utils.enum_config import PredictTarget, TableRecord, PredictTaskStatus
+from utils.enum_config import PredictTarget, TableRecord, PredictTaskStatus, NATag
 from utils.general_helper import get_logger
 from workers.modeling.model_core import ModelingWorker
 from workers.orm_core.predict_orm_core import PredictORM
@@ -132,7 +132,6 @@ class PredictWorker():
         model_info = {"patterns": pattern} if pattern else {}
         start = datetime.now()
         self.logger.info(f'start labeling at {start} ...')
-        """predicting worker"""
         df = self.predicting_output(df, predict_type, **model_info)
 
         df.rename(columns={'post_time': 'create_time'}, inplace=True)
@@ -146,7 +145,7 @@ class PredictWorker():
         _df_output = df[['id', 'task_id', 'source_author', 'create_time',
                          'panel', 'field_content', 'match_content']]
 
-        df_output = _df_output.loc[_df_output['panel'] != '']
+        df_output = _df_output.loc[(_df_output['panel'] != '') & (_df_output['panel'] != NATag.na_tag.value)]
 
         self.logger.info(f'write the output into database ...')
 
@@ -239,13 +238,43 @@ class PredictWorker():
                         content=df['content'].iloc[i],
                         post_time=df['post_time'].iloc[i]
                     )
-                    rs, prob = worker.model.predict([_input_data], target=predict_type)
+                    rs, prob = worker.model.predict([_input_data])
 
-                    if rs:
+                    if worker.model.__class__.__name__ == "TermWeightModel":
                         if len(rs) == 1:
-                            temp_list.append(rs[0][0])
+                            if len(rs[0]) == 1:
+                                temp_list.append(rs[0][0])
+                            else:
+                                _tmp_val = 0
+                                _tmp_ky = ''
+                                prob_dict = prob[0]
+                                if prob[0].get(NATag.na_tag.value):
+                                    prob_dict.pop(NATag.na_tag.value)
+                                for k, v in prob[0].items():
+                                    if v[0][1] > _tmp_val:
+                                        _tmp_val = v[0][1]
+                                        _tmp_ky = k
+                                temp_list.append(_tmp_ky)
                     else:
-                        temp_list.append('')
+                        if rs:
+                            if len(rs) == 1:
+                                if isinstance(rs[0], str):
+                                    temp_list.append(rs[0])
+                                else:
+                                    if len(rs[0]) == 1:
+                                        temp_list.append(rs[0][0])
+                                    else:
+                                        # TODO: 如果規則模型同時被貼到許多標籤，保留方法
+                                        # temp_list.append(rs[0][0])
+                                        _tmp_val = 0
+                                        _tmp_ky = ''
+                                        for i in prob[0]:
+                                            if i[1] > _tmp_val:
+                                                _tmp_val = i[1]
+                                                _tmp_ky = i[0]
+                                        temp_list.append(_tmp_ky)
+                        else:
+                            temp_list.append('')
 
                 df['panel'] = temp_list
                 df['task_id'] = [self.task_id for i in range(len(df))]

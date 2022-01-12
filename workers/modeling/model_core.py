@@ -36,7 +36,7 @@ class ModelingWorker(PreprocessInterface):
         mr = self.orm_cls.table_cls_dict.get(TableRecord.model_report.value)
 
         try:
-            if self.orm_cls.session.query(ms).filter(ms.job_id == job_id).first():
+            if self.orm_cls.session.query(ms).filter(ms.job_id == job_id).all():
                 self.orm_cls.model_delete_record(model_job_id=job_id)
             self.add_task_info(task_id=task_id, job_id=job_id, ext_test=False)
 

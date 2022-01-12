@@ -1,4 +1,4 @@
-# Audience API v 2.2
+Audience API v 2.2
 
 ###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-01-05
 
@@ -17,10 +17,18 @@
   + [Run the API](#run-the-api)
 + [Usage](#usage)
   + [swagger UI](#swagger-ui)
-  + [create_task](#create_task)
-  + [task_list](#task_list)
-  + [check_status](#check_status)
-  + [sample_result](#sample_result)
+  + [Task](#task)
+    + [create_task](#create_task)
+    + [task_list](#task_list)
+    + [check_status](#check_status)
+    + [sample_result](#sample_result)
+  + [Model](#model)
+    + [model_preparing](#model_preparing)
+    + [model_testing](#model_testing)
+    + [model_status](#model_status)
+    + [model_report](#model_report)
+    + [model_abort](#model_abort)
+    + [model_delete](#model_delete)
 + [Error code](#error-code)
 + [System Recommendation and Baseline Performance](#system-recommendation-and-baseline-performance)
 + [Appendix](#appendix)
@@ -271,7 +279,7 @@ $ make run_api
 
 If you have done the quick start and you want to test the API functions or expect a web-based user-interface, you can type `<api address>:<api port>/docs` in the browser (for example http://127.0.0.1:8000/docs) to open a Swagger user-interface, for more information see [Swagger](https://swagger.io/). It is very simple to use by following the quick demonstration below :
 
-#### swagger UI
+### swagger 
 
 + Type `<api address>:<api port>/docs` in the web browser, for example if you test the API at localhost `127.0.0.1/docs`
 
@@ -291,6 +299,8 @@ If you have done the quick start and you want to test the API functions or expec
 
 Otherwise modify  curl to calling API. Follow below parts :  
 
+### Tasks
+
 #### create_task
 
 Input the task information for example model type, predict type, date info, etc., and return task_id with task configuration.
@@ -299,7 +309,7 @@ Input the task information for example model type, predict type, date info, etc.
 
 ```shell
 curl -X 'POST' \
-  'http://<api address>:<api port>/api/tasks/' \
+  'http://<api address>:<api port>/tasks/' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -373,7 +383,7 @@ Request example :
 
 ```shell
 curl -X 'GET' \
-  'http://<api address>:<api port>/api/tasks/' \
+  'http://<api address>:<api port>/tasks/' \
   -H 'accept: application/json'
 ```
 
@@ -474,15 +484,13 @@ Response example :
 
 #### check_status
 
-`/api/tasks/{task_id}` 
-
 Return the task status (*PENDING, SUCCESS, FAILURE*) and prod_status (*finish* or *Null*) via task id, if the task is *SUCCESS* return result (temp result table_name) too.
 
 Request example :
 
 ```shell
 curl -X 'GET' \
-  'http://<api address>:<api port>/api/tasks/<task_id>' \
+  'http://<api address>:<api port>/tasks/<task_id>' \
   -H 'accept: application/json'
 ```
 
@@ -536,15 +544,13 @@ Response example :
 
 #### sample_result
 
-`/api/tasks/{task_id}/sample/` 
-
 Input task id return the sampling results from result tables.
 
 Request example :
 
 ```shell
 curl -X 'GET' \
-  'http://<api address>:<api port>/api/tasks/<task_id>/sample/' \
+  'http://<api address>:<api port>/tasks/<task_id>/sample/' \
   -H 'accept: application/json'
 ```
 
@@ -615,7 +621,7 @@ Request example :
 
 ```shell
 curl -X 'POST' \
-  'http://<api address>:<api port>/api/tasks/' \
+  'http://<api address>:<api port>/tasks/' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -634,7 +640,216 @@ Response example :
 
 
 
-Model_
+### Model
+
+#### model_preparing
+
+Use this API to prepare a model for labeling task : 
+
+Request example: 
+
+```shell
+curl -X 'POST' \
+  'http://<api address>:<api port>/models/prepare/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "QUEUE": "queue2",
+  "DATASET_DB": "audience-toolkit-django",
+  "DATASET_NO": <your training or testing dataset number from labeling_job>,
+  "MODEL_JOB_ID": <your model_job_id>,
+  "PREDICT_TYPE": "AUTHOR",
+  "MODEL_TYPE": "RULE_MODEL",
+  "MODEL_INFO": {
+    "model_path": <your_model_path>
+  }
+}'
+```
+
+Response example:
+
+```shell
+{
+  "QUEUE": "queue2",
+  "DATASET_DB": "audience-toolkit-django",
+  "DATASET_NO": 1,
+  "MODEL_JOB_ID": 24,
+  "PREDICT_TYPE": "AUTHOR",
+  "MODEL_TYPE": "RULE_MODEL",
+  "MODEL_INFO": {
+    "model_path": "24_rule_model"
+  },
+  "task_id": "e74c1042737d11ec848204ea56825bad"
+}
+```
+
+
+
+#### model_testing
+
+Use this API to test a external testing file: 
+
+Request example:
+
+ ```shell
+ curl -X 'POST' \
+   'http://<api address>:<api port>/models/test/' \
+   -H 'accept: application/json' \
+   -H 'Content-Type: application/json' \
+   -d '{
+   "QUEUE": "queue2",
+   "DATASET_DB": "audience-toolkit-django",
+   "DATASET_NO": <your training or testing dataset number from labeling_job>,
+   "MODEL_JOB_ID": <your model_job_id>,
+   "PREDICT_TYPE": "AUTHOR",
+   "MODEL_TYPE": "RULE_MODEL",
+   "MODEL_INFO": {
+     "model_path": <your_model_path>
+   }
+ }'
+ ```
+
+Response example:
+
+```shell
+{
+  "QUEUE": "queue2",
+  "DATASET_DB": "audience-toolkit-django",
+  "DATASET_NO": 1,
+  "MODEL_JOB_ID": 24,
+  "PREDICT_TYPE": "AUTHOR",
+  "MODEL_TYPE": "RULE_MODEL",
+  "MODEL_INFO": {
+    "model_path": "24_rule_model"
+  },
+  "task_id": "e74c1042737d11ec848204ea56825bad"
+}
+```
+
+
+
+#### model_status
+
+For extracting the model status:
+
+Request example:
+
+```shell
+curl -X 'GET' \
+  'http://<api address>:<api port>/models/<model_job_id>' \
+  -H 'accept: application/json'
+```
+
+Response example:
+
+```shell
+{
+  "task_id": "04e0960e735511ecab4b04ea56825bad",
+  "model_name": "TERM_WEIGHT_MODEL",
+  "training_status": "finished",
+  "ext_status": null,
+  "feature": "CONTENT",
+  "model_path": "7_term_weight_model",
+  "error_message": null,
+  "create_time": "2022-01-12 11:09:13",
+  "job_id": 7
+}
+```
+
+
+
+#### model_report
+
+If you want to see the effectiveness of each model: 
+
+Request example:
+
+```shell
+curl -X 'GET' \
+  'http://<api address>:<api port>/models/<model_job_id>/report/' \
+  -H 'accept: application/json'
+```
+
+Response example:
+
+```
+[
+  {
+    "id": 32,
+    "dataset_type": "dev",
+    "accuracy": 0,
+    "report": "{\"一般\": {\"precision\": 0.25129198966408267, \"recall\": 0.389, \"f1-score\": 0.3053375196232339, \"support\": 1000}, \"貸款\": {\"precision\": 0.2515670706226494, \"recall\": 0.602, \"f1-score\": 0.3548482169171824, \"support\": 1000}, \"色情\": {\"precision\": 0.25093984962406013, \"recall\": 0.534, \"f1-score\": 0.3414322250639386, \"support\": 1000}, \"抽獎\": {\"precision\": 0.2486327303323517, \"recall\": 0.591, \"f1-score\": 0.3500148060408647, \"support\": 1000}, \"micro avg\": {\"precision\": 0.2505327965901018, \"recall\": 0.529, \"f1-score\": 0.3400289249558091, \"support\": 4000}, \"macro avg\": {\"precision\": 0.250607910060786, \"recall\": 0.5289999999999999, \"f1-score\": 0.3379081919113049, \"support\": 4000}, \"weighted avg\": {\"precision\": 0.250607910060786, \"recall\": 0.529, \"f1-score\": 0.3379081919113049, \"support\": 4000}, \"samples avg\": {\"precision\": 0.5516875, \"recall\": 0.529, \"f1-score\": 0.23282499999999998, \"support\": 4000}, \"accuracy\": 0.0}",
+    "create_time": "2022-01-12 11:09:24",
+    "task_id": "04e0960e735511ecab4b04ea56825bad"
+  },
+  {
+    "id": 33,
+    "dataset_type": "test",
+    "accuracy": 0,
+    "report": "{\"一般\": {\"precision\": 0.246583850931677, \"recall\": 0.397, \"f1-score\": 0.30421455938697317, \"support\": 1000}, \"貸款\": {\"precision\": 0.2526720820863617, \"recall\": 0.591, \"f1-score\": 0.35399820305480684, \"support\": 1000}, \"色情\": {\"precision\": 0.2455968688845401, \"recall\": 0.502, \"f1-score\": 0.32982917214191854, \"support\": 1000}, \"抽獎\": {\"precision\": 0.2505418292154313, \"recall\": 0.578, \"f1-score\": 0.3495615361354702, \"support\": 1000}, \"micro avg\": {\"precision\": 0.2491566265060241, \"recall\": 0.517, \"f1-score\": 0.336260162601626, \"support\": 4000}, \"macro avg\": {\"precision\": 0.24884865777950255, \"recall\": 0.517, \"f1-score\": 0.33440086767979216, \"support\": 4000}, \"weighted avg\": {\"precision\": 0.2488486577795025, \"recall\": 0.517, \"f1-score\": 0.3344008676797922, \"support\": 4000}, \"samples avg\": {\"precision\": 0.5609166666666667, \"recall\": 0.517, \"f1-score\": 0.22645833333333334, \"support\": 4000}, \"accuracy\": 0.0}",
+    "create_time": "2022-01-12 11:09:24",
+    "task_id": "04e0960e735511ecab4b04ea56825bad"
+  }
+]
+```
+
+> Noted that only the **trainable model** can be evaluated, the rule-based model such as keyword model and rule (regex) model won't be evaluated at the model preparing stage, the training_status will be marked as `untrainable` in `model_status` table.
+>
+> So **do not** pass this API with rule-based model id otherwise you won't get any result.
+
+
+
+#### model_abort
+
+Let's say the front user is accidently training a wrong model and he or she wanna stop the training step, can call this api:
+
+Request example:
+
+```shell
+curl -X 'POST' \
+  'http://<api address>:<api port>/models/abort/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "MODEL_JOB_ID": <yuor model_job_id>
+}'
+```
+
+ Response example:
+
+```shell
+"<yuor model_job_id> is successfully aborted, additional message: 1 break by the external user"
+```
+
+> Noted that if the model is at fitting step for example the `sklearn` model `fit()`, it will not be stopped until it is done.
+
+
+
+#### model_delete
+
+If you wanna delete a model, try this API. This API is corresponded to the `cancel_job` in the frontend
+
+Request example:
+
+```shell
+curl -X 'DELETE' \
+  'http://<api address>:<api port>/models/delete/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "MODEL_JOB_ID": <yuor model_job_id>
+}'
+```
+
+Response example:
+
+```shell
+"<yuor model_job_id> is successfully deleted, additional message: 1 is deleted"
+```
+
+> It is not recommended to use this API **alone** but only for testing. The function of `model_delete` API is wrap in the `model_preparing` step, which is, every time the users call a model preparing API from the frontend by a same model job (same model_job_id), it will clean up the previous record of the model in the backend from model_status table.
+>
+> Maybe in the future we can add the edition id which represent different models for a model_job.
 
 
 
@@ -704,6 +919,87 @@ Error code in this project is group by <u>API task error code</u> and <u>HTTP er
 | 200        | Successful Response | API successfully receive the required information            |
 | 422        | Validation Error    | API doesn't receive the proper information. This problem usually occurs in <u>wrong format of request body</u> at users post a create_task API |
 
+> There is no error_code in model API, every time user call a api, it will return a error_message which is contained inside the response body. 
+
+
+
+# Test
+
+There are two type of test file in this project, api and the rest. All of the testing files are managed under the tests directory, below is the test file structure:
+
+```
+tests
+├── __init__.py
+├── api
+│   ├── __init__.py
+│   ├── test_modeling_api.py
+│   └── test_predicting_api.py
+├── connection
+│   ├── __init__.py
+│   └── test_connection.py
+├── model
+│   ├── __init__.py
+│   ├── test_model_creator.py
+│   ├── test_rulebase_models.py
+│   └── test_supervise_models.py
+├── sample_data
+│   ├── dev.csv
+│   ├── labels.json
+│   ├── rulebase_testdata.csv
+│   ├── test.csv
+│   └── train.csv
+└── worker
+    ├── __init__.py
+    ├── test_dump_worker.py
+    ├── test_modeling_worker.py
+    ├── test_orm_worker.py
+    └── test_predict_worker.py
+
+```
+
+For API testing, please run the command:
+
+```shell
+$ make test_api
+```
+
+> Notice that this will test both modeling_api and predicting_api, if you want to test them one-by-one, please use `pytest <file dir>`
+
+For the rest of the parts:
+
+```shell
+$ python test.py --help
+Usage: test.py [OPTIONS]
+
+Options:
+  -D, --dir TEXT     [required]
+  -F, --file TEXT    [required]
+  -C, --class_ TEXT
+  -M, --method TEXT
+  --help             Show this message and exit.
+```
+
+for example:
+
+```shell
+$ python test.py -D worker -F test_modeling_worker -C TestModelingWorker2
+
+test tests.worker.test_modeling_worker.TestModelingWorker2
+[2022-01-12 10:22:43,572][modeling][INFO] start eval_outer_test_data task: 3298be1f6def11eca8ca04ea56825bad
+[2022-01-12 10:22:43,572][modeling][INFO] Initializing the model term_weight_model...
+[2022-01-12 10:22:43,580][modeling][INFO] preparing the datasets for task: 3298be1f6def11eca8ca04ea56825bad
+[2022-01-12 10:22:44,024][modeling][INFO] load the model 0_term_weight_model ...
+[2022-01-12 10:22:44,025][modeling][INFO] evaluating with ext_test data ...
+[2022-01-12 10:22:44,186][modeling][INFO] modeling task: 3298be1f6def11eca8ca04ea56825bad is finished
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.692s
+
+OK
+```
+
+
+
 
 
 ## System Recommendation and Baseline Performance
@@ -728,7 +1024,7 @@ Error code in this project is group by <u>API task error code</u> and <u>HTTP er
 
 ## Appendix
 
-**Problem of celery multiprocessing (Unsolved)**
+**1. Problem of celery multiprocessing (Unsolved)**
 
 ```bash
 [2021-11-09 09:03:32,151: ERROR/ForkPoolWorker-7] Task celery_worker.label_data[db5f76cc40f811ecb688d45d6456a14d] raised unexpected: AssertionError('daemonic processes are not allowed to have children')
@@ -770,3 +1066,30 @@ Ok, it seems that the problem is about python multiprocessing module (`-P prefor
 
 So how about using `eventlet` or `gevent`? with a multiprocessing module, they will all fail. I still cannot figure out any clue about this problem, the current way is to disable the memory track decorator, since it is not directly related to the project goal. 
 
+
+
+**2. Problem of the kombu JSON serialize problem (Unsolved)**
+
+```shell
+[2022-01-12 15:57:13,828: WARNING/MainProcess] C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\celery\app\trace.py:657: RuntimeWarning: Exception raised outside body: EncodeError(TypeError('Object of type type is not JSON serializable')):
+Traceback (most recent call last):
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\serialization.py", line 42, in _reraise_errors
+    yield
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\serialization.py", line 213, in dumps
+    payload = encoder(data)
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\utils\json.py", line 68, in dumps
+    return _dumps(s, cls=cls or _default_encoder,
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\__init__.py", line 234, in dumps
+    return cls(
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 199, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 257, in iterencode
+    return _iterencode(o, 0)
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\utils\json.py", line 58, in default
+    return super().default(o)
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 179, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type type is not JSON serializable
+```
+
+It occurs every time no matter when a task is done or failed, or every time of the status changed from a task, but this message seems to be nothing to do with the task (labeling or modeling), every task can be accomplished successfully even this annoying message shows up. There is still no anything bad for the task about this error message to be detected.

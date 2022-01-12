@@ -19,7 +19,7 @@ def singleton(cls):
     return inner
 
 
-@singleton
+# @singleton
 class DBConnector(object):
 
     def __init__(self, conn = None):
@@ -54,12 +54,13 @@ class DBConnection(object):
         cursor.execute(query)
         if alter:
             connection.commit()
+            cursor.close()
         else:
             if single:
                 result = None if alter else cursor.fetchone()
             else:
                 result = None if alter else cursor.fetchall()
-            # cursor.close()
+            cursor.close()
             return result
 
 

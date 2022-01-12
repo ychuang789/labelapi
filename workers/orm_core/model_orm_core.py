@@ -25,9 +25,10 @@ class ModelORM(ORMWorker):
         err_msg = f'{model_job_id} is deleted'
 
         try:
-            record = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).first()
-            self.session.delete(record)
-            self.session.commit()
+            record = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).all()
+            for r in record:
+                self.session.delete(r)
+                self.session.commit()
             return err_msg
         except Exception as e:
             self.session.rollback()
