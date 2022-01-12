@@ -4,7 +4,7 @@ from datetime import date
 from pydantic import BaseModel, BaseSettings
 from typing import Dict, Optional, List, Union
 
-from utils.selections import ModelType, PredictTarget
+from utils.enum_config import ModelType, PredictTarget
 
 SOURCE: Dict = {
     "Comment": [

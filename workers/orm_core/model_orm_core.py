@@ -1,5 +1,5 @@
 from settings import DatabaseConfig
-from utils.selections import ModelTaskStatus, TableRecord
+from utils.enum_config import ModelTaskStatus, TableRecord
 from workers.orm_core.orm_base import ORMWorker
 
 

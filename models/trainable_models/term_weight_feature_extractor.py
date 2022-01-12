@@ -1,6 +1,6 @@
 from sklearn.linear_model import SGDClassifier
 
-from utils.selections import TWFeatureModel
+from utils.enum_config import TWFeatureModel
 
 
 class TWFeatureModelNotFoundError(Exception):

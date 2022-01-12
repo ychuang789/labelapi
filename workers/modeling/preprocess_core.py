@@ -1,6 +1,6 @@
-from utils.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
-from utils.data_helper import DataNotFoundError, load_examples
-from utils.selections import DatasetType
+from utils.database.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
+from utils.data.data_helper import DataNotFoundError, load_examples
+from utils.enum_config import DatasetType
 
 class PreprocessWorker:
     def run_processing(self, dataset_number, dataset_schema,

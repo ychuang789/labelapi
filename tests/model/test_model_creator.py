@@ -3,7 +3,7 @@ from unittest import TestCase
 from models.rule_based_models.keyword_model import KeywordModel
 from models.model_creator import ModelSelector
 from models.trainable_models.rf_model import RandomForestModel
-from utils.selections import KeywordMatchType, PredictTarget
+from utils.enum_config import KeywordMatchType, PredictTarget
 
 
 class TestModelCreator(TestCase):

@@ -2,9 +2,9 @@ import pandas as pd
 from sqlalchemy import create_engine
 
 from settings import DatabaseConfig
-from utils.database_core import connect_database, to_dataframe, create_table
-from utils.clean_up_result import run_cleaning
-from utils.helper import get_logger
+from utils.database.database_helper import connect_database, to_dataframe, create_table
+from utils.data.data_cleaning import run_cleaning
+from utils.general_helper import get_logger
 
 
 class TaskGenerateOutput(object):

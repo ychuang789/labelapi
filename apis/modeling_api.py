@@ -13,8 +13,8 @@ from celery_worker import preparing, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
 from workers.orm_core.model_orm_core import ModelORM
 
-router = APIRouter(prefix='/model',
-                   tags=['model'],
+router = APIRouter(prefix='/models',
+                   tags=['models'],
                    # dependencies=[Depends(get_token_header)],
                    responses={404: {"description": "Not found"}},
                    )

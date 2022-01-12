@@ -1,16 +1,3 @@
-import os
-from collections import defaultdict
-from datetime import datetime
-from tqdm import tqdm
-from typing import List
-
-import pandas as pd
-from sqlalchemy import create_engine
-
-from settings import DatabaseConfig, TABLE_PREFIX, TABLE_GROUPS_FOR_INDEX
-from utils.database_core import connect_database, to_dataframe
-from utils.helper import get_logger
-
 # CONFLICT_GROUPS = ('/male', '/female')
 #
 # _logger = get_logger('fix_2020')

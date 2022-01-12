@@ -5,9 +5,9 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import MultiLabelBinarizer
 
 from models.audience_model_interfaces import RuleBaseModel
-from utils.input_example import InputExample
+from utils.data.input_example import InputExample
 
-from utils.selections import ModelType, PredictTarget, Errors
+from utils.enum_config import ModelType, PredictTarget, Errors
 
 
 

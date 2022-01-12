@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Iterable, List, Tuple
 
 import settings
-from utils.helper import get_logger
-from utils.input_example import InputExample
+from utils.general_helper import get_logger
+from utils.data.input_example import InputExample
 
-from utils.selections import ModelType, PredictTarget
+from utils.enum_config import ModelType, PredictTarget
 
 MODEL_ROOT = Path(settings.MODEL_PATH_FIELD_DIRECTORY)
 

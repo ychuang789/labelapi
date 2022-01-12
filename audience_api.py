@@ -2,7 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from apis import modeling_api, predicting_api
-from utils.helper import get_logger, get_config
+from utils.general_helper import get_logger, get_config
 
 configuration = get_config()
 _logger = get_logger('label_API')

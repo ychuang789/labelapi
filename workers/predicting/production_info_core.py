@@ -1,6 +1,6 @@
 from typing import Dict
-from utils.helper import get_logger
-from utils.selections import TableRecord, PredictTaskStatus
+from utils.general_helper import get_logger
+from utils.enum_config import TableRecord, PredictTaskStatus
 from workers.orm_core.model_orm_core import ModelORM
 
 

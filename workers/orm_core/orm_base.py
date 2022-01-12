@@ -5,8 +5,8 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 
 from settings import DatabaseConfig
-from utils.model_table_creator import Base
-from utils.selections import TableRecord
+from utils.model.model_table_creator import Base
+from utils.enum_config import TableRecord
 
 
 class ORMWorker():

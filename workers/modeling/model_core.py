@@ -6,19 +6,14 @@ from models.audience_data_interfaces import PreprocessInterface
 from models.model_creator import ModelTypeNotFoundError, ParamterMissingError, ModelSelector
 from models.trainable_models.tw_model import TermWeightModel
 
-from utils.data_helper import get_term_weights_objects
-from utils.helper import get_logger
+from utils.data.data_helper import get_term_weights_objects
+from utils.general_helper import get_logger
+from utils.enum_config import ModelTaskStatus, DatasetType, TableRecord
 
-from utils.selections import ModelTaskStatus, DatasetType, TableRecord
 from workers.orm_core.model_orm_core import ModelORM
 
 
 class ModelingWorker(PreprocessInterface):
-    """
-    Training, validation and testing the model.
-    Using data preprocessing adapter to scrape, transform, preprocess the dataset before modeling.
-    Saving the modeling status and report to `audience_result`.modeling_status and `audience_result`.modeling_report.
-    """
     def __init__(self, model_name: str, predict_type: str,
                  dataset_number: int = None, dataset_schema: str = None,
                  orm_cls: ModelORM = None, logger_name: str = 'modeling',

@@ -6,11 +6,11 @@ from unittest import TestCase
 from definition import ROOT_DIR
 from models.rule_based_models.rule_model import RuleModel
 from models.rule_based_models.keyword_model import KeywordModel
-from utils.data_helper import load_examples
-from utils.run_label_task import read_from_dir
-from utils.selections import PredictTarget, KeywordMatchType, ModelType
+from utils.data.data_helper import load_examples
+from utils.label.run_label_task import read_from_dir
+from utils.enum_config import PredictTarget, KeywordMatchType, ModelType
 
-from utils.input_example import InputExample
+from utils.data.input_example import InputExample
 
 post_male = "小弟我沒女友，在八卦版混了很久了在八卦版混，時常會有的福利就是偶爾會有人貼清涼養眼圖上班上久了，心情煩悶，看這些圖多多少少會有解鬱消悶的效果感謝八卦版大的貢獻所以在八卦版上，只要看到巨乳等關鍵字，我都是會直覺地點閱進入觀賞，以調劑身心。"
 post_female = "小妹的朋友上週領薪水這週就跟我哭哭說全身上下剩一千五明明是她自己限制自己一個月只能花幾千塊其他買保險跟存起來這樣有什麼好哭哭的就是自己強迫自己啊而且明明就是存起來哪是沒錢啊不懂欸"

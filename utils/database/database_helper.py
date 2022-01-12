@@ -6,7 +6,7 @@ import pymysql
 import pandas as pd
 from retry import retry
 
-from utils.helper import get_logger
+from utils.general_helper import get_logger
 from settings import DatabaseConfig
 
 @retry(tries=5, delay=3)
@@ -91,92 +91,11 @@ def drop_table(table_name: str, schema=None) :
     finally:
         connection.close()
 
-# TODO: refactor
-def get_tasks_query_recent(order_column, number):
-    q = f'SELECT * FROM state ' \
-        f'ORDER BY {order_column} DESC ' \
-        f'LIMIT {number} '
-    schema = DatabaseConfig.OUTPUT_SCHEMA
-    connection = connect_database(schema, output=True)
-    cur = connection.cursor()
-    # cursor.executescript(sql_as_string)
-    cur.execute(q)
-    r = cur.fetchall()
-    connection.close()
-    return r
-
-# TODO: refactor
-def get_table_info(id):
-    q = f"""SELECT result 
-    FROM state WHERE 
-    task_id = '{id}'
-    """
-    connection = connect_database(schema=DatabaseConfig.OUTPUT_SCHEMA, output=True)
-    cur = connection.cursor()
-    cur.execute(q)
-    result = cur.fetchone()
-    if len(result.get('result')) == 0:
-        return None
-    else:
-        return result.get('result').split(',')
-
-# TODO: refactor
 def get_sample_query(_id, tablename, number):
     q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
         f"AND rand() <= 0.2 " \
         f"LIMIT {number})"
     return q
-
-# TODO: refactor
-def query_state_by_id(_id):
-    q = f"SELECT * FROM state WHERE task_id = '{_id}'"
-    schema = DatabaseConfig.OUTPUT_SCHEMA
-    connection = connect_database(schema, output=True)
-    cur = connection.cursor()
-    # cursor.executescript(sql_as_string)
-    cur.execute(q)
-    r = cur.fetchone()
-    connection.close()
-    return r
-
-# TODO: refactor
-def get_result_query(_id, tablename):
-    q = f"SELECT * FROM {tablename} WHERE task_id = '{_id} '"
-    return q
-
-# TODO: refactor to DBConnection
-def add_column(schema, table, col_name, col_type, **kwargs):
-
-    if kwargs:
-        condition = ''
-        for k,v in kwargs.items():
-            condition += f' {k} {v}'
-    else:
-        condition = ''
-    connection = connect_database(schema=schema, output=True)
-    q = f'ALTER TABLE {table} ' \
-        f'ADD COLUMN {col_name} {col_type}'
-
-    q += condition
-    with connection.cursor() as cursor:
-        cursor.execute(q)
-        connection.close()
-
-# TODO: refactor
-def send_break_signal_to_state(task_id: str, schema: str = 'audience_result') -> None:
-    connection = connect_database(schema=schema, output=True)
-    insert_sql = f'UPDATE state ' \
-                 f'SET stat = "BREAK" ' \
-                 f'where task_id = "{task_id}"'
-    try:
-        cursor = connection.cursor()
-        cursor.execute(insert_sql)
-        connection.commit()
-        connection.close()
-    except Exception as e:
-        raise e
-
-
 
 def get_timedelta_query(predict_type, table, start_time, end_time):
     q = f"SELECT * FROM {table} " \
@@ -212,6 +131,23 @@ def get_batch_by_timedelta(schema, predict_type, table,
             yield result, begin_date
             begin_date += interval
             connection.close()
+
+# some tools
+def add_column(schema, table, col_name, col_type, **kwargs):
+    if kwargs:
+        condition = ''
+        for k,v in kwargs.items():
+            condition += f' {k} {v}'
+    else:
+        condition = ''
+    connection = connect_database(schema=schema, output=True)
+    q = f'ALTER TABLE {table} ' \
+        f'ADD COLUMN {col_name} {col_type}'
+
+    q += condition
+    with connection.cursor() as cursor:
+        cursor.execute(q)
+        connection.close()
 
 def alter_column_type(schema: str, table_name: str, column_name: str, datatype: str) -> None:
     q = f"""ALTER TABLE {table_name} MODIFY {column_name} {datatype};"""

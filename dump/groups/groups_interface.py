@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import List, Dict, Tuple, Union
 
 from settings import TABLE_PREFIX
-from utils.helper import get_logger
+from utils.general_helper import get_logger
 
 
 class IGroups(ABC):

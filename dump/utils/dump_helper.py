@@ -3,14 +3,13 @@ from datetime import datetime
 from typing import List
 
 from sqlalchemy import create_engine
-from tqdm import tqdm
 
 import pandas as pd
 
 from definition import AUDIENCE_PRODUCTION_PATH
 from settings import CONFLICT_GROUPS, DatabaseConfig, TABLE_PREFIX, TABLE_GROUPS_FOR_INDEX, DUMP_COLUMNS
-from utils.database_core import connect_database, to_dataframe
-from utils.helper import get_logger
+from utils.database.database_helper import connect_database, to_dataframe
+from utils.general_helper import get_logger
 
 class ResultMissingError(Exception):
     """result cannot be trace from TABLE_GROUPS_FOR_INDEX"""

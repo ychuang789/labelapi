@@ -1,5 +1,5 @@
 from settings import LABEL
-from utils.run_label_task import read_from_dir
+from utils.label.run_label_task import read_from_dir
 
 pattern = read_from_dir('keyword_model', 'author_name')
 inv = {v: k for k, v in LABEL.items()}

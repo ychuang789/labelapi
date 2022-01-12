@@ -11,11 +11,11 @@ from models.rule_based_models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
 from settings import DatabaseConfig, SOURCE, LABEL
-from utils.clean_up_result import run_cleaning
-from utils.database_core import create_table, connect_database
-from utils.helper import get_logger
-from utils.selections import ModelType, PredictTarget, KeywordMatchType
-from utils.input_example import InputExample
+from utils.data.data_cleaning import run_cleaning
+from utils.database.database_helper import create_table, connect_database
+from utils.general_helper import get_logger
+from utils.enum_config import ModelType, PredictTarget, KeywordMatchType
+from utils.data.input_example import InputExample
 
 pd.options.mode.chained_assignment = None
 

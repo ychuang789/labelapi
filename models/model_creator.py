@@ -8,7 +8,7 @@ from models.trainable_models.rf_model import RandomForestModel
 from models.rule_based_models.rule_model import RuleModel
 from models.trainable_models.tw_model import TermWeightModel
 from settings import MODEL_INFORMATION
-from utils.selections import ModelType, PredictTarget
+from utils.enum_config import ModelType, PredictTarget
 
 class TWFeatureModelNotFoundError(Exception):
     pass

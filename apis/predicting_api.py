@@ -5,10 +5,9 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from celery_worker import label_data, dump_result
-from settings import TaskConfig, TaskList, TaskSampleResult, AbortionConfig, DumpConfig
-from utils.database_core import scrap_data_to_dict, get_tasks_query_recent, \
-    get_sample_query, query_state_by_id, get_table_info, send_break_signal_to_state
-from utils.helper import get_logger, uuid_validator
+from settings import TaskConfig, TaskSampleResult, AbortionConfig, DumpConfig
+from utils.database.database_helper import scrap_data_to_dict
+from utils.general_helper import get_logger, uuid_validator
 from workers.orm_core.predict_orm_core import PredictORM
 
 _logger = get_logger('label_API')
@@ -31,6 +30,7 @@ def create_task(create_request_body: TaskConfig):
         }
         _logger.error(err_info)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
     try:
         task_id = uuid.uuid1().hex
         label_data.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
@@ -38,7 +38,7 @@ def create_task(create_request_body: TaskConfig):
 
         err_info = {
             "error_code": 200,
-            "error_message": config
+            "error_message": task_id
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
     except Exception as e:
@@ -57,7 +57,6 @@ def tasks_list():
 
     try:
         result = orm_worker.predict_tasks_list()
-        # result = get_tasks_query_recent(TaskList.ORDER_COLUMN,TaskList.NUMBER)
         err_info = {
             "error_code": 200,
             "error_message": "OK",
@@ -88,7 +87,6 @@ def check_status(task_id):
     orm_worker = PredictORM()
     try:
         result = orm_worker.predict_check_status(task_id)
-        # result = query_state_by_id(task_id)
         err_info = {
             "error_code": 200,
             "error_message": result
@@ -124,32 +122,6 @@ def sample_result(task_id: str):
 
     try:
         query = orm_worker.predict_sample_result(task_id)
-    # tb_list = get_table_info(task_id)
-    #
-    # if not tb_list:
-    #     if query_state_by_id(task_id).get('prod_stat') == 'no_data':
-    #         err_info = {
-    #             "error_code": 404,
-    #             "error_message": f"there is no data processed in task {task_id}"
-    #         }
-    #         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-    #
-    #     err_info = {
-    #         "error_code": 404,
-    #         "error_message": f"result table is not found, plz wait for awhile to retry it"
-    #     }
-    #     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
-    #
-    # q = ''
-    # for i in range(len(tb_list)):
-    #     output_tb_name = f'{tb_list[i]}'
-    #     query = get_sample_query(task_id, output_tb_name,
-    #                              TaskSampleResult.NUMBER)
-    #     q += query
-    #     if i != len(tb_list) - 1:
-    #         q += ' UNION ALL '
-    #     else:
-    #         pass
         result = scrap_data_to_dict(query, TaskSampleResult.OUTPUT_SCHEMA)
 
         if len(result) == 0:
@@ -190,7 +162,6 @@ def abort_task(abort_request_body: AbortionConfig):
     orm_worker = PredictORM()
     try:
         orm_worker.predict_abort_task(task_id)
-        # send_break_signal_to_state(task_id)
         err_info = {
             "error_code": 200,
             "error_message" : f"successfully send break status to task {task_id} in state"

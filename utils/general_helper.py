@@ -12,7 +12,6 @@ import pandas as pd
 from definition import LOGS_DIR
 from settings import DevelopConfig, ProductionConfig
 
-
 def get_error_file_handler(logger_name) -> Any:
     log_dir = os.path.join(LOGS_DIR, logger_name)
     Path(log_dir).mkdir(exist_ok=True)

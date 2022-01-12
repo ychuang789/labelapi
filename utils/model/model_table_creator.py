@@ -4,7 +4,7 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import declarative_base, relationship, Session
 
 from settings import DatabaseConfig
-from utils.selections import ModelTaskStatus, TableRecord
+from utils.enum_config import ModelTaskStatus, TableRecord
 
 Base = declarative_base()
 

@@ -3,8 +3,8 @@ from typing import List, Dict, Optional, Any
 from sqlalchemy import desc
 
 from settings import DatabaseConfig
-from utils.database_core import get_sample_query
-from utils.selections import TableRecord, PredictTaskStatus
+from utils.database.database_helper import get_sample_query
+from utils.enum_config import TableRecord, PredictTaskStatus
 from workers.orm_core.orm_base import ORMWorker
 
 

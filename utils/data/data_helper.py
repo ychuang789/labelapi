@@ -1,13 +1,12 @@
 import random
 
 from collections import defaultdict
+from pathlib import Path
 from typing import Dict, Iterator, Union, List, Any, Tuple
 
 import pandas as pd
-from utils.input_example import InputExample
-from utils.model_table_creator import TermWeights
-
-
+from utils.data.input_example import InputExample
+from utils.model.model_table_creator import TermWeights
 
 class DataNotFoundError(Exception):
     """nothing return fround database"""
@@ -63,7 +62,6 @@ def preprocess_example(examples: Dict, sample_count: int = None, shuffle: bool =
         random.shuffle(dataset)
     return dataset
 
-
 def get_term_weights_objects(task_id: str,
                              term_weight_dict: Dict[str, List[Tuple[str, float]]]) -> List[TermWeights]:
     term_weight_list = []
@@ -72,3 +70,15 @@ def get_term_weights_objects(task_id: str,
             term_weight_list.append(TermWeights(label=label, term=term, weight=weight, task_id=task_id))
 
     return term_weight_list
+
+def read_csv_to_dict(file_path: Path) -> Dict:
+    df = pd.read_csv(file_path, encoding='utf-8')
+
+    _dict = {}
+    for _, row in df.iterrows():
+        temp_dict = {
+            row.source_id : row.table
+        }
+        _dict.update(temp_dict)
+
+    return _dict

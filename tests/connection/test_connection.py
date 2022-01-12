@@ -1,7 +1,7 @@
 from typing import List, Dict
 from unittest import TestCase
 
-from utils.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
+from utils.database.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
 
 
 class TestConnection(TestCase):

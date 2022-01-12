@@ -11,8 +11,8 @@ from sklearn.preprocessing import MultiLabelBinarizer
 
 from models.audience_model_interfaces import SupervisedModel, MODEL_ROOT
 from models.trainable_models.term_weight_feature_extractor import TermWeightFeatureModel
-from utils.input_example import InputExample
-from utils.selections import PredictTarget
+from utils.data.input_example import InputExample
+from utils.enum_config import PredictTarget
 
 
 class TermWeightModel(SupervisedModel):

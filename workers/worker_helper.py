@@ -3,7 +3,7 @@ from datetime import datetime
 import psutil
 from memory_profiler import memory_usage
 
-from utils.helper import get_logger
+from utils.general_helper import get_logger
 
 _logger = get_logger('measure')
 

@@ -2,7 +2,7 @@ import uuid
 from unittest import TestCase
 
 from workers.modeling.model_core import ModelingWorker
-from utils.selections import ModelType, PredictTarget, TWFeatureModel, KeywordMatchType
+from utils.enum_config import ModelType, PredictTarget, TWFeatureModel, KeywordMatchType
 
 rules = {"色情": [("外送茶", KeywordMatchType.PARTIALLY)]}
 

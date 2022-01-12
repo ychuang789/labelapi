@@ -4,13 +4,12 @@ from typing import Dict, Optional, List
 import pandas as pd
 
 from settings import DatabaseConfig, SOURCE, LABEL
-from utils.clean_up_result import run_cleaning
-from utils.database_core import get_batch_by_timedelta, create_table
-from utils.helper import get_logger
-from utils.input_example import InputExample
+from utils.data.data_cleaning import run_cleaning
+from utils.database.database_helper import get_batch_by_timedelta, create_table
+from utils.data.input_example import InputExample
+from utils.enum_config import PredictTarget, TableRecord, PredictTaskStatus
+from utils.general_helper import get_logger
 from workers.modeling.model_core import ModelingWorker
-from utils.selections import PredictTarget, TableRecord, PredictTaskStatus
-from workers.orm_core.model_orm_core import ModelORM
 from workers.orm_core.predict_orm_core import PredictORM
 from workers.predicting.production_core import TaskGenerateOutput
 from workers.predicting.production_info_core import TaskInfo
@@ -18,7 +17,7 @@ from workers.predicting.production_info_core import TaskInfo
 
 class PredictWorker():
 
-    def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', orm_cls: ModelORM = None, verbose = False, **kwargs):
+    def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', orm_cls: PredictORM = None, verbose = False, **kwargs):
         self.task_id = task_id
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_job_list = model_job_list
