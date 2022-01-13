@@ -9,6 +9,7 @@ class PathNotFoundError(Exception):
     """file dir not found"""
     pass
 
+
 class FileNotFoundError(Exception):
     """no file in dir"""
     pass

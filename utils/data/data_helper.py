@@ -8,10 +8,6 @@ import pandas as pd
 from utils.data.input_example import InputExample
 from utils.model.model_table_creator import TermWeights
 
-class DataNotFoundError(Exception):
-    """nothing return fround database"""
-    pass
-
 def load_examples(data: Union[str, List[Dict[str, Any]]],
                   sample_count: int = None, shuffle: bool = True,
                   labels=None):

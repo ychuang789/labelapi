@@ -8,8 +8,9 @@ from tqdm import tqdm
 from dump.groups.groups_interface import DumpInterface
 from dump.utils.dump_helper import execute_zip_command, truncate_table, get_current_data, get_old_table_list, \
     get_table_suffix_condition, get_old_data, merge_data, create_new_table, write_into_table, clean_rest, \
-    get_generate_dict_from_state, get_dump_table_list, TaskUnfinishedError, get_dump_table_ids
-from settings import TABLE_GROUPS_FOR_INDEX, TABLE_PREFIX, CONFLICT_GROUPS, DUMP_COLUMNS, SITE_SCHEMA
+    get_generate_dict_from_state, get_dump_table_list, get_dump_table_ids
+from settings import TABLE_GROUPS_FOR_INDEX, TABLE_PREFIX, DUMP_COLUMNS, SITE_SCHEMA
+from utils.exception_tool.exception_manager import TaskUnfinishedError
 
 
 class DumpWorker(DumpInterface):

@@ -2,16 +2,16 @@ from typing import List, Dict, Optional, Any
 
 from sqlalchemy import desc
 
-from settings import DatabaseConfig
+from settings import DatabaseConfig, TableName
 from utils.database.database_helper import get_sample_query
-from utils.enum_config import TableRecord, PredictTaskStatus
-from workers.orm_core.orm_base import ORMWorker
+from utils.enum_config import PredictTaskStatus
+from workers.orm_core.base_operation import BaseOperation
 
 
-class PredictORM(ORMWorker):
+class PredictingCRUD(BaseOperation):
     def __init__(self, connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO, auto_flush=False, echo=False, **kwargs):
         super().__init__(connection_info=connection_info, auto_flush=auto_flush, echo=echo, **kwargs)
-        self.st = self.table_cls_dict.get(TableRecord.state.value)
+        self.st = self.table_cls_dict.get(TableName.state)
 
     def predict_tasks_list(self, limit_size: int = 10, page: Optional[int] = None) -> List[Dict[str, Any]]:
         query = self.session.query(self.st).order_by(desc(self.st.create_time)).limit(limit_size)

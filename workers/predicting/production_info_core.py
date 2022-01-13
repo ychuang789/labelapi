@@ -1,7 +1,9 @@
 from typing import Dict
+
+from settings import TableName
 from utils.general_helper import get_logger
-from utils.enum_config import TableRecord, PredictTaskStatus
-from workers.orm_core.model_orm_core import ModelORM
+from utils.enum_config import PredictTaskStatus
+from workers.orm_core.model_operation import ModelingCRUD
 
 
 class TaskInfo(object):
@@ -11,8 +13,8 @@ class TaskInfo(object):
         self.table = table
         self.row_count = row_count
         self.logger = logger
-        self.orm_cls = orm_cls if orm_cls else ModelORM()
-        self.state = self.orm_cls.table_cls_dict.get(TableRecord.state.value)
+        self.orm_cls = orm_cls if orm_cls else ModelingCRUD()
+        self.state = self.orm_cls.table_cls_dict.get(TableName.state)
         self.result = self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).first()
 
     def generate_output(self):

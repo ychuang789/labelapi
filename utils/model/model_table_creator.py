@@ -3,13 +3,12 @@ from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import declarative_base, relationship, Session
 
-from settings import DatabaseConfig
-from utils.enum_config import ModelTaskStatus, TableRecord
-
+from settings import DatabaseConfig, TableName
+from utils.enum_config import ModelTaskStatus
 Base = declarative_base()
 
 class State(Base):
-    __tablename__ = TableRecord.state.value
+    __tablename__ = TableName.state
     task_id = Column(String(32), primary_key=True)
     stat = Column(String(32), nullable=False)
     prod_stat = Column(String(10))
@@ -61,7 +60,7 @@ class State(Base):
 
 
 class ModelStatus(Base):
-    __tablename__ = TableRecord.model_status.value
+    __tablename__ = TableName.model_status
     task_id = Column(String(32), primary_key=True)
     model_name = Column(String(100))
     training_status = Column(String(32))
@@ -103,7 +102,7 @@ class ModelStatus(Base):
 
 
 class ModelReport(Base):
-    __tablename__ = TableRecord.model_report.value
+    __tablename__ = TableName.model_report
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_type = Column(String(10))
     accuracy = Column(DOUBLE, nullable=False)
@@ -123,7 +122,7 @@ class ModelReport(Base):
                f"{self.create_time}, {self.task_id})"
 
 class TermWeights(Base):
-    __tablename__ = TableRecord.term_weights.value
+    __tablename__ = TableName.term_weights
     id = Column(Integer, primary_key=True, autoincrement=True)
     label = Column(String(100), nullable=False)
     term = Column(String(20), nullable=False)

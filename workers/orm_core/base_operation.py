@@ -4,12 +4,11 @@ from sqlalchemy import create_engine, inspect, MetaData
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 
-from settings import DatabaseConfig
+from settings import DatabaseConfig, TableName
 from utils.model.model_table_creator import Base
-from utils.enum_config import TableRecord
 
 
-class ORMWorker():
+class BaseOperation():
     def __init__(self, connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO,
                  auto_flush=False, echo=False, **kwargs):
         self.connection_info = connection_info
@@ -17,7 +16,7 @@ class ORMWorker():
         self.engine = create_engine(self.connection_info, echo=echo, **kwargs)
         self.create_table_cls()
         self.session = Session(self.engine, autoflush=auto_flush)
-        self.table_name_list = [item.value for item in TableRecord]
+        self.table_name_list = [i for i in dir(TableName) if not i.startswith("__")]
         self.table_cls_dict = self.table_cls_maker(self.table_name_list)
 
     def __str__(self):
@@ -39,7 +38,7 @@ class ORMWorker():
         return {c.name: getattr(record, c.name, None) for c in record.__table__.columns}
 
     def create_table_cls(self):
-        tables = [item.value for item in TableRecord]
+        tables = self.table_name_list
         show_table = self.show_tables()
         if not set(tables).issubset(show_table):
             self.base.metadata.create_all(self.engine, checkfirst=True)

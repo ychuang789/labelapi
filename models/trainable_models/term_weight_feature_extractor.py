@@ -1,10 +1,7 @@
 from sklearn.linear_model import SGDClassifier
 
 from utils.enum_config import TWFeatureModel
-
-
-class TWFeatureModelNotFoundError(Exception):
-    pass
+from utils.exception_tool.exception_manager import TWFeatureModelNotFoundError
 
 class TermWeightFeatureModel():
     def __init__(self):

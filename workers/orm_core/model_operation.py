@@ -1,13 +1,13 @@
-from settings import DatabaseConfig
-from utils.enum_config import ModelTaskStatus, TableRecord
-from workers.orm_core.orm_base import ORMWorker
+from settings import DatabaseConfig, TableName
+from utils.enum_config import ModelTaskStatus
+from utils.model.model_table_creator import ModelStatus
+from workers.orm_core.base_operation import BaseOperation
 
-
-class ModelORM(ORMWorker):
+class ModelingCRUD(BaseOperation):
     def __init__(self, connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO, auto_flush=False, echo=False, **kwargs):
         super().__init__(connection_info=connection_info, auto_flush=auto_flush, echo=echo, **kwargs)
-        self.ms = self.table_cls_dict.get(TableRecord.model_status.value)
-        self.mr = self.table_cls_dict.get(TableRecord.model_report.value)
+        self.ms = self.table_cls_dict.get(TableName.model_status)
+        self.mr = self.table_cls_dict.get(TableName.model_report)
 
     def model_status_changer(self, model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
         err_msg = f'{model_job_id} {status.value} by the external user'
@@ -39,11 +39,10 @@ class ModelORM(ORMWorker):
         return record
 
     def model_get_report(self, model_job_id: int):
+        record: ModelStatus = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).first()
+        # get() vs first()
+        return record.report
 
-        record = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).first()
-        report = self.session.query(self.mr).filter(self.mr.task_id == record.task_id).all()
-
-        return report
 
 
 

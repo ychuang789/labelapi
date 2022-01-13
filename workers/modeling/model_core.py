@@ -1,22 +1,26 @@
+import importlib
 import json
 from datetime import datetime
 from typing import Dict
 
-from models.model_creator import ModelTypeNotFoundError, ParamterMissingError, ModelSelector
+from models.audience_model_interfaces import SupervisedModel, RuleBaseModel
+
 from models.trainable_models.tw_model import TermWeightModel
+from settings import MODEL_INFORMATION
 
 from utils.data.data_helper import get_term_weights_objects
 from utils.general_helper import get_logger
 from utils.enum_config import ModelTaskStatus, DatasetType
+from utils.exception_tool.exception_manager import ModelTypeNotFoundError, ParamterMissingError
 from workers.modeling.preprocess_core import PreprocessWorker
 
-from workers.orm_core.model_orm_core import ModelORM
+from workers.orm_core.model_operation import ModelingCRUD
 
 
 class ModelingWorker():
     def __init__(self, model_name: str, predict_type: str,
                  dataset_number: int = None, dataset_schema: str = None,
-                 orm_cls: ModelORM = None, preprocess: PreprocessWorker = None, logger_name: str = 'modeling',
+                 orm_cls: ModelingCRUD = None, preprocess: PreprocessWorker = None, logger_name: str = 'modeling',
                  verbose: bool = False, **model_information):
         super().__init__(model_name=model_name, predict_type=predict_type,
                          dataset_number=dataset_number, dataset_schema=dataset_schema,
@@ -28,8 +32,9 @@ class ModelingWorker():
         self.dataset_schema = dataset_schema
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_information = model_information
-        self.orm_cls = orm_cls if orm_cls else ModelORM(echo=verbose)
-        self.preprocess = preprocess if preprocess else PreprocessWorker()
+        self.orm_cls = orm_cls if orm_cls else ModelingCRUD(echo=verbose)
+        self.preprocess = preprocess if preprocess \
+            else PreprocessWorker(dataset_number=self.dataset_number,dataset_schema=self.dataset_schema)
 
     def run_task(self, task_id: str, job_id: int = None) -> None:
 
@@ -64,10 +69,9 @@ class ModelingWorker():
 
             if isinstance(self.model, TermWeightModel):
                 bulk_list = get_term_weights_objects(task_id, self.model.label_term_weights)
-                self.orm_cls.session.add_all(bulk_list)
+                self.orm_cls.session.bulk_save_objects(bulk_list)
+                # self.orm_cls.session.add_all(bulk_list)
                 self.orm_cls.session.commit()
-
-                # session.bulk_save_objects(bulk_list)
 
             self.logger.info(f"evaluating the model ...")
             dev_report = self.model.eval(self.dev_set, self.dev_y)
@@ -173,8 +177,7 @@ class ModelingWorker():
 
     def init_model(self, is_train=True) -> None:
         try:
-            model = ModelSelector(model_name=self.model_name, target_name=self.predict_type, is_train=is_train, **self.model_information)
-            self.model = model.create_model_obj()
+            self.model = self.create_model_obj(is_train=is_train)
         except ModelTypeNotFoundError:
             err_msg = f'{self.model_name} is not a available model'
             self.logger.error(err_msg)
@@ -186,6 +189,39 @@ class ModelingWorker():
         except Exception as e:
             self.logger.error(e)
             raise e
+
+    def get_model_class(self, model_name: str):
+        if model_name in MODEL_INFORMATION:
+            module_path, class_name = MODEL_INFORMATION.get(model_name).rsplit(sep='.', maxsplit=1)
+            return getattr(importlib.import_module(module_path), class_name), class_name
+        else:
+            raise ModelTypeNotFoundError(f'{model_name} is not a available model')
+
+    def create_model_obj(self, is_train: bool):
+        self.model_path = self.model_information.get('model_path', None)
+        self.pattern = self.model_information.get('patterns', None)
+        self.target_name = self.predict_type.lower()
+        try:
+            model_class, class_name = self.get_model_class(self.model_name)
+        except ModelTypeNotFoundError:
+            raise ModelTypeNotFoundError(f'{self.model_name} is not a available model')
+
+        if model_class:
+            self.model = model_class(model_dir_name=self.model_path, feature=self.target_name)
+        else:
+            raise ValueError(f'model_name {self.model_name} is unknown')
+
+        if not is_train:
+            if isinstance(self.model, SupervisedModel):
+                self.model.load()
+            if isinstance(self.model, RuleBaseModel):
+                if self.pattern:
+                    self.model.load(self.pattern)
+                else:
+                    raise ParamterMissingError(f'patterns are missing')
+
+        return self.model
+
 
     def add_task_info(self, task_id, job_id=None, ext_test=False):
 
@@ -212,7 +248,7 @@ class ModelingWorker():
 
     def data_preprocess(self, is_train: bool = True):
         if is_train:
-            dataset: Dict = self.preprocess.run_processing(self.dataset_number, self.dataset_schema)
+            dataset: Dict = self.preprocess.run_processing()
 
             self.training_set = dataset.get(DatasetType.TRAIN.value)
             self.training_y = [[d.label] for d in self.training_set]
@@ -225,8 +261,7 @@ class ModelingWorker():
             self.logger.info(f'dev_set: {len(self.dev_set)}')
             self.logger.info(f'testing_set: {len(self.testing_set)}')
         else:
-            dataset = self.preprocess.run_processing(self.dataset_number, self.dataset_schema,
-                                                        is_train=False)
+            dataset = self.preprocess.run_processing(is_train=False)
             self.testing_set = dataset
             self.testing_y = [[d.label] for d in self.testing_set]
 

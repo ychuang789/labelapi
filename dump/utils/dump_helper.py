@@ -9,20 +9,8 @@ import pandas as pd
 from definition import AUDIENCE_PRODUCTION_PATH
 from settings import CONFLICT_GROUPS, DatabaseConfig, TABLE_PREFIX, TABLE_GROUPS_FOR_INDEX, DUMP_COLUMNS
 from utils.database.database_helper import connect_database, to_dataframe
+from utils.exception_tool.exception_manager import OutputZIPNotFoundError
 from utils.general_helper import get_logger
-
-class ResultMissingError(Exception):
-    """result cannot be trace from TABLE_GROUPS_FOR_INDEX"""
-    pass
-
-class TaskUnfinishedError(Exception):
-    """prod_stat is not `finish` in state"""
-    pass
-
-class OutputZIPNotFoundError(Exception):
-    """output ZIP file not found"""
-    pass
-
 
 def get_table_suffix_condition() -> str:
     temp = '|'.join(TABLE_GROUPS_FOR_INDEX.keys())

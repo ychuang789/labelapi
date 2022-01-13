@@ -9,12 +9,6 @@ INPUT_COLUMNS = "source_author, applied_content, created_at"
 class NATag(Enum):
     na_tag = '一般'
 
-class TableRecord(Enum):
-    state = 'state'
-    model_status = 'model_status'
-    model_report = 'model_report'
-    term_weights = 'term_weights'
-
 class PredictTaskStatus(Enum):
     SUCCESS = 'SUCCESS'
     PENDING = 'PENDING'

@@ -3,21 +3,21 @@ from typing import Dict, Optional, List
 
 import pandas as pd
 
-from settings import DatabaseConfig, SOURCE, LABEL
+from settings import DatabaseConfig, SOURCE, LABEL, TableName
 from utils.data.data_cleaning import run_cleaning
 from utils.database.database_helper import get_batch_by_timedelta, create_table
 from utils.data.input_example import InputExample
-from utils.enum_config import PredictTarget, TableRecord, PredictTaskStatus, NATag
+from utils.enum_config import PredictTarget, PredictTaskStatus, NATag
 from utils.general_helper import get_logger
 from workers.modeling.model_core import ModelingWorker
-from workers.orm_core.predict_orm_core import PredictORM
+from workers.orm_core.predict_operation import PredictingCRUD
 from workers.predicting.production_core import TaskGenerateOutput
 from workers.predicting.production_info_core import TaskInfo
 
 
 class PredictWorker():
 
-    def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', orm_cls: PredictORM = None, verbose = False, **kwargs):
+    def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', orm_cls: PredictingCRUD = None, verbose = False, **kwargs):
         self.task_id = task_id
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_job_list = model_job_list
@@ -29,8 +29,8 @@ class PredictWorker():
         self.count = 0
         self.row_number = 0
         self.start_time = datetime.now()
-        self.orm_cls = orm_cls if orm_cls else PredictORM(echo=verbose, pool_size=0, max_overflow=-1)
-        self.state = self.orm_cls.table_cls_dict.get(TableRecord.state.value)
+        self.orm_cls = orm_cls if orm_cls else PredictingCRUD(echo=verbose, pool_size=0, max_overflow=-1)
+        self.state = self.orm_cls.table_cls_dict.get(TableName.state)
         self.model_information = self.get_jobs_ids()
 
     def run_task(self):
@@ -295,7 +295,7 @@ class PredictWorker():
             return True
 
     def get_jobs_ids(self):
-        ms = self.orm_cls.table_cls_dict.get(TableRecord.model_status.value)
+        ms = self.orm_cls.table_cls_dict.get(TableName.model_status)
         result = []
         for i in self.model_job_list:
             record = self.orm_cls.session.query(ms).filter(ms.job_id == i).first()

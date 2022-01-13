@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from celery_worker import preparing, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
-from workers.orm_core.model_orm_core import ModelORM
+from workers.orm_core.model_operation import ModelingCRUD
 
 router = APIRouter(prefix='/models',
                    tags=['models'],
@@ -48,7 +48,7 @@ def model_testing(testing_config: ModelingTestingConfig):
 
 @router.get('/{model_job_id}')
 def model_status(model_job_id: int):
-    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
         err_msg = conn.model_get_status(model_job_id=model_job_id)
         result = {c.name: (getattr(err_msg, c.name) if not isinstance(getattr(err_msg, c.name), datetime)
@@ -65,21 +65,21 @@ def model_status(model_job_id: int):
 
 @router.get('/{model_job_id}/report/')
 def model_report(model_job_id):
-    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        err_msg = conn.model_get_report(model_job_id=model_job_id)
+        temp_result = conn.model_get_report(model_job_id=model_job_id)
 
         result = []
-        for err in err_msg:
+        for t in temp_result:
             _result_dict = {}
-            for c in err.__table__.columns:
+            for c in t.__table__.columns:
                 key = c.name
-                if isinstance(getattr(err, c.name), datetime):
-                    value = getattr(err, c.name).strftime("%Y-%m-%d %H:%M:%S")
-                elif isinstance(getattr(err, c.name), Decimal):
-                    value = float(getattr(err, c.name))
+                if isinstance(getattr(t, c.name), datetime):
+                    value = getattr(t, c.name).strftime("%Y-%m-%d %H:%M:%S")
+                elif isinstance(getattr(t, c.name), Decimal):
+                    value = float(getattr(t, c.name))
                 else:
-                    value = getattr(err, c.name)
+                    value = getattr(t, c.name)
                 _result_dict.update({key: value})
             result.append(_result_dict)
     except AttributeError:
@@ -94,7 +94,7 @@ def model_report(model_job_id):
 @router.post('/abort/')
 def model_abort(abort_request_body: ModelingAbort):
     model_job_id = abort_request_body.MODEL_JOB_ID
-    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
         msg = conn.model_status_changer(model_job_id=model_job_id)
         err_msg = f'{model_job_id} is successfully aborted, additional message: {msg}'
@@ -108,7 +108,7 @@ def model_abort(abort_request_body: ModelingAbort):
 @router.delete('/delete/')
 def model_delete(deletion: ModelingDelete):
     delete_model_job_id = deletion.MODEL_JOB_ID
-    conn = ModelORM(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
         msg = conn.model_delete_record(model_job_id=delete_model_job_id)
         err_msg = f'{delete_model_job_id} is successfully deleted, additional message: {msg}'

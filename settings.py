@@ -818,6 +818,16 @@ class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
 
+# ==============================
+#          Connection
+# ==============================
+class TableName:
+    state = 'state'
+    model_status = 'model_status'
+    model_report = 'model_report'
+    term_weights = 'term_weights'
+
+
 class DatabaseConfig:
     load_dotenv()
     INPUT_HOST: str = os.getenv('INPUT_HOST')

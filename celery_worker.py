@@ -17,10 +17,8 @@ celery_app.conf.update(timezone=configuration.CELERY_TIMEZONE)
 celery_app.conf.update(result_extended=configuration.CELERY_RESULT_EXTENDED)
 celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTED)
 celery_app.conf.update(task_acks_late=configuration.CELERY_ACKS_LATE)
-# celery_app.conf.update(task_serializer=configuration.CELERY_SERIALIZER)
 
-@celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', track_started=True)
-# @memory_usage_tracking
+@celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', ignore_result=True)
 def label_data(task_id: str, **kwargs) -> None:
     labeling_worker = PredictWorker(task_id, kwargs.pop('MODEL_JOB_LIST'), **kwargs)
     try:
@@ -32,7 +30,7 @@ def label_data(task_id: str, **kwargs) -> None:
     finally:
         labeling_worker._dispose()
 
-@celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', track_started=True)
+@celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', ignore_result=True)
 def dump_result(**kwargs):
     _logger = get_logger('dump')
 
@@ -55,8 +53,8 @@ def dump_result(**kwargs):
     # _logger.info('dump to zip...')
     # dump_workflow.dump_zip()
 
-@celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', track_started=True)
-# TODO: 改 func 名稱參考 TF or PYT
+@celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', ignore_result=True)
+#TODO: 改 func 名稱參考 TF or PYT
 def preparing(task_id, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
@@ -67,7 +65,7 @@ def preparing(task_id, **kwargs):
                            **kwargs['MODEL_INFO'])
     model.run_task(task_id=task_id, job_id=kwargs['MODEL_JOB_ID'])
 
-@celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
+@celery_app.task(name=f'{configuration.CELERY_NAME}.testing', ignore_result=True)
 def testing(job_id, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start job {job_id}')

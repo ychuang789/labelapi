@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from settings import DatabaseConfig
-from workers.orm_core.model_orm_core import ModelORM
+from workers.orm_core.model_operation import ModelingCRUD
 
 
 class TestModelORMWorker(TestCase):
@@ -9,7 +9,7 @@ class TestModelORMWorker(TestCase):
     model_job_id = 0
 
     def setUp(self) -> None:
-        self.orm_cls = ModelORM(connection_info=self.conn)
+        self.orm_cls = ModelingCRUD(connection_info=self.conn)
 
     def test_status_changer(self):
         er = self.orm_cls.model_status_changer(model_job_id=self.model_job_id)

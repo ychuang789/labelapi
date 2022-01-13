@@ -8,7 +8,7 @@ from celery_worker import label_data, dump_result
 from settings import TaskConfig, TaskSampleResult, AbortionConfig, DumpConfig
 from utils.database.database_helper import scrap_data_to_dict
 from utils.general_helper import get_logger, uuid_validator
-from workers.orm_core.predict_orm_core import PredictORM
+from workers.orm_core.predict_operation import PredictingCRUD
 
 _logger = get_logger('label_API')
 
@@ -53,7 +53,7 @@ def create_task(create_request_body: TaskConfig):
                                     "you can pick a 'SUCCESS' task_id and get it's ")
 def tasks_list():
 
-    orm_worker = PredictORM()
+    orm_worker = PredictingCRUD()
 
     try:
         result = orm_worker.predict_tasks_list()
@@ -84,7 +84,7 @@ def check_status(task_id):
         }
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
 
-    orm_worker = PredictORM()
+    orm_worker = PredictingCRUD()
     try:
         result = orm_worker.predict_check_status(task_id)
         err_info = {
@@ -118,7 +118,7 @@ def sample_result(task_id: str):
         }
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
 
-    orm_worker = PredictORM()
+    orm_worker = PredictingCRUD()
 
     try:
         query = orm_worker.predict_sample_result(task_id)
@@ -159,7 +159,7 @@ def abort_task(abort_request_body: AbortionConfig):
         }
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
 
-    orm_worker = PredictORM()
+    orm_worker = PredictingCRUD()
     try:
         orm_worker.predict_abort_task(task_id)
         err_info = {
