@@ -18,7 +18,6 @@ def load_examples(data: Union[str, List[Dict[str, Any]]],
     examples = defaultdict(list)
     if isinstance(data, list):
         df = pd.DataFrame(data)
-
         for index, row in df.iterrows():
             if not labels or row['name'] in labels:
                 examples[row['name']].append(

@@ -5,14 +5,14 @@ from typing import List, Dict, Union
 import pandas as pd
 from tqdm import tqdm
 
-from dump.groups.groups_interface import IGroups
+from dump.groups.groups_interface import DumpInterface
 from dump.utils.dump_helper import execute_zip_command, truncate_table, get_current_data, get_old_table_list, \
     get_table_suffix_condition, get_old_data, merge_data, create_new_table, write_into_table, clean_rest, \
     get_generate_dict_from_state, get_dump_table_list, TaskUnfinishedError, get_dump_table_ids
 from settings import TABLE_GROUPS_FOR_INDEX, TABLE_PREFIX, CONFLICT_GROUPS, DUMP_COLUMNS, SITE_SCHEMA
 
 
-class DumpWorker(IGroups):
+class DumpWorker(DumpInterface):
     def __init__(self, id_list: Union[List[str], List[int]], old_table_database: str,
                  new_table_database: str, dump_database: str, verbose: bool = False):
         super().__init__(id_list=id_list, old_table_database=old_table_database,

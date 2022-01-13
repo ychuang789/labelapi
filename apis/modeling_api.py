@@ -2,10 +2,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter
-
 import uuid
 
-from fastapi import  status
+from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 

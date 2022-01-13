@@ -4,7 +4,7 @@ from settings import DatabaseConfig
 from workers.orm_core.model_orm_core import ModelORM
 
 
-class TestORMWorker(TestCase):
+class TestModelORMWorker(TestCase):
     conn = DatabaseConfig.OUTPUT_ENGINE_INFO
     model_job_id = 0
 

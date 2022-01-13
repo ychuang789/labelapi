@@ -6,7 +6,7 @@ from settings import TABLE_PREFIX
 from utils.general_helper import get_logger
 
 
-class IGroups(ABC):
+class DumpInterface(ABC):
     def __init__(self, id_list: Union[List[str],List[int]],
                  old_table_database: str,
                  new_table_database: str,

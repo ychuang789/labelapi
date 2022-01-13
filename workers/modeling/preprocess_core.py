@@ -3,7 +3,12 @@ from utils.data.data_helper import DataNotFoundError, load_examples
 from utils.enum_config import DatasetType
 
 class PreprocessWorker:
-    def run_processing(self, dataset_number, dataset_schema,
+
+    def __str__(self):
+        return f"the class for data preprocessing"
+
+    @staticmethod
+    def run_processing(dataset_number, dataset_schema,
                        sample_count=1000, is_train=True):
         if is_train:
             data_dict = {}

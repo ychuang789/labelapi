@@ -56,6 +56,7 @@ def dump_result(**kwargs):
     # dump_workflow.dump_zip()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', track_started=True)
+# TODO: 改 func 名稱參考 TF or PYT
 def preparing(task_id, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
