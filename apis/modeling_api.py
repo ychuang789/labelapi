@@ -8,7 +8,7 @@ from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from celery_worker import preparing, testing
+from celery_worker import modeling_task, testing
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
 from workers.orm_core.model_operation import ModelingCRUD
 
@@ -25,7 +25,7 @@ def model_preparing(training_config: ModelingTrainingConfig):
     config = training_config.__dict__
 
     try:
-        preparing.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
+        modeling_task.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
     except Exception as e:
         err_msg = f'failed to add training task info to modeling_status since {e}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))

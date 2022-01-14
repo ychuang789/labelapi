@@ -55,7 +55,7 @@ def dump_result(**kwargs):
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', ignore_result=True)
 #TODO: 改 func 名稱參考 TF or PYT
-def preparing(task_id, **kwargs):
+def modeling_task(task_id, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
     model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],

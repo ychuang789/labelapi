@@ -14,9 +14,9 @@ class BaseOperation():
         self.connection_info = connection_info
         self.base = Base
         self.engine = create_engine(self.connection_info, echo=echo, **kwargs)
+        self.table_name_list = [i for i in dir(TableName) if not i.startswith("__")]
         self.create_table_cls()
         self.session = Session(self.engine, autoflush=auto_flush)
-        self.table_name_list = [i for i in dir(TableName) if not i.startswith("__")]
         self.table_cls_dict = self.table_cls_maker(self.table_name_list)
 
     def __str__(self):

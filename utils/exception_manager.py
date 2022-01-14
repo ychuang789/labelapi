@@ -1,52 +1,57 @@
 class DataNotFoundError(Exception):
     """nothing return from database"""
     def __init__(self, msg):
-        super().__init__()
+        super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return type(self), (self.msg)
+        return DataNotFoundError, (self.msg,
+
+                                   )
 
 class ResultMissingError(Exception):
     """result cannot be trace from TABLE_GROUPS_FOR_INDEX"""
     def __init__(self, msg):
-        super().__init__()
+        super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return type(self), (self.msg)
+        return ResultMissingError, (self.msg,)
 
 class TaskUnfinishedError(Exception):
     """prod_stat is not `finish` in state"""
     def __init__(self, msg):
-        super().__init__()
+        super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return type(self), (self.msg)
+        return TaskUnfinishedError, (self.msg,)
 
 class OutputZIPNotFoundError(Exception):
     """output ZIP file not found"""
     def __init__(self, msg):
-        super().__init__()
+        super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return type(self), (self.msg)
+        return OutputZIPNotFoundError, (self.msg,)
 
 class ModelTypeNotFoundError(Exception):
+    """wrong model type input from api"""
     def __init__(self, msg):
-        super().__init__()
+        super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return type(ModelTypeNotFoundError), (self.msg)
+        return ModelTypeNotFoundError, (self.msg,)
 
 class ParamterMissingError(Exception):
+    """missing kwargs like patterns"""
     def __init__(self, msg):
-        super().__init__()
+        super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return type(ModelTypeNotFoundError), (self.msg)
+        return ParamterMissingError, (self.msg,)
 
 class TWFeatureModelNotFoundError(Exception):
+    """tw model is not found, plz refer to TWFeatureModel in utils.enum_config"""
     def __init__(self, msg):
-        super().__init__()
+        super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return type(self), (self.msg)
+        return TWFeatureModelNotFoundError, (self.msg,)

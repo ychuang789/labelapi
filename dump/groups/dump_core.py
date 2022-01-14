@@ -10,7 +10,7 @@ from dump.utils.dump_helper import execute_zip_command, truncate_table, get_curr
     get_table_suffix_condition, get_old_data, merge_data, create_new_table, write_into_table, clean_rest, \
     get_generate_dict_from_state, get_dump_table_list, get_dump_table_ids
 from settings import TABLE_GROUPS_FOR_INDEX, TABLE_PREFIX, DUMP_COLUMNS, SITE_SCHEMA
-from utils.exception_tool.exception_manager import TaskUnfinishedError
+from utils.exception_manager import TaskUnfinishedError
 
 
 class DumpWorker(DumpInterface):

@@ -9,7 +9,7 @@ import pandas as pd
 from definition import AUDIENCE_PRODUCTION_PATH
 from settings import CONFLICT_GROUPS, DatabaseConfig, TABLE_PREFIX, TABLE_GROUPS_FOR_INDEX, DUMP_COLUMNS
 from utils.database.database_helper import connect_database, to_dataframe
-from utils.exception_tool.exception_manager import OutputZIPNotFoundError
+from utils.exception_manager import OutputZIPNotFoundError
 from utils.general_helper import get_logger
 
 def get_table_suffix_condition() -> str:

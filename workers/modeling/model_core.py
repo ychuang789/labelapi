@@ -11,7 +11,7 @@ from settings import MODEL_INFORMATION
 from utils.data.data_helper import get_term_weights_objects
 from utils.general_helper import get_logger
 from utils.enum_config import ModelTaskStatus, DatasetType
-from utils.exception_tool.exception_manager import ModelTypeNotFoundError, ParamterMissingError
+from utils.exception_manager import ModelTypeNotFoundError, ParamterMissingError
 from workers.modeling.preprocess_core import PreprocessWorker
 
 from workers.orm_core.model_operation import ModelingCRUD
@@ -22,9 +22,6 @@ class ModelingWorker():
                  dataset_number: int = None, dataset_schema: str = None,
                  orm_cls: ModelingCRUD = None, preprocess: PreprocessWorker = None, logger_name: str = 'modeling',
                  verbose: bool = False, **model_information):
-        super().__init__(model_name=model_name, predict_type=predict_type,
-                         dataset_number=dataset_number, dataset_schema=dataset_schema,
-                         logger_name=logger_name, verbose=verbose, _preprocessor=None)
         self.model = None
         self.model_name = model_name
         self.predict_type = predict_type
@@ -225,7 +222,7 @@ class ModelingWorker():
 
     def add_task_info(self, task_id, job_id=None, ext_test=False):
 
-        ms = self.orm_cls.mr
+        ms = self.orm_cls.ms
 
         try:
             if not ext_test:

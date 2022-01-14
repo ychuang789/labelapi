@@ -7,7 +7,7 @@ import pandas as pd
 
 from utils.data.input_example import InputExample
 from utils.database.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
-from utils.exception_tool.exception_manager import DataNotFoundError
+from utils.exception_manager import DataNotFoundError
 from utils.enum_config import DatasetType
 
 class PreprocessWorker():
