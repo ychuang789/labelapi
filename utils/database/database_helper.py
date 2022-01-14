@@ -111,26 +111,24 @@ def get_batch_by_timedelta(schema, predict_type, table,
                            begin_date: datetime, last_date: datetime,
                            interval: timedelta = timedelta(hours=6),
                            site_input: Optional[Dict] = None):
+    try:
+        connection = connect_database(schema=schema, site_input=site_input)
+    except Exception as e:
+        return str(e), begin_date
+
     while begin_date <= last_date:
-        try:
-            connection = connect_database(schema=schema, site_input=site_input)
-        except Exception as e:
-            return str(e), begin_date
-
-
         if begin_date + interval > last_date:
-
+            connection.close()
             break
-
         else:
             start_date_interval = begin_date + interval
             cursor = connection.cursor()
-
             cursor.execute(get_timedelta_query(predict_type, table, begin_date, start_date_interval))
             result = to_dataframe(cursor.fetchall())
             yield result, begin_date
             begin_date += interval
-            connection.close()
+            cursor.close()
+
 
 # some tools
 def add_column(schema, table, col_name, col_type, **kwargs):
@@ -156,141 +154,23 @@ def alter_column_type(schema: str, table_name: str, column_name: str, datatype: 
     cur.execute(q)
     connection.close()
 
-# def insert2state(task_id, status, model_type, predict_type,
-#                  date_range, target_table, time, result,
-#                  logger: get_logger, schema=None):
-#
-#     connection = connect_database(schema=schema, output=True)
-#
-#     insert_sql = f'INSERT INTO state ' \
-#                  f'(task_id, stat, model_type, predict_type, date_range, target_table, create_time, result) ' \
-#                  f'VALUES (' \
-#                  f'"{task_id}", ' \
-#                  f'"{status}", ' \
-#                  f'"{model_type}", ' \
-#                  f'"{predict_type}", ' \
-#                  f'"{date_range}", ' \
-#                  f'"{target_table}", ' \
-#                  f'"{time}", ' \
-#                  f'"{result}");'
-#     try:
-#         cursor = connection.cursor()
-#         logger.info('connecting to database...')
-#         cursor.execute(insert_sql)
-#         logger.info(f'successfully insert state into table.')
-#         connection.commit()
-#         connection.close()
-#     except Exception as e:
-#         raise e
+def get_batch_by_timedelta_new(schema, predict_type, table,
+                           begin_date: datetime, last_date: datetime,
+                           interval: timedelta = timedelta(hours=6), site_input=None):
+    connection = connect_database(schema=schema, site_input=site_input)
+    while begin_date <= last_date:
+        if begin_date + interval > last_date:
+            connection.close()
+            break
 
-# def update2state_temp_result_table(task_id, schema, result, logger: get_logger):
-#     connection = connect_database(schema=schema, output=True)
-#     insert_sql = f'UPDATE state ' \
-#                  f'SET result = "{result}" ' \
-#                  f'where task_id = "{task_id}"'
-#     try:
-#         cursor = connection.cursor()
-#         logger.info('connecting to database...')
-#         cursor.execute(insert_sql)
-#         logger.info(f'successfully write state into table.')
-#         connection.commit()
-#         connection.close()
-#     except Exception as e:
-#         raise e
-#
-# def update2state_nodata(task_id, schema, logger: get_logger):
-#     connection = connect_database(schema=schema, output=True)
-#     insert_sql = f'UPDATE state ' \
-#                  f'SET prod_stat = "no_data" ' \
-#                  f'where task_id = "{task_id}"'
-#     try:
-#         cursor = connection.cursor()
-#         logger.info('connecting to database...')
-#         cursor.execute(insert_sql)
-#         logger.info(f'successfully write state into table.')
-#         connection.commit()
-#         connection.close()
-#     except Exception as e:
-#         raise e
-#
-# def update2state(task_id, result, logger: get_logger, input_row_length = None,
-#                  output_row_length = None, run_time=None, schema=None, success=True,
-#                  check_point=None, uniq_source_author=None, error_message=None):
-#
-#     connection = connect_database(schema=schema, output=True)
-#     if success:
-#         insert_sql = f'UPDATE state ' \
-#                      f'SET stat = "SUCCESS", result = "{result}", ' \
-#                      f'uniq_source_author = "{uniq_source_author}", ' \
-#                      f'length_receive_table = {input_row_length}, ' \
-#                      f'length_output_table = {output_row_length}, ' \
-#                      f'run_time = {run_time} ' \
-#                      f'where task_id = "{task_id}"'
-#     else:
-#         insert_sql = f'UPDATE state ' \
-#                      f'SET stat = "FAILURE", ' \
-#                      f'result = "{result}", ' \
-#                      f'check_point = "{check_point}", ' \
-#                      f'error_message = "{error_message}"' \
-#                      f'where task_id = "{task_id}"'
-#
-#
-#     try:
-#         cursor = connection.cursor()
-#         logger.info('connecting to database...')
-#         cursor.execute(insert_sql)
-#         logger.info(f'successfully write state into table.')
-#         connection.commit()
-#         connection.close()
-#     except Exception as e:
-#         raise e
+        else:
+            start_date_interval = begin_date + interval
+            cursor = connection.cursor()
+            cursor.execute(get_timedelta_query(predict_type, table, begin_date, start_date_interval))
+            result = to_dataframe(cursor.fetchall())
+            yield result, begin_date
+            begin_date += interval
+            cursor.close()
 
-# def get_create_task_query(target_table, predict_type, start_time, end_time, get_all = False):
-#
-#     if not get_all:
-#         q = f"SELECT * FROM {target_table} " \
-#             f"WHERE {predict_type} IS NOT NULL " \
-#             f"AND post_time >= '{start_time}'" \
-#             f"AND post_time <= '{end_time}'"
-#     else:
-#         q = f"SELECT * FROM {target_table} " \
-#             f"WHERE {predict_type} IS NOT NULL"
-#
-#     return q
 
-# def get_count_query():
-#     return 'SELECT COUNT(task_id) FROM celery_taskmeta'
-#
-# def create_state_table(logger: get_logger, schema=None):
-#     insert_sql = f'CREATE TABLE IF NOT EXISTS `state`(' \
-#                  f'`task_id` VARCHAR(32) NOT NULL,' \
-#                  f'`stat` VARCHAR(32) NOT NULL,' \
-#                  f'`prod_stat` VARCHAR (10),' \
-#                  f'`model_type` VARCHAR(32) NOT NULL,' \
-#                  f'`predict_type` VARCHAR(32) NOT NULL,' \
-#                  f'`date_range` TEXT,' \
-#                  f'`target_table` VARCHAR(32) NOT NULL,' \
-#                  f'`create_time` DATETIME NOT NULL,' \
-#                  f'`peak_memory` FLOAT(10),' \
-#                  f'`length_receive_table` INT(11),' \
-#                  f'`length_output_table` INT(11),' \
-#                  f'`length_prod_table` VARCHAR (100),' \
-#                  f'`result` TEXT,' \
-#                  f'`uniq_source_author` VARCHAR(100),' \
-#                  f'`rate_of_label` INT(11),' \
-#                  f'`run_time` FLOAT(10),' \
-#                  f'`check_point` DATETIME,' \
-#                  f'`error_message` LONGTEXT' \
-#                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
-#                  f'AUTO_INCREMENT=1 ;'
-#     func = connect_database
-#     try:
-#         with func(schema, output=True).cursor() as cursor:
-#             logger.info('connecting to database...')
-#             logger.info('creating table...')
-#             cursor.execute(insert_sql)
-#             func(schema, output=True).close()
-#             logger.info(f'successfully created table.')
-#     except Exception as e:
-#         logger.error(e)
-#         raise e
+

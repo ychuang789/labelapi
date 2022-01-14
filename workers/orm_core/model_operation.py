@@ -1,6 +1,5 @@
 from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus
-from utils.model.model_table_creator import ModelStatus
 from workers.orm_core.base_operation import BaseOperation
 
 class ModelingCRUD(BaseOperation):
@@ -39,9 +38,9 @@ class ModelingCRUD(BaseOperation):
         return record
 
     def model_get_report(self, model_job_id: int):
-        record: ModelStatus = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).first()
+        record = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).first()
         # get() vs first()
-        return record.report
+        return record.model_report_collection
 
 
 

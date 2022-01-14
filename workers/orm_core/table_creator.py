@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base, relationship, Session
 
 from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus
-Base = declarative_base()
+Base: declarative_base = declarative_base()
 
 class State(Base):
     __tablename__ = TableName.state
@@ -15,7 +15,7 @@ class State(Base):
     model_type = Column(String(32), nullable=False)
     predict_type = Column(String(32), nullable=False)
     date_range = Column(LONGTEXT, nullable=False)
-    target_schema = Column(String(32), nullable=False)
+    target_table = Column(String(32), nullable=False)
     create_time = Column(DateTime, nullable=False)
     peak_memory = Column(Float)
     length_receive_table = Column(Integer)
@@ -38,7 +38,7 @@ class State(Base):
         self.model_type = model_type
         self.predict_type = predict_type
         self.date_range = date_range
-        self.target_schema = target_table
+        self.target_table = target_table
         self.create_time = create_time
         self.peak_memory = peak_memory
         self.length_receive_table = length_receive_table
@@ -53,7 +53,7 @@ class State(Base):
 
     def __repr__(self):
         return f"State({self.task_id}, {self.stat}, {self.prod_stat}, {self.model_type}, {self.predict_type}, " \
-               f"{self.date_range}, {self.target_schema}, {self.create_time}, {self.peak_memory}, {self.length_receive_table}," \
+               f"{self.date_range}, {self.target_table}, {self.create_time}, {self.peak_memory}, {self.length_receive_table}," \
                f"{self.length_output_table}, {self.length_prod_table}, {self.result}, {self.uniq_source_author}, " \
                f"{self.rate_of_label}, {self.run_time}, {self.check_point}, {self.error_message})"
 
@@ -99,7 +99,6 @@ class ModelStatus(Base):
         return f"ModelStatus({self.task_id}, {self.model_name}, {self.training_status}, " \
                f"{self.ext_status}, {self.feature}, {self.model_path}, {self.error_message}, " \
                f"{self.create_time}, {self.job_id})"
-
 
 class ModelReport(Base):
     __tablename__ = TableName.model_report

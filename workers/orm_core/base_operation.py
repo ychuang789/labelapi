@@ -5,7 +5,7 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 
 from settings import DatabaseConfig, TableName
-from utils.model.model_table_creator import Base
+from workers.orm_core.table_creator import Base
 
 
 class BaseOperation():

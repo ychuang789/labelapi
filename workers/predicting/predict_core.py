@@ -1,6 +1,5 @@
 from datetime import datetime
-from typing import Dict, Optional, List
-
+from typing import Dict, Optional, List, Any
 import pandas as pd
 
 from settings import DatabaseConfig, SOURCE, LABEL, TableName
@@ -21,10 +20,13 @@ class PredictWorker():
         self.task_id = task_id
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_job_list = model_job_list
+        self.input_schema = kwargs.get('INPUT_SCHEMA'),
+        self.input_table = kwargs.get('INPUT_TABLE'),
+        self.predict_type= kwargs.get('PREDICT_TYPE'),
         self.start_date = datetime.strptime(kwargs.pop('START_TIME'), "%Y-%m-%dT%H:%M:%S")
         self.end_date = datetime.strptime(kwargs.pop('END_TIME'), "%Y-%m-%dT%H:%M:%S")
         self.site_connection_info: Dict = kwargs.pop('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
-        self.task_info = kwargs
+        self.task_info: Dict[str, Any] = kwargs
         self.table_dict = {}
         self.count = 0
         self.row_number = 0
@@ -38,9 +40,37 @@ class PredictWorker():
         if not self.break_checker():
             return
 
-        for idx, elements in enumerate(get_batch_by_timedelta(self.task_info.get('INPUT_SCHEMA'),
-                                                              self.task_info.get('PREDICT_TYPE'),
-                                                              self.task_info.get('INPUT_TABLE'),
+        self.batch_process()
+
+        change_status = {
+            self.state.stat: PredictTaskStatus.SUCCESS.value,
+            self.state.result: ','.join(self.table_dict.keys()),
+            self.state.length_receive_table: self.count,
+            self.state.length_output_table: self.row_number,
+            self.state.uniq_source_author: ','.join([str(len(i)) for i in self.table_dict.values()]),
+            self.state.run_time: (datetime.now() - self.start_time).total_seconds() / 60
+
+        }
+        self._update_state(change_status)
+        self.logger.info(
+            f'task {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.{self.task_info.get("INPUT_TABLE")} done.')
+
+        if not self.break_checker():
+            return
+
+        if len(list(self.table_dict.keys())) == 0:
+            change_status = {
+                self.state.prod_stat: PredictTaskStatus.PROD_NODATA.value
+            }
+            self._update_state(change_status)
+            return
+
+        self.data_generator(list(self.table_dict.keys()))
+
+    def batch_process(self):
+        for idx, elements in enumerate(get_batch_by_timedelta(self.input_schema,
+                                                              self.predict_type,
+                                                              self.input_table,
                                                               self.start_date,
                                                               self.end_date,
                                                               site_input=self.site_connection_info)):
@@ -64,14 +94,10 @@ class PredictWorker():
             if element.empty:
                 continue
 
-            # change the `author` back to `author_name` to fit the label modeling
-            # pred = "author_name" if self.task_info.get('PREDICT_TYPE') == "author" else self.task_info.get('PREDICT_TYPE')
-
             self.count += len(element)
 
             try:
-                _output, row_num = self.data_labeler(element, self.task_info.get('PREDICT_TYPE'), self.task_info.get('PATTERN'))
-
+                _output, row_num = self.data_labeler(element, self.task_info.get('PATTERN'))
                 self.row_number += row_num
 
                 for k, v in _output.items():
@@ -102,45 +128,21 @@ class PredictWorker():
                 self.logger.error(err_msg)
                 raise e
 
-        change_status = {
-            self.state.stat: PredictTaskStatus.SUCCESS.value,
-            self.state.result: ','.join(self.table_dict.keys()),
-            self.state.length_receive_table: self.count,
-            self.state.length_output_table: self.row_number,
-            self.state.uniq_source_author: ','.join([str(len(i)) for i in self.table_dict.values()]),
-            self.state.run_time: (datetime.now() - self.start_time).total_seconds() / 60
 
-        }
-        self._update_state(change_status)
-        self.logger.info(
-            f'task {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.{self.task_info.get("INPUT_TABLE")} done.')
-
-        if not self.break_checker():
-            return
-
-        if len(list(self.table_dict.keys())) == 0:
-            change_status = {
-                self.state.prod_stat: PredictTaskStatus.PROD_NODATA.value
-            }
-            self._update_state(change_status)
-            return
-
-        self.data_generator(list(self.table_dict.keys()))
-
-    def data_labeler(self, df: pd.DataFrame, predict_type: str, pattern: Optional[List[Dict]] = None):
+    def data_labeler(self, df, pattern: Optional[List[Dict]] = None):
 
         model_info = {"patterns": pattern} if pattern else {}
         start = datetime.now()
         self.logger.info(f'start labeling at {start} ...')
-        df = self.predicting_output(df, predict_type, **model_info)
+        df = self.predicting_output(df, **model_info)
 
         df.rename(columns={'post_time': 'create_time'}, inplace=True)
         df['source_author'] = df['s_id'] + '_' + df['author']
         df['field_content'] = df['s_id']
-        if predict_type == PredictTarget.AUTHOR.value:
+        if self.predict_type == PredictTarget.AUTHOR.value:
             df['match_content'] = df['author']
         else:
-            df['match_content'] = df[predict_type]
+            df['match_content'] = df[self.predict_type]
 
         _df_output = df[['id', 'task_id', 'source_author', 'create_time',
                          'panel', 'field_content', 'match_content']]
@@ -214,7 +216,7 @@ class PredictWorker():
         self.logger.info(f'finish task {self.task_id} generate_production, total time: '
                      f'{(datetime.now() - self.start_time).total_seconds() / 60} minutes')
 
-    def predicting_output(self, df, predict_type, **model_info):
+    def predicting_output(self, df, **model_info):
 
         if self.model_information:
 
@@ -225,7 +227,7 @@ class PredictWorker():
                 info_dict = {'model_path': _model_information.get('model_path'), 'patterns': _model_info}
 
                 worker = ModelingWorker(model_name=_model_information.get('model_name'),
-                                       predict_type=predict_type,
+                                       predict_type=self.predict_type,
                                        **info_dict)
                 worker.init_model(is_train=False)
                 temp_list = []
@@ -316,9 +318,9 @@ class PredictWorker():
             task_id=self.task_id,
             stat=PredictTaskStatus.PENDING.value,
             model_type=self.task_info.get('MODEL_TYPE'),
-            predict_type=self.task_info.get('PREDICT_TYPE'),
+            predict_type=self.predict_type,
             date_range= f"{self.start_date.strftime('%Y-%m-%d')} - {self.end_date.strftime('%Y-%m-%d')}",
-            target_schema=self.task_info.get('INPUT_SCHEMA'),
+            target_schema=self.input_schema,
             create_time=datetime.now()
         ))
         self.orm_cls.session.commit()

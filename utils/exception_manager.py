@@ -4,9 +4,7 @@ class DataNotFoundError(Exception):
         super().__init__(msg)
         self.msg = msg
     def __reduce__(self):
-        return DataNotFoundError, (self.msg,
-
-                                   )
+        return DataNotFoundError, (self.msg,)
 
 class ResultMissingError(Exception):
     """result cannot be trace from TABLE_GROUPS_FOR_INDEX"""

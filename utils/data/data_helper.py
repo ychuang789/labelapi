@@ -6,7 +6,7 @@ from typing import Dict, Iterator, Union, List, Any, Tuple
 
 import pandas as pd
 from utils.data.input_example import InputExample
-from utils.model.model_table_creator import TermWeights
+from workers.orm_core.table_creator import TermWeights
 
 def load_examples(data: Union[str, List[Dict[str, Any]]],
                   sample_count: int = None, shuffle: bool = True,
