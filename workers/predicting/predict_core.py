@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Dict, Optional, List, Any
+from typing import Dict, List, Any, Union
 import pandas as pd
 
 from settings import DatabaseConfig, SOURCE, LABEL, TableName
 from utils.data.data_cleaning import run_cleaning
 from utils.database.database_helper import get_batch_by_timedelta, create_table
 from utils.data.input_example import InputExample
-from utils.enum_config import PredictTarget, PredictTaskStatus, NATag
+from utils.enum_config import PredictTaskStatus, NATag
 from utils.general_helper import get_logger
 from workers.modeling.model_core import ModelingWorker
 from workers.orm_core.predict_operation import PredictingCRUD
@@ -14,18 +14,18 @@ from workers.predicting.production_core import TaskGenerateOutput
 from workers.predicting.production_info_core import TaskInfo
 
 
-class PredictWorker():
-
-    def __init__(self, task_id, model_job_list: List[int] = None, logger_name = 'label_data', orm_cls: PredictingCRUD = None, verbose = False, **kwargs):
+class PredictWorker:
+    def __init__(self, task_id: str, input_schema: str, input_table: str, start_time: str,
+                 end_time: str, model_job_list: List[int], site_connection_info: Dict[str, Union[str, int]] = None,
+                 logger_name='label_data', orm_cls: PredictingCRUD = None, verbose=False, **kwargs):
         self.task_id = task_id
         self.logger = get_logger(logger_name, verbose=verbose)
         self.model_job_list = model_job_list
-        self.input_schema = kwargs.get('INPUT_SCHEMA'),
-        self.input_table = kwargs.get('INPUT_TABLE'),
-        self.predict_type= kwargs.get('PREDICT_TYPE'),
-        self.start_date = datetime.strptime(kwargs.pop('START_TIME'), "%Y-%m-%dT%H:%M:%S")
-        self.end_date = datetime.strptime(kwargs.pop('END_TIME'), "%Y-%m-%dT%H:%M:%S")
-        self.site_connection_info: Dict = kwargs.pop('SITE_CONFIG') if kwargs.get('SITE_CONFIG') else None
+        self.input_schema = input_schema
+        self.input_table = input_table
+        self.start_date = datetime.strptime(start_time, "%Y-%m-%dT00:00:00")
+        self.end_date = datetime.strptime(end_time, "%Y-%m-%dT00:00:00")
+        self.site_connection_info: Dict = site_connection_info if site_connection_info else None
         self.task_info: Dict[str, Any] = kwargs
         self.table_dict = {}
         self.count = 0
@@ -33,7 +33,8 @@ class PredictWorker():
         self.start_time = datetime.now()
         self.orm_cls = orm_cls if orm_cls else PredictingCRUD(echo=verbose, pool_size=0, max_overflow=-1)
         self.state = self.orm_cls.table_cls_dict.get(TableName.state)
-        self.model_information = self.get_jobs_ids()
+        self.model_information, self.model_type = self.get_jobs_ids()
+        self.predict_type = [i.feature.lower() for i in self.model_information]
 
     def run_task(self):
 
@@ -53,7 +54,7 @@ class PredictWorker():
         }
         self._update_state(change_status)
         self.logger.info(
-            f'task {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.{self.task_info.get("INPUT_TABLE")} done.')
+            f'task {self.task_id} {self.input_schema}.{self.input_table} done.')
 
         if not self.break_checker():
             return
@@ -68,14 +69,15 @@ class PredictWorker():
         self.data_generator(list(self.table_dict.keys()))
 
     def batch_process(self):
-        for idx, elements in enumerate(get_batch_by_timedelta(self.input_schema,
-                                                              self.predict_type,
-                                                              self.input_table,
-                                                              self.start_date,
-                                                              self.end_date,
+        for idx, elements in enumerate(get_batch_by_timedelta(schema=self.input_schema,
+                                                              predict_type=self.predict_type,
+                                                              table=self.input_table,
+                                                              begin_date=self.start_date,
+                                                              last_date=self.end_date,
                                                               site_input=self.site_connection_info)):
 
-            self.logger.info(f'Start {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.{self.task_info.get("INPUT_TABLE")}_batch_{idx} ...')
+            self.logger.info(
+                f'Start {self.task_id} {self.input_schema}.{self.input_table}_batch_{idx} ...')
 
             element, date_checkpoint = elements
 
@@ -83,10 +85,10 @@ class PredictWorker():
                 change_status = {
                     self.state.stat: PredictTaskStatus.FAILURE.value,
                     self.state.check_point: date_checkpoint,
-                    self.state.error_message: elements
+                    self.state.error_message: element
                 }
                 self._update_state(change_status)
-                return
+                raise
 
             if not self.break_checker():
                 return
@@ -112,8 +114,8 @@ class PredictWorker():
                     }
                     self._update_state(change_status)
 
-                self.logger.info(f'task {self.task_id} {self.task_info.get("INPUT_SCHEMA")}.'
-                             f'{self.task_info.get("INPUT_TABLE")}_batch_{idx} finished labeling...')
+                self.logger.info(f'task {self.task_id} {self.input_schema}.'
+                                 f'{self.input_table}_batch_{idx} finished labeling...')
 
             except Exception as e:
                 change_status = {
@@ -123,29 +125,20 @@ class PredictWorker():
                 }
                 self._update_state(change_status)
 
-                err_msg = f'task {self.task_id} failed at {self.task_info.get("INPUT_SCHEMA")}.' \
-                          f'{self.task_info.get("INPUT_TABLE")}_batch_{idx}, additional error message {e}'
+                err_msg = f'task {self.task_id} failed at {self.input_schema}.' \
+                          f'{self.input_table}_batch_{idx}, additional error message {e}'
                 self.logger.error(err_msg)
                 raise e
 
-
-    def data_labeler(self, df, pattern: Optional[List[Dict]] = None):
+    def data_labeler(self, df, pattern = None):
 
         model_info = {"patterns": pattern} if pattern else {}
         start = datetime.now()
         self.logger.info(f'start labeling at {start} ...')
         df = self.predicting_output(df, **model_info)
 
-        df.rename(columns={'post_time': 'create_time'}, inplace=True)
-        df['source_author'] = df['s_id'] + '_' + df['author']
-        df['field_content'] = df['s_id']
-        if self.predict_type == PredictTarget.AUTHOR.value:
-            df['match_content'] = df['author']
-        else:
-            df['match_content'] = df[self.predict_type]
-
         _df_output = df[['id', 'task_id', 'source_author', 'create_time',
-                         'panel', 'field_content', 'match_content']]
+                         'panel', 'field_content', 'match_content', 'match_meta']]
 
         df_output = _df_output.loc[(_df_output['panel'] != '') & (_df_output['panel'] != NATag.na_tag.value)]
 
@@ -194,7 +187,7 @@ class PredictWorker():
         for tb in output_table:
             self.logger.info(f'start generating output for table {tb}...')
 
-            generate_production = TaskGenerateOutput(task_id=self.task_id, schema=self.task_info.get('OUTPUT_SCHEMA'),
+            generate_production = TaskGenerateOutput(task_id=self.task_id, schema=DatabaseConfig.OUTPUT_SCHEMA,
                                                      table=tb, logger=self.logger)
             _output_table_name, row_num = generate_production.clean()
 
@@ -211,75 +204,38 @@ class PredictWorker():
                 task_info_obj.orm_cls.dispose()
 
             self.logger.info(f'finish calculating rate_of_label for table {tb}')
-            self.logger.info(f'total time for {self.task_id}: {tb} is {(datetime.now() - self.start_time).total_seconds() / 60} minutes')
+            self.logger.info(
+                f'total time for {self.task_id}: {tb} is {(datetime.now() - self.start_time).total_seconds() / 60} minutes')
 
         self.logger.info(f'finish task {self.task_id} generate_production, total time: '
-                     f'{(datetime.now() - self.start_time).total_seconds() / 60} minutes')
+                         f'{(datetime.now() - self.start_time).total_seconds() / 60} minutes')
 
-    def predicting_output(self, df, **model_info):
-
+    def predicting_output(self, dataframe, **model_info):
         if self.model_information:
-
-            output_df = pd.DataFrame(columns=list(df.columns))
+            output_df = pd.DataFrame(columns=list(dataframe.columns)+['panel','match_content','match_meta',])
             for idx, _model_information in enumerate(self.model_information):
-                _model_info = model_info.get('patterns')[idx] if model_info.get('patterns') else None
+                df = dataframe.copy()
+                _pattern = model_info.get('patterns')[idx] if model_info.get('patterns') else None
 
-                info_dict = {'model_path': _model_information.get('model_path'), 'patterns': _model_info}
+                info_dict = {'model_path': _model_information.model_path, 'patterns': _pattern}
 
-                worker = ModelingWorker(model_name=_model_information.get('model_name'),
-                                       predict_type=self.predict_type,
-                                       **info_dict)
-                worker.init_model(is_train=False)
-                temp_list = []
-                for i in range(len(df)):
-                    _input_data = InputExample(
-                        id_=df['id'].iloc[i],
-                        s_area_id=df['s_area_id'].iloc[i],
-                        author=df['author'].iloc[i],
-                        title=df['title'].iloc[i],
-                        content=df['content'].iloc[i],
-                        post_time=df['post_time'].iloc[i]
-                    )
-                    rs, prob = worker.model.predict([_input_data])
+                model_worker = ModelingWorker(model_name=_model_information.model_name,
+                                              predict_type=_model_information.feature.lower(),
+                                              **info_dict)
 
-                    if worker.model.__class__.__name__ == "TermWeightModel":
-                        if len(rs) == 1:
-                            if len(rs[0]) == 1:
-                                temp_list.append(rs[0][0])
-                            else:
-                                _tmp_val = 0
-                                _tmp_ky = ''
-                                prob_dict = prob[0]
-                                if prob[0].get(NATag.na_tag.value):
-                                    prob_dict.pop(NATag.na_tag.value)
-                                for k, v in prob[0].items():
-                                    if v[0][1] > _tmp_val:
-                                        _tmp_val = v[0][1]
-                                        _tmp_ky = k
-                                temp_list.append(_tmp_ky)
-                    else:
-                        if rs:
-                            if len(rs) == 1:
-                                if isinstance(rs[0], str):
-                                    temp_list.append(rs[0])
-                                else:
-                                    if len(rs[0]) == 1:
-                                        temp_list.append(rs[0][0])
-                                    else:
-                                        # TODO: 如果規則模型同時被貼到許多標籤，保留方法
-                                        # temp_list.append(rs[0][0])
-                                        _tmp_val = 0
-                                        _tmp_ky = ''
-                                        for i in prob[0]:
-                                            if i[1] > _tmp_val:
-                                                _tmp_val = i[1]
-                                                _tmp_ky = i[0]
-                                        temp_list.append(_tmp_ky)
-                        else:
-                            temp_list.append('')
+                model_worker.init_model(is_train=False)
+                temp_list_label, temp_list_meta = self.predict_output_process(model_worker=model_worker, df=df)
 
-                df['panel'] = temp_list
-                df['task_id'] = [self.task_id for i in range(len(df))]
+                df['panel'] = temp_list_label
+                df['match_meta'] = temp_list_meta
+                df['match_meta'] = df['match_meta'].astype(str)
+
+                df['task_id'] = [self.task_id]*len(df)
+                df['match_content'] = [_model_information.feature.lower()]*len(df)
+
+                df.rename(columns={'post_time': 'create_time'}, inplace=True)
+                df['source_author'] = df['s_id'] + '_' + df['author']
+                df['field_content'] = df['s_id']
 
                 output_df = output_df.append(df)
 
@@ -287,6 +243,63 @@ class PredictWorker():
 
         else:
             raise ValueError('Model job id is not set yet, no model reference')
+
+    def predict_output_process(self, model_worker, df):
+        temp_list_label = []
+        temp_list_meta = []
+        for i in range(len(df)):
+            _input_data = InputExample(
+                id_=df['id'].iloc[i],
+                s_area_id=df['s_area_id'].iloc[i],
+                author=df['author'].iloc[i],
+                title=df['title'].iloc[i],
+                content=df['content'].iloc[i],
+                post_time=df['post_time'].iloc[i]
+            )
+            rs, prob = model_worker.model.predict([_input_data])
+
+            if model_worker.model.__class__.__name__ == "TermWeightModel":
+                if len(rs) == 1:
+                    if len(rs[0]) == 1:
+                        temp_list_label.append(rs[0][0])
+                        temp_list_meta.append(prob)
+                    else:
+                        _tmp_val = 0
+                        _tmp_ky = ''
+                        prob_dict = prob[0]
+                        if prob[0].get(NATag.na_tag.value):
+                            prob_dict.pop(NATag.na_tag.value)
+                        for k, v in prob[0].items():
+                            if v[0][1] > _tmp_val:
+                                _tmp_val = v[0][1]
+                                _tmp_ky = k
+                        temp_list_label.append(_tmp_ky)
+                        temp_list_meta.append(prob)
+            else:
+                if rs:
+                    if len(rs) == 1:
+                        if isinstance(rs[0], str):
+                            temp_list_label.append(rs[0])
+                            temp_list_meta.append(prob)
+                        else:
+                            if len(rs[0]) == 1:
+                                temp_list_label.append(rs[0][0])
+                                temp_list_meta.append(prob)
+                            else:
+                                # TODO: 如果規則模型同時被貼到許多標籤，保留方法
+                                # temp_list.append(rs[0][0])
+                                _tmp_val = 0
+                                _tmp_ky = ''
+                                for j in prob[0]:
+                                    if j[1] > _tmp_val:
+                                        _tmp_val = j[1]
+                                        _tmp_ky = j[0]
+                                temp_list_label.append(_tmp_ky)
+                                temp_list_meta.append(prob)
+                else:
+                    temp_list_label.append('')
+                    temp_list_meta.append('')
+        return temp_list_label, temp_list_meta
 
     def break_checker(self):
         record = self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).first()
@@ -299,13 +312,17 @@ class PredictWorker():
     def get_jobs_ids(self):
         ms = self.orm_cls.table_cls_dict.get(TableName.model_status)
         result = []
+        _model_type = []
         for i in self.model_job_list:
             record = self.orm_cls.session.query(ms).filter(ms.job_id == i).first()
-            result.append({c.name: getattr(record, c.name, None) for c in record.__table__.columns})
+            _model_type.append(record.model_name)
+            # result.append({c.name: getattr(record, c.name, None) for c in record.__table__.columns})
+            result.append(record)
 
-        return result
+        model_type = ','.join(_model_type)
+        return result, model_type
 
-    def _update_state(self,_config_dict: Dict):
+    def _update_state(self, _config_dict: Dict):
         self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).update(_config_dict)
         self.orm_cls.session.commit()
 
@@ -317,9 +334,9 @@ class PredictWorker():
         self.orm_cls.session.add(self.state(
             task_id=self.task_id,
             stat=PredictTaskStatus.PENDING.value,
-            model_type=self.task_info.get('MODEL_TYPE'),
-            predict_type=self.predict_type,
-            date_range= f"{self.start_date.strftime('%Y-%m-%d')} - {self.end_date.strftime('%Y-%m-%d')}",
+            model_type=self.model_type,
+            predict_type=','.join(self.predict_type) if isinstance(self.predict_type, list) else self.predict_type,
+            date_range=f"{self.start_date.strftime('%Y-%m-%d')} - {self.end_date.strftime('%Y-%m-%d')}",
             target_schema=self.input_schema,
             create_time=datetime.now()
         ))

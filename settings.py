@@ -853,21 +853,21 @@ class DatabaseConfig:
 
 class TaskConfig(BaseModel):
     load_dotenv()
-    MODEL_TYPE: str = 'keyword_model'
-    PREDICT_TYPE: str = 'author_name'
     START_TIME: date = "2020-01-01"
     END_TIME: date = "2021-01-01"
     PATTERN: Optional[List] = None
-    INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
-    INPUT_TABLE: str = os.getenv('INPUT_TABLE')
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+    INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
+    INPUT_TABLE: str = os.getenv("INPUT_TABLE")
     COUNTDOWN: int = 5
     QUEUE: str = "queue1"
     MODEL_JOB_LIST: List[int] = None
     SITE_CONFIG: Optional[Dict] = None
 
-class AbortionConfig(BaseModel):
+class AbortConfig(BaseModel):
     TASK_ID: str = 'string'
+
+class DeleteConfig(BaseModel):
+    TASK_ID: str = None
 
 class DumpConfig(BaseModel):
     ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
@@ -875,21 +875,6 @@ class DumpConfig(BaseModel):
     NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
     DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
     QUEUE: str = "queue1"
-
-class TaskList:
-    load_dotenv()
-    OUTPUT_HOST: str = os.getenv('OUTPUT_HOST')
-    OUTPUT_PORT: int = int(os.getenv('OUTPUT_PORT'))
-    OUTPUT_USER: str = os.getenv('OUTPUT_USER')
-    OUTPUT_PASSWORD: str = os.getenv('OUTPUT_PASSWORD')
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
-    ORDER_COLUMN: str = 'create_time'
-    NUMBER: int = 5
-    OFFSET: int = 1000
-    OUTPUT_ENGINE_INFO = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
-                         f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
-                         f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
-    TABLE: str = 'state'
 
 class TaskSampleResult:
     load_dotenv()

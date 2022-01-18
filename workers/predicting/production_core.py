@@ -1,5 +1,5 @@
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 
 from settings import DatabaseConfig
 from utils.database.database_helper import connect_database, to_dataframe, create_table
@@ -40,17 +40,20 @@ class TaskGenerateOutput(object):
     def write_to_output_table(self, df: pd.DataFrame, schema: str, table_name: str, logger):
         # _table_name = f"wh_panel_mapping_{table_name}_production"
         _table_name = f"wh_panel_mapping_{table_name}"
-        _connection = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO).connect()
+        engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO)
+
         try:
-            _exist_tables = [i[0] for i in _connection.execute('SHOW TABLES').fetchall()]
+            inspector = inspect(engine)
+            _exist_tables = inspector.get_table_names()
             if _table_name not in _exist_tables:
                 create_table(_table_name, logger, schema)
 
             logger.info(f'start writing data into {_table_name}')
 
-            df.to_sql(name=_table_name, con=_connection, if_exists='append', index=False)
-
+            _conn = engine.connect()
+            df.to_sql(name=_table_name, con=engine.connect(), if_exists='append', index=False)
             logger.info(f'finish writing data into {_table_name}')
+            _conn.close()
 
             return _table_name, len(df)
 
@@ -58,6 +61,6 @@ class TaskGenerateOutput(object):
             raise e
 
         finally:
-            _connection.close()
+            engine.dispose()
 
 

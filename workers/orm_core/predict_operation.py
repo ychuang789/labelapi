@@ -13,7 +13,7 @@ class PredictingCRUD(BaseOperation):
         super().__init__(connection_info=connection_info, auto_flush=auto_flush, echo=echo, **kwargs)
         self.st = self.table_cls_dict.get(TableName.state)
 
-    def predict_tasks_list(self, limit_size: int = 10, page: Optional[int] = None) -> List[Dict[str, Any]]:
+    def tasks_list(self, limit_size: int = 10, page: Optional[int] = None) -> List[Dict[str, Any]]:
         query = self.session.query(self.st).order_by(desc(self.st.create_time)).limit(limit_size)
 
         if page:
@@ -23,11 +23,11 @@ class PredictingCRUD(BaseOperation):
 
         return [self.orm_cls_to_dict(r) for r in results]
 
-    def predict_check_status(self, task_id: str) -> Dict[str, Any]:
+    def check_status(self, task_id: str) -> Dict[str, Any]:
         result = self.session.query(self.st).filter(self.st.task_id == task_id).first()
         return self.orm_cls_to_dict(result)
 
-    def predict_sample_result(self, task_id: str, offset: int = 50) -> Optional[str]:
+    def sample_result(self, task_id: str, offset: int = 50) -> Optional[str]:
         result = self.session.query(self.st).filter(self.st.task_id == task_id).first()
 
         if not result.result or len(result.result) == 0:
@@ -41,12 +41,24 @@ class PredictingCRUD(BaseOperation):
 
         return query
 
-    def predict_abort_task(self, task_id):
+    def abort_task(self, task_id):
 
         try:
             change_status = {self.st.stat: PredictTaskStatus.BREAK.value}
             self.session.query(self.st).filter(self.st.task_id == task_id).update(change_status)
             self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e
+
+    def delete_task(self, task_id):
+        err_msg = f"delete {task_id} successfully"
+        try:
+            record = self.session.query(self.st).filter(self.st.task_id == task_id).all()
+            for r in record:
+                self.session.delete(r)
+                self.session.commit()
+            return err_msg
         except Exception as e:
             self.session.rollback()
             raise e

@@ -19,8 +19,13 @@ celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTE
 celery_app.conf.update(task_acks_late=configuration.CELERY_ACKS_LATE)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', ignore_result=True)
-def label_data(task_id: str, **kwargs) -> None:
-    labeling_worker = PredictWorker(task_id, kwargs.pop('MODEL_JOB_LIST'), **kwargs)
+def label_data(task_id, model_job_list, input_schema, input_table, start_time, end_time,
+               site_config, **kwargs) -> None:
+
+    labeling_worker = PredictWorker(task_id=task_id, model_job_list=model_job_list,
+                                    input_schema=input_schema, input_table=input_table,
+                                    start_time=start_time, end_time=end_time,
+                                    site_connection_info=site_config, **kwargs)
     try:
         labeling_worker.add_task_info()
         labeling_worker.run_task()

@@ -6,6 +6,7 @@ import pymysql
 import pandas as pd
 from retry import retry
 
+from utils.enum_config import PredictTarget
 from utils.general_helper import get_logger
 from settings import DatabaseConfig
 
@@ -64,7 +65,8 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
                  f'`panel` VARCHAR(200) NOT NULL,' \
                  f'`create_time` DATETIME NOT NULL,' \
                  f'`field_content` TEXT NOT NULL,' \
-                 f'`match_content` LONGTEXT NOT NULL' \
+                 f'`match_content` LONGTEXT NOT NULL,' \
+                 f'`match_meta` LONGTEXT NOT NULL' \
                  f')ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ' \
                  f'AUTO_INCREMENT=1 ;'
     connection = connect_database(schema=schema, output=True)
@@ -98,14 +100,22 @@ def get_sample_query(_id, tablename, number):
     return q
 
 def get_timedelta_query(predict_type, table, start_time, end_time):
-    q = f"SELECT * FROM {table} " \
-        f"WHERE author IS NOT NULL " \
-        f"AND s_id IS NOT NULL " \
-        f"AND {predict_type} IS NOT NULL " \
-        f"AND post_time >= '{start_time}' " \
-        f"AND post_time <= '{end_time}';"
+    base = f"""SELECT * FROM {table} WHERE author IS NOT NULL AND s_id IS NOT NULL AND post_time >= '{start_time}' AND post_time <= '{end_time}'"""
+    if isinstance(predict_type, str):
+        q = base + f""" AND {predict_type} IS NOT NULL"""
+        return q
+    elif isinstance(predict_type, list):
+        if len(predict_type) > 1:
+            q = base
+            for i in predict_type:
+                q += f""" AND {i} IS NOT NULL"""
+        else:
+            q = base + f""" AND {predict_type[0]} IS NOT NULL"""
 
-    return q
+        return q
+    else:
+        raise TypeError(f'expect predict_type as type of list or str but get {type(predict_type)}')
+
 
 def get_batch_by_timedelta(schema, predict_type, table,
                            begin_date: datetime, last_date: datetime,
@@ -122,12 +132,18 @@ def get_batch_by_timedelta(schema, predict_type, table,
             break
         else:
             start_date_interval = begin_date + interval
-            cursor = connection.cursor()
-            cursor.execute(get_timedelta_query(predict_type, table, begin_date, start_date_interval))
-            result = to_dataframe(cursor.fetchall())
-            yield result, begin_date
-            begin_date += interval
-            cursor.close()
+            try:
+                cursor = connection.cursor()
+                query = get_timedelta_query(predict_type, table, begin_date, start_date_interval)
+                cursor.execute(query)
+                result = to_dataframe(cursor.fetchall())
+                yield result, begin_date
+                begin_date += interval
+                cursor.close()
+            except Exception as e:
+                # yield e, begin_date
+                connection.close()
+                raise e
 
 
 # some tools

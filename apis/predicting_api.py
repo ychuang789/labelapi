@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from celery_worker import label_data, dump_result
-from settings import TaskConfig, TaskSampleResult, AbortionConfig, DumpConfig
+from settings import TaskConfig, TaskSampleResult, AbortConfig, DumpConfig, DeleteConfig
 from utils.database.database_helper import scrap_data_to_dict
 from utils.general_helper import get_logger, uuid_validator
 from workers.orm_core.predict_operation import PredictingCRUD
@@ -19,11 +19,10 @@ router = APIRouter(prefix='/tasks',
                    )
 
 @router.post('/', description='Create labeling task, edit the request body to fit your requirement. '
-                                     'Make sure to save the information of tasks, especially, `task_id`')
-def create_task(create_request_body: TaskConfig):
-    config = create_request_body.__dict__
-
-    if config.get('START_TIME') >= config.get('END_TIME'):
+                              'Make sure to save the information of tasks, especially, `task_id`')
+def create_task(body: TaskConfig):
+    kwargs = body.__dict__
+    if body.START_TIME >= body.END_TIME:
         err_info = {
             "error_code": 400,
             "error_message": "start_time must be earlier than end_time"
@@ -33,8 +32,16 @@ def create_task(create_request_body: TaskConfig):
 
     try:
         task_id = uuid.uuid1().hex
-        label_data.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
-        config.update({"task_id": task_id})
+        label_data.apply_async(
+            args=(
+                task_id, body.MODEL_JOB_LIST, body.INPUT_SCHEMA,
+                body.INPUT_TABLE, body.START_TIME, body.END_TIME,
+                body.SITE_CONFIG,
+            ),
+            kwargs=kwargs,
+            task_id=task_id,
+            queue=body.QUEUE
+        )
 
         err_info = {
             "error_code": 200,
@@ -50,13 +57,13 @@ def create_task(create_request_body: TaskConfig):
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @router.get('/', description="Return a subset of task_id and task_info, "
-                                    "you can pick a 'SUCCESS' task_id and get it's ")
+                             "you can pick a 'SUCCESS' task_id and get it's ")
 def tasks_list():
 
     orm_worker = PredictingCRUD()
 
     try:
-        result = orm_worker.predict_tasks_list()
+        result = orm_worker.tasks_list()
         err_info = {
             "error_code": 200,
             "error_message": "OK",
@@ -74,7 +81,7 @@ def tasks_list():
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @router.get('/{task_id}', description='Input a task_id and output status. If the task is successed, '
-                                             'return the result tables for querying sample results')
+                                      'return the result tables for querying sample results')
 def check_status(task_id):
 
     if not uuid_validator(task_id):
@@ -86,7 +93,7 @@ def check_status(task_id):
 
     orm_worker = PredictingCRUD()
     try:
-        result = orm_worker.predict_check_status(task_id)
+        result = orm_worker.check_status(task_id)
         err_info = {
             "error_code": 200,
             "error_message": result
@@ -108,8 +115,8 @@ def check_status(task_id):
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @router.get('/{task_id}/sample/', description='Input a SUCCESS task_id and table_names to get the sampling result.'
-                                                     'If you have no clue of task_id or table_names check the  '
-                                                     '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
+                                              'If you have no clue of task_id or table_names check the  '
+                                              '/api/tasks/{task_id} or /api/tasks/ before to gain such information ')
 def sample_result(task_id: str):
     if not uuid_validator(task_id):
         err_info = {
@@ -121,7 +128,7 @@ def sample_result(task_id: str):
     orm_worker = PredictingCRUD()
 
     try:
-        query = orm_worker.predict_sample_result(task_id)
+        query = orm_worker.sample_result(task_id)
         result = scrap_data_to_dict(query, TaskSampleResult.OUTPUT_SCHEMA)
 
         if len(result) == 0:
@@ -148,7 +155,7 @@ def sample_result(task_id: str):
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @router.post('/abort/', description='aborting a task no matter it is executing')
-def abort_task(abort_request_body: AbortionConfig):
+def abort_task(abort_request_body: AbortConfig):
     config = abort_request_body.__dict__
     task_id = config.get('TASK_ID', None)
 
@@ -161,15 +168,42 @@ def abort_task(abort_request_body: AbortionConfig):
 
     orm_worker = PredictingCRUD()
     try:
-        orm_worker.predict_abort_task(task_id)
+        orm_worker.abort_task(task_id)
         err_info = {
             "error_code": 200,
-            "error_message" : f"successfully send break status to task {task_id} in state"
+            "error_message": f"successfully send break status to task {task_id} in state"
         }
     except Exception as e:
         err_info = {
             "error_code": 500,
             "error_message": f"failed to send break status to task, additional error message: {e}"
+        }
+    finally:
+        orm_worker.dispose()
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
+
+@router.post('/delete/', description='delete the task')
+def delete_task(body: DeleteConfig):
+    if not uuid_validator(body.TASK_ID):
+        err_info = {
+            "error_code": 400,
+            "error_message": f"{body.TASK_ID} is a improper task_id"
+        }
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
+
+    orm_worker = PredictingCRUD()
+
+    try:
+        orm_worker.delete_task(body.TASK_ID)
+        err_info = {
+            "error_code": 200,
+            "error_message": f"successfully delete the task"
+        }
+    except Exception as e:
+        err_info = {
+            "error_code": 500,
+            "error_message": f"failed to delete task, additional error message: {e}"
         }
     finally:
         orm_worker.dispose()
