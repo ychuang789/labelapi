@@ -80,7 +80,7 @@ def tasks_list():
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
-@router.get('/{task_id}', description='Input a task_id and output status. If the task is successed, '
+@router.get('/{task_id}', description='Input a task_id and output status. If the task is success, '
                                       'return the result tables for querying sample results')
 def check_status(task_id):
 
@@ -155,23 +155,20 @@ def sample_result(task_id: str):
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @router.post('/abort/', description='aborting a task no matter it is executing')
-def abort_task(abort_request_body: AbortConfig):
-    config = abort_request_body.__dict__
-    task_id = config.get('TASK_ID', None)
-
-    if not uuid_validator(task_id):
+def abort_task(body: AbortConfig):
+    if not uuid_validator(body.TASK_ID):
         err_info = {
             "error_code": 400,
-            "error_message": f"{task_id} is a improper task_id"
+            "error_message": f"{body.TASK_ID} is a improper task_id"
         }
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_info))
 
     orm_worker = PredictingCRUD()
     try:
-        orm_worker.abort_task(task_id)
+        orm_worker.abort_task(body.TASK_ID)
         err_info = {
             "error_code": 200,
-            "error_message": f"successfully send break status to task {task_id} in state"
+            "error_message": f"successfully send break status to task {body.TASK_ID} in state"
         }
     except Exception as e:
         err_info = {
@@ -211,14 +208,21 @@ def delete_task(body: DeleteConfig):
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
 @router.post('/dump/', description='run dump workflow with task_id')
-def dump_tasks(dump_request_body: DumpConfig):
-    config = dump_request_body.__dict__
-
+def dump_tasks(body: DumpConfig):
     try:
-        dump_result.apply_async(kwargs=config, queue=config.get('QUEUE'))
+        dump_result.apply_async(
+            args=(
+                body.ID_LIST,
+                body.OLD_TABLE_DATABASE,
+                body.NEW_TABLE_DATABASE,
+                body.DUMP_DATABASE
+            ),
+            queue=body.QUEUE
+        )
+
         err_info = {
             "error_code": 200,
-            "error_message": config
+            "error_message": f"dump to {body.DUMP_DATABASE}"
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 

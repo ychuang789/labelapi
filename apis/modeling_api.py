@@ -19,13 +19,25 @@ router = APIRouter(prefix='/models',
                    )
 
 @router.post('/prepare/', description='preparing a model')
-def model_preparing(training_config: ModelingTrainingConfig):
+def model_preparing(body: ModelingTrainingConfig):
     task_id = uuid.uuid1().hex
 
-    config = training_config.__dict__
+    config = body.__dict__
 
     try:
-        modeling_task.apply_async(args=(task_id,), kwargs=config, task_id=task_id, queue=config.get('QUEUE'))
+        modeling_task.apply_async(
+            args=(
+                task_id,
+                body.MODEL_TYPE,
+                body.PREDICT_TYPE,
+                body.DATASET_NO,
+                body.DATASET_DB
+            ),
+            kwargs=body.MODEL_INFO,
+            task_id=task_id,
+            queue=body.QUEUE
+        )
+
     except Exception as e:
         err_msg = f'failed to add training task info to modeling_status since {e}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
@@ -34,12 +46,23 @@ def model_preparing(training_config: ModelingTrainingConfig):
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
 @router.post('/test/', description='testing a model')
-def model_testing(testing_config: ModelingTestingConfig):
+def model_testing(body: ModelingTestingConfig):
 
-    config = testing_config.__dict__
+    config = body.__dict__
 
     try:
-        testing.apply_async(args=(config.get('MODEL_JOB_ID'),), kwargs=config, queue=config.get('QUEUE'))
+        testing.apply_async(
+            args=(
+                body.MODEL_JOB_ID,
+                body.MODEL_TYPE,
+                body.PREDICT_TYPE,
+                body.DATASET_NO,
+                body.DATASET_DB
+            ),
+            kwargs=config,
+            queue=body.QUEUE
+        )
+
     except Exception as e:
         err_msg = f'failed to add testing task info to modeling_status since {e}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
@@ -66,6 +89,7 @@ def model_status(model_job_id: int):
 @router.get('/{model_job_id}/report/')
 def model_report(model_job_id):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+
     try:
         temp_result = conn.model_get_report(model_job_id=model_job_id)
 
@@ -82,6 +106,7 @@ def model_report(model_job_id):
                     value = getattr(t, c.name)
                 _result_dict.update({key: value})
             result.append(_result_dict)
+
     except AttributeError:
         result = f'model_job task: {model_job_id} is not exists'
     except Exception as e:

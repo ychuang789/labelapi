@@ -227,7 +227,7 @@ def execute_zip_command(table_name: str,
     port = DatabaseConfig.OUTPUT_PORT
     user = DatabaseConfig.OUTPUT_USER
     password = DatabaseConfig.OUTPUT_PASSWORD
-    schema = DatabaseConfig.OUTPUT_SCHEMA
+    schema = DatabaseConfig.DUMP_TO_SCHEMA
     direction = datetime.now().strftime('%Y_%m_%d')
     base_path = f'{production_path}/{direction}_dump'
 

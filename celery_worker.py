@@ -36,14 +36,14 @@ def label_data(task_id, model_job_list, input_schema, input_table, start_time, e
         labeling_worker._dispose()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', ignore_result=True)
-def dump_result(**kwargs):
+def dump_result(id_list, old_table_database, new_table_database, dump_database):
     _logger = get_logger('dump')
 
     _logger.info('start dumping...')
-    dump_workflow = DumpWorker(id_list=kwargs.get('ID_LIST'),
-                               old_table_database=kwargs.get('OLD_TABLE_DATABASE'),
-                               new_table_database=kwargs.get('NEW_TABLE_DATABASE'),
-                               dump_database=kwargs.get('DUMP_DATABASE'))
+    dump_workflow = DumpWorker(id_list=id_list,
+                               old_table_database=old_table_database,
+                               new_table_database=new_table_database,
+                               dump_database=dump_database)
 
     _logger.info(dump_workflow)
 
@@ -59,26 +59,25 @@ def dump_result(**kwargs):
     # dump_workflow.dump_zip()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', ignore_result=True)
-#TODO: 改 func 名稱參考 TF or PYT
-def modeling_task(task_id, **kwargs):
+def modeling_task(task_id, model_name, predict_type, dataset_number, dataset_schema, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
-    model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],
-                           predict_type=kwargs['PREDICT_TYPE'],
-                           dataset_number=kwargs['DATASET_NO'],
-                           dataset_schema=kwargs['DATASET_DB'],
-                           **kwargs['MODEL_INFO'])
+    model = ModelingWorker(model_name=model_name,
+                           predict_type=predict_type,
+                           dataset_number=dataset_number,
+                           dataset_schema=dataset_schema,
+                           **kwargs)
     model.run_task(task_id=task_id, job_id=kwargs['MODEL_JOB_ID'])
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', ignore_result=True)
-def testing(job_id, **kwargs):
+def testing(job_id, model_name, predict_type, dataset_number, dataset_schema, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start job {job_id}')
-    model = ModelingWorker(model_name=kwargs['MODEL_TYPE'],
-                           predict_type=kwargs['PREDICT_TYPE'],
-                           dataset_number=kwargs['DATASET_NO'],
-                           dataset_schema=kwargs['DATASET_DB'],
-                           **kwargs['MODEL_INFO'])
+    model = ModelingWorker(model_name=model_name,
+                           predict_type=predict_type,
+                           dataset_number=dataset_number,
+                           dataset_schema=dataset_schema,
+                           **kwargs)
     model.eval_outer_test_data(job_id)
 
 
