@@ -4,7 +4,7 @@ from unittest import TestCase
 
 
 from definition import ROOT_DIR
-from models.rule_based_models.rule_model import RuleModel
+from models.rule_based_models.regex_model import RegexModel
 from models.rule_based_models.keyword_model import KeywordModel
 from utils.data.data_helper import load_examples
 from utils.label.run_label_task import read_from_dir
@@ -38,10 +38,10 @@ class TestRuleBaseModel(TestCase):
     source_rules = {"female": ["ptt_woman_talk"]}
 
     def setUp(self) -> None:
-        self.content_rule_base_model = RuleModel(self.model_dir, self.content_rules)
-        self.name_rule_base_model = RuleModel(self.model_dir, self.name_rules)
-        self.source_rule_base_model = RuleModel(self.model_dir, self.source_rules)
-        self.name_eval = RuleModel(self.model_dir, self.source_rules)
+        self.content_rule_base_model = RegexModel(self.model_dir, self.content_rules)
+        self.name_rule_base_model = RegexModel(self.model_dir, self.name_rules)
+        self.source_rule_base_model = RegexModel(self.model_dir, self.source_rules)
+        self.name_eval = RegexModel(self.model_dir, self.source_rules)
 
     def test_predict_content(self):
 
@@ -73,9 +73,7 @@ class TestKeyWordBaseModel(TestCase):
         self.source_rule_base_model = KeywordModel(self.model_dir, self.source_rules)
         label = "female"
         rs, prob = self.source_rule_base_model.predict([input_female], target=PredictTarget.S_AREA_ID.value)
+        print(prob)
         self.assertTrue(label in rs[0])
 
-    def test_eval(self):
-        self.source_rule_base_model = KeywordModel(self.model_dir, self.patterns)
-        self.source_rule_base_model.eval(data, y)
 

@@ -789,7 +789,7 @@ MODEL_PATH_FIELD_DIRECTORY = 'model_files'
 
 MODEL_INFORMATION = {
     "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
-    "RULE_MODEL" : "models.rule_based_models.rule_model.RuleModel",
+    "REGEX_MODEL" : "models.rule_based_models.regex_model.RegexModel",
     "RANDOM_FOREST_MODEL" : "models.trainable_models.rf_model.RandomForestModel",
     "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
 }

@@ -6,7 +6,7 @@ from typing import Dict, Iterable, Optional, Union, Tuple, List
 from sqlalchemy import create_engine
 import pandas as pd
 
-from models.rule_based_models.rule_model import RuleModel
+from models.rule_based_models.regex_model import RegexModel
 from models.rule_based_models.keyword_model import  KeywordModel
 
 from definition import RULE_FOLDER
@@ -48,7 +48,7 @@ def read_rules_from_db(rule_name, model_type, labeling_job_id: int = 21, schema=
     connection.close()
     output_dict = {}
 
-    if model_type == ModelType.RULE_MODEL.value:
+    if model_type == ModelType.REGEX_MODEL.value:
         rule_list = []
         for d in result:
             rule_list.append(d['content'])
@@ -72,7 +72,7 @@ def run_prediction(input_examples: Iterable[InputExample], pattern: Dict,
                    model_type: str,
                    predict_type: PredictTarget):
     if model_type == "rule_model":
-        label_model = RuleModel(pattern)
+        label_model = RegexModel(pattern)
         matched_labels, match_count_list = label_model.predict(input_examples, target=predict_type)
         return matched_labels, match_count_list
     elif model_type == "keyword_model":
@@ -100,8 +100,8 @@ def labeling(_id:str, df: pd.DataFrame, model_type: str,
              predict_type: str, pattern: Dict, logger: get_logger):
     start = datetime.now()
     logger.info(f'start labeling at {start} ...')
-    if model_type == ModelType.RULE_MODEL.value:
-        model = RuleModel(pattern)
+    if model_type == ModelType.REGEX_MODEL.value:
+        model = RegexModel(pattern)
         temp_list = []
         for i in range(len(df)):
             _input_data = InputExample(

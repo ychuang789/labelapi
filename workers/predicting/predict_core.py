@@ -231,7 +231,7 @@ class PredictWorker:
                 df['match_meta'] = df['match_meta'].astype(str)
 
                 df['task_id'] = [self.task_id]*len(df)
-                df['match_content'] = [_model_information.feature.lower()]*len(df)
+                df['match_content'] = df[_model_information.feature.lower()]
 
                 df.rename(columns={'post_time': 'create_time'}, inplace=True)
                 df['source_author'] = df['s_id'] + '_' + df['author']
@@ -319,7 +319,7 @@ class PredictWorker:
             # result.append({c.name: getattr(record, c.name, None) for c in record.__table__.columns})
             result.append(record)
 
-        model_type = ','.join(_model_type)
+        model_type = ','.join(set(_model_type))
         return result, model_type
 
     def _update_state(self, _config_dict: Dict):
@@ -335,7 +335,7 @@ class PredictWorker:
             task_id=self.task_id,
             stat=PredictTaskStatus.PENDING.value,
             model_type=self.model_type,
-            predict_type=','.join(self.predict_type) if isinstance(self.predict_type, list) else self.predict_type,
+            predict_type=','.join(set(self.predict_type)) if isinstance(self.predict_type, list) else self.predict_type,
             date_range=f"{self.start_date.strftime('%Y-%m-%d')} - {self.end_date.strftime('%Y-%m-%d')}",
             target_schema=self.input_schema,
             create_time=datetime.now()

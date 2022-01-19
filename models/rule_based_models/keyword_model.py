@@ -4,14 +4,13 @@ from typing import Iterable, Dict, List, Tuple
 from ahocorapy.keywordtree import KeywordTree
 from sklearn.preprocessing import MultiLabelBinarizer
 
-
 from models.audience_model_interfaces import RuleBaseModel
 from utils.data.input_example import InputExample
 from utils.enum_config import ModelType, PredictTarget, KeywordMatchType, Errors
 
 
 class KeywordModel(RuleBaseModel):
-    def __init__(self, model_dir_name= None,
+    def __init__(self, model_dir_name=None,
                  patterns: Dict[str, List[Tuple[str, KeywordMatchType]]] = None,
                  name: str = None,
                  model_type: ModelType = ModelType.KEYWORD_MODEL.value,
@@ -69,30 +68,41 @@ class KeywordModel(RuleBaseModel):
             _matched_labels = []
             for label in self.labels:
                 _matched_count = 0
-
+                _matched_pattern = []
+                _matched_rule = []
                 # start matching rules
-                if self.label_match_any_trees[label].search(_predict_str.lower()):
+                _temp_matched_pattern = [i for i in self.label_match_any_trees[label].search_all(_predict_str.lower())]
+                if _temp_matched_pattern:
                     # matched_result[label].append(1)
+                    # _matched_pattern.append([i for i in self.label_match_any_trees[label].search_all(_predict_str.lower())])
+                    _matched_pattern.append(_temp_matched_pattern)
                     _matched_count += 1
                     # break
                 for keyword in self.label_match_full[label]:
                     if keyword == _predict_str:
                         # matched_result[label].append(1)
+                        _matched_rule.append([(keyword, 0)])
                         _matched_count += 1
                         # break
                 for keyword in self.label_match_start[label]:
                     if _predict_str.startswith(keyword):
                         # matched_result[label].append(1)
+                        _matched_rule.append([(keyword, 0)])
                         _matched_count += 1
                         # break
 
                 for keyword in self.label_match_end[label]:
                     if _predict_str.endswith(keyword):
                         # matched_result[label].append(1)
+                        _matched_rule.append([(keyword, _predict_str.find(keyword))])
                         _matched_count += 1
                         # break
                 if _matched_count > 0:
-                    _match_count_list.append((label, _matched_count))
+                    if _matched_pattern:
+                        _match_count_list.append((label, _matched_pattern))
+                    else:
+                        _match_count_list.append((label, _matched_rule))
+
                     _matched_labels.append(label)
             if len(_matched_labels) > 0:
                 matched_labels.append(tuple(_matched_labels))
@@ -121,10 +131,12 @@ class KeywordModel(RuleBaseModel):
     #     else:
     #         raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
 
+
 def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT.value,
                          case_sensitive: bool = False) -> List[str]:
     return [_parse_predict_target(input_example, target=target, case_sensitive=case_sensitive)
             for input_example in input_examples]
+
 
 def _parse_predict_target(input_example: InputExample, target: PredictTarget = PredictTarget.CONTENT.value,
                           case_sensitive: bool = False) -> str:

@@ -9,19 +9,17 @@ from utils.data.input_example import InputExample
 
 from utils.enum_config import ModelType, PredictTarget, Errors
 
-
-
-class RuleModel(RuleBaseModel):
+class RegexModel(RuleBaseModel):
     def __init__(self, model_dir_name= None,
                  patterns: Dict[str, List[str]] = None,
                  name: str = None,
-                 model_type: ModelType = ModelType.RULE_MODEL,
+                 model_type: ModelType = ModelType.REGEX_MODEL,
                  feature: PredictTarget = PredictTarget.CONTENT,
                  verbose: bool = False):
-        super().__init__(name=name if name is not None else "RuleModel",
+        super().__init__(name=name if name is not None else "RegexModel",
                          model_dir_name=model_dir_name,
                          model_type=model_type, feature=feature,
-                         logger_name="RuleModel", verbose=verbose)
+                         logger_name="RegexModel", verbose=verbose)
         self.logger.debug("model Init")
         self.label_patterns = None
         self.labels = []
@@ -48,14 +46,14 @@ class RuleModel(RuleBaseModel):
             _matched_labels = []
             for label, patterns in self.label_patterns.items():
                 _matched_count = 0
-
+                _match_pattern = []
                 for pattern in patterns:
-                    if re.search(pattern=pattern, string=_predict_str.lower()):
+                    if result := re.search(pattern=pattern, string=_predict_str.lower()):
                         _matched_count += 1
-
+                        _match_pattern.append(result.group(0))
 
                 if _matched_count > 0:
-                    _match_count_list.append((label, _matched_count))
+                    _match_count_list.append((label, _match_pattern))
                     _matched_labels.append(label)
 
             if len(_matched_labels) > 0:
@@ -69,21 +67,21 @@ class RuleModel(RuleBaseModel):
         else:
             return None, None
 
-    def eval(self, examples: List[InputExample], y_true):
-        for index, y in enumerate(y_true):
-            y_true[index] = y
-
-        if self.label_patterns and self.mlb:
-            predict_labels, first_matched_keyword = self.predict(examples)
-            y_true = self.mlb.transform(y_true)
-            y_pred = self.mlb.transform(predict_labels)
-            acc = accuracy_score(y_true=y_true, y_pred=y_pred)
-            report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True, zero_division=1,
-                                           target_names=self.mlb.classes)
-            report['accuracy'] = acc
-            return report
-        else:
-            raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
+    # def eval(self, examples: List[InputExample], y_true):
+    #     for index, y in enumerate(y_true):
+    #         y_true[index] = y
+    #
+    #     if self.label_patterns and self.mlb:
+    #         predict_labels, first_matched_keyword = self.predict(examples)
+    #         y_true = self.mlb.transform(y_true)
+    #         y_pred = self.mlb.transform(predict_labels)
+    #         acc = accuracy_score(y_true=y_true, y_pred=y_pred)
+    #         report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True, zero_division=1,
+    #                                        target_names=self.mlb.classes)
+    #         report['accuracy'] = acc
+    #         return report
+    #     else:
+    #         raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
 
 def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT.value,
                          case_sensitive: bool = False) -> List[str]:

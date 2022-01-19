@@ -36,7 +36,7 @@ class TWFeatureModel(Enum):
 
 class ModelType(Enum):
     KEYWORD_MODEL = "keyword_model"
-    RULE_MODEL = "rule_model"
+    REGEX_MODEL = "regex_model"
     RANDOM_FOREST_MODEL = "random_forest_model"
     TERM_WEIGHT_MODEL = "term_weight_model"
 
