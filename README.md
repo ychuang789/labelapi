@@ -1,6 +1,6 @@
-# Audience API v 2.2
+Audience API v 2.2
 
-###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2021-12-14
+###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-01-05
 
 中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pptx)
 
@@ -17,31 +17,51 @@
   + [Run the API](#run-the-api)
 + [Usage](#usage)
   + [swagger UI](#swagger-ui)
-  + [create_task](#create_task)
-  + [task_list](#task_list)
-  + [check_status](#check_status)
-  + [sample_result](#sample_result)
+  + [Task](#task)
+    + [create_task](#create_task)
+    + [task_list](#task_list)
+    + [check_status](#check_status)
+    + [sample_result](#sample_result)
+  + [Model](#model)
+    + [model_preparing](#model_preparing)
+    + [model_testing](#model_testing)
+    + [model_status](#model_status)
+    + [model_report](#model_report)
+    + [model_abort](#model_abort)
+    + [model_delete](#model_delete)
 + [Error code](#error-code)
 + [System Recommendation and Baseline Performance](#system-recommendation-and-baseline-performance)
 + [Appendix](#appendix)
 
 ## Description
 
-此 WEB API 專案基於協助貼標站台進行貼標任務而建立，支援使用者選擇貼標模型與規則，並且可以呼叫 API 回傳抽樣結果檢查貼概況。此專案共有五個 API 服務:
+此 WEB API 專案基於協助貼標站台進行貼標任務而建立，支援使用者選擇貼標模型與規則，並且可以呼叫 API 回傳抽樣結果檢查貼概況。API 服務:
+
++ Task
 
 1. create_task : 依據使用者定義之情況，建立任務流程 (貼標 -> 上架)，並執行任務
 2. task_list : 回傳近期執行之任務與之相關資訊
 3. check_status : 輸入任務ID，檢查任務進度(貼標狀態、上架狀態)
 4. sample_result : 輸入任務ID，回傳抽樣之上架資料
 5. abort_task : 依據使用者輸入之任務 ID，終止任務
+6. dump_tasks : 產出上架資料
 
-貼標專案流程為，從使用者定義之情況建立貼標任務 (如 日期資訊、資料庫資訊等) ，訪問資料庫擷取相關資料進行貼標，貼標完資料根據來源分別儲存至不同的結果資料表。過程的任務資訊 (如 任務開始時間、任務狀態、貼標時間) 和驗證資訊 (如 接收資料長度、產出資料長度、上架資料筆數、貼標率等) 會儲存於使用者預先定義的結果資料庫中的 state 資料表。
++ Model
 
-使用者可以透過`tasks_list`, `check_status`, `sample_result`, `abort_task` 等 API 查詢任務狀態和取得抽樣貼標結果，或是透過任務ID直接查詢 state 資料表來來取得相關資訊，更甚者提前終止任務。
+1. model_preparing : 模型準備，訓練、驗證機器學習模型，儲存規則模型資訊
+2. model_testing : 測試模型，目前版本僅提供機器學習模型測試
+3. model_status : 輸入 job_id，回傳模型狀態資訊 ( job_id 對應前台 `ModelingJob.id`)
+4. model_report : 輸入 job_id，回傳所以對應之驗證報告
+5. model_abort : 輸入 job_id，中斷模型準備或測試任務
+6. model_delete : 輸入 job_id，刪除對應之所有紀錄  
+
+貼標專案流程為，從使用者定義之情況建立貼標任務 Task (如 日期資訊、資料庫資訊等) ，訪問資料庫擷取相關資料進行貼標，選取 Model 準備好的模型，貼標完資料根據來源分別儲存至不同的結果資料表。過程的任務資訊 (如 任務開始時間、任務狀態、貼標時間) 和驗證資訊 (如 接收資料長度、產出資料長度、上架資料筆數、貼標率等) 會儲存於使用者預先定義的結果資料庫中的 state 資料表。
 
 ---
 
 These WEB APIs is built for the usage of data labeling tasks supporting users selecting models and rules to labeling the target range of data, and result sampling. There are four APIs in this project:
+
++ Task
 
 1. create_task : According to the user defined condition, set up a task flow (labeling and generate production) and execute the flow
 2. task_list : return the recent executed tasks with tasks' information
@@ -49,15 +69,32 @@ These WEB APIs is built for the usage of data labeling tasks supporting users se
 4. sample_result : Input a task id, return a sampling dataset back.
 5. abort_task : According to the user defined task_id, abort the task
 
-The total flow in brief of `create_task` is that the API will query the database via conditions and information which place by users, label those data, and output the data to a target database storing by `source_id` . The progress and validation information will be stored in the table, name `state`, inside the user define output schema which will be automatically created at the first time that user call `create_task` API.
++ Model
 
-Users can track the progress and sampling result  data by calling the rest of APIs `tasks_list`, `check_status`, and `sample_result`, abort the task in advanced by `abort_task` if results of sample_result are not as expected, or directly query the table `state` by giving the `task_id` information to gain such information.
+1. model_preparing : train and validate a model with saving it to model directory, if the model cannot be trained, save the record to model_status.      
+2. model_testing : test a model with a external test data.         
+3. model_status : get the model status information with a target job_id.       
+4. model_report : get the model report information with a target job_id.   
+5. model_abort : break a task with a target job_id.   
+6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.    
+
+The total flow in brief of `create_task` is that the API will query the database via conditions and information which place by users, label those data, and output the data to a target database storing by `source_id` . The progress and validation information will be stored in the table, name `state`, inside the user define output schema which will be automatically created at the first time that user call `create_task` API.
 
 
 
 ## Work Flow
 
+#### Task
+
 <img src="graph/workflow_chain_v3.png">
+
+#### Model
+
+<img src="graph/model_api.png">
+
+<img src="graph/model_worker.png">
+
+
 
 ## Built With
 
@@ -69,6 +106,8 @@ Users can track the progress and sampling result  data by calling the rest of AP
   + Python 3.8
   + Celery 5.1.2
   + FastAPI 0.68.1
+  + Scikit-learn
+  + Sqlalchemy
 + Test with
   + Windows 10 Python 3.8
   + Ubuntu 18.04.5 LTS Python 3.8
@@ -164,6 +203,8 @@ Make sure the redis is running beforehand or you should fail to initialize celer
 
 **Windows**
 
++ Task
+
 ```bash
 # if you wanna run the task with coroutine
 # make sure installing the gevent before `pip install gevent`
@@ -172,7 +213,18 @@ $ make run_worker_1
 # if you want to run multi workers try
 # noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_2
+
+```
+
++ Model
+
+```bash
+# if you wanna run the task with coroutine
+# make sure installing the gevent before `pip install gevent`
 $ make run_worker_3
+
+# if you want to run multi workers try
+# noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_4
 ```
 
@@ -186,6 +238,8 @@ For detailed option command of celery, `-l` means loglevel; `-P` **CANNOT** be s
 
 **Ubuntu**
 
++ Task
+
 ```bash
 # if you wanna run the task with coroutine
 # make sure installing the gevent before `pip install gevent`
@@ -194,7 +248,18 @@ $ make run_worker_1
 # if you want to run multi workers try
 # noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_2
+
+```
+
++ Model
+
+```bash
+# if you wanna run the task with coroutine
+# make sure installing the gevent before `pip install gevent`
 $ make run_worker_3
+
+# if you want to run multi workers try
+# noted that they consume same queue, if you want to modify the configuration, edit the command in Makefile
 $ make run_worker_4
 ```
 
@@ -214,7 +279,7 @@ $ make run_api
 
 If you have done the quick start and you want to test the API functions or expect a web-based user-interface, you can type `<api address>:<api port>/docs` in the browser (for example http://127.0.0.1:8000/docs) to open a Swagger user-interface, for more information see [Swagger](https://swagger.io/). It is very simple to use by following the quick demonstration below :
 
-#### swagger UI
+### swagger 
 
 + Type `<api address>:<api port>/docs` in the web browser, for example if you test the API at localhost `127.0.0.1/docs`
 
@@ -234,6 +299,8 @@ If you have done the quick start and you want to test the API functions or expec
 
 Otherwise modify  curl to calling API. Follow below parts :  
 
+### Tasks
+
 #### create_task
 
 Input the task information for example model type, predict type, date info, etc., and return task_id with task configuration.
@@ -242,7 +309,7 @@ Input the task information for example model type, predict type, date info, etc.
 
 ```shell
 curl -X 'POST' \
-  'http://<api address>:<api port>/api/tasks/' \
+  'http://<api address>:<api port>/tasks/' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -316,7 +383,7 @@ Request example :
 
 ```shell
 curl -X 'GET' \
-  'http://<api address>:<api port>/api/tasks/' \
+  'http://<api address>:<api port>/tasks/' \
   -H 'accept: application/json'
 ```
 
@@ -417,15 +484,13 @@ Response example :
 
 #### check_status
 
-`/api/tasks/{task_id}` 
-
 Return the task status (*PENDING, SUCCESS, FAILURE*) and prod_status (*finish* or *Null*) via task id, if the task is *SUCCESS* return result (temp result table_name) too.
 
 Request example :
 
 ```shell
 curl -X 'GET' \
-  'http://<api address>:<api port>/api/tasks/<task_id>' \
+  'http://<api address>:<api port>/tasks/<task_id>' \
   -H 'accept: application/json'
 ```
 
@@ -479,15 +544,13 @@ Response example :
 
 #### sample_result
 
-`/api/tasks/{task_id}/sample/` 
-
 Input task id return the sampling results from result tables.
 
 Request example :
 
 ```shell
 curl -X 'GET' \
-  'http://<api address>:<api port>/api/tasks/<task_id>/sample/' \
+  'http://<api address>:<api port>/tasks/<task_id>/sample/' \
   -H 'accept: application/json'
 ```
 
@@ -550,8 +613,6 @@ Response example :
 | field_content | s_id                                      |
 | match_content | The content which is matched to labeling. |
 
-
-
 #### abort_task
 
 If you detect something wrong from sample result or accidentally misrunning some tasks, you can <u>terminate</u> the task from worker by this API. It will not stop the worker. The task information in the state table will be marked as *BREAK* and you cannot re-run it by the same `task_id` (please re-create a task).
@@ -560,7 +621,7 @@ Request example :
 
 ```shell
 curl -X 'POST' \
-  'http://<api address>:<api port>/api/tasks/' \
+  'http://<api address>:<api port>/tasks/' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -576,6 +637,221 @@ Response example :
 	"error_message" : f"successfully send break status to task <task_id> in state"
 }
 ```
+
+
+
+### Model
+
+#### model_preparing
+
+Use this API to prepare a model for labeling task : 
+
+Request example: 
+
+```shell
+curl -X 'POST' \
+  'http://<api address>:<api port>/models/prepare/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "QUEUE": "queue2",
+  "DATASET_DB": "audience-toolkit-django",
+  "DATASET_NO": <your training or testing dataset number from labeling_job>,
+  "MODEL_JOB_ID": <your model_job_id>,
+  "PREDICT_TYPE": "AUTHOR",
+  "MODEL_TYPE": "RULE_MODEL",
+  "MODEL_INFO": {
+    "model_path": <your_model_path>
+  }
+}'
+```
+
+Response example:
+
+```shell
+{
+  "QUEUE": "queue2",
+  "DATASET_DB": "audience-toolkit-django",
+  "DATASET_NO": 1,
+  "MODEL_JOB_ID": 24,
+  "PREDICT_TYPE": "AUTHOR",
+  "MODEL_TYPE": "RULE_MODEL",
+  "MODEL_INFO": {
+    "model_path": "24_rule_model"
+  },
+  "task_id": "e74c1042737d11ec848204ea56825bad"
+}
+```
+
+
+
+#### model_testing
+
+Use this API to test a external testing file: 
+
+Request example:
+
+ ```shell
+ curl -X 'POST' \
+   'http://<api address>:<api port>/models/test/' \
+   -H 'accept: application/json' \
+   -H 'Content-Type: application/json' \
+   -d '{
+   "QUEUE": "queue2",
+   "DATASET_DB": "audience-toolkit-django",
+   "DATASET_NO": <your training or testing dataset number from labeling_job>,
+   "MODEL_JOB_ID": <your model_job_id>,
+   "PREDICT_TYPE": "AUTHOR",
+   "MODEL_TYPE": "RULE_MODEL",
+   "MODEL_INFO": {
+     "model_path": <your_model_path>
+   }
+ }'
+ ```
+
+Response example:
+
+```shell
+{
+  "QUEUE": "queue2",
+  "DATASET_DB": "audience-toolkit-django",
+  "DATASET_NO": 1,
+  "MODEL_JOB_ID": 24,
+  "PREDICT_TYPE": "AUTHOR",
+  "MODEL_TYPE": "RULE_MODEL",
+  "MODEL_INFO": {
+    "model_path": "24_rule_model"
+  },
+  "task_id": "e74c1042737d11ec848204ea56825bad"
+}
+```
+
+
+
+#### model_status
+
+For extracting the model status:
+
+Request example:
+
+```shell
+curl -X 'GET' \
+  'http://<api address>:<api port>/models/<model_job_id>' \
+  -H 'accept: application/json'
+```
+
+Response example:
+
+```shell
+{
+  "task_id": "04e0960e735511ecab4b04ea56825bad",
+  "model_name": "TERM_WEIGHT_MODEL",
+  "training_status": "finished",
+  "ext_status": null,
+  "feature": "CONTENT",
+  "model_path": "7_term_weight_model",
+  "error_message": null,
+  "create_time": "2022-01-12 11:09:13",
+  "job_id": 7
+}
+```
+
+
+
+#### model_report
+
+If you want to see the effectiveness of each model: 
+
+Request example:
+
+```shell
+curl -X 'GET' \
+  'http://<api address>:<api port>/models/<model_job_id>/report/' \
+  -H 'accept: application/json'
+```
+
+Response example:
+
+```
+[
+  {
+    "id": 32,
+    "dataset_type": "dev",
+    "accuracy": 0,
+    "report": "{\"一般\": {\"precision\": 0.25129198966408267, \"recall\": 0.389, \"f1-score\": 0.3053375196232339, \"support\": 1000}, \"貸款\": {\"precision\": 0.2515670706226494, \"recall\": 0.602, \"f1-score\": 0.3548482169171824, \"support\": 1000}, \"色情\": {\"precision\": 0.25093984962406013, \"recall\": 0.534, \"f1-score\": 0.3414322250639386, \"support\": 1000}, \"抽獎\": {\"precision\": 0.2486327303323517, \"recall\": 0.591, \"f1-score\": 0.3500148060408647, \"support\": 1000}, \"micro avg\": {\"precision\": 0.2505327965901018, \"recall\": 0.529, \"f1-score\": 0.3400289249558091, \"support\": 4000}, \"macro avg\": {\"precision\": 0.250607910060786, \"recall\": 0.5289999999999999, \"f1-score\": 0.3379081919113049, \"support\": 4000}, \"weighted avg\": {\"precision\": 0.250607910060786, \"recall\": 0.529, \"f1-score\": 0.3379081919113049, \"support\": 4000}, \"samples avg\": {\"precision\": 0.5516875, \"recall\": 0.529, \"f1-score\": 0.23282499999999998, \"support\": 4000}, \"accuracy\": 0.0}",
+    "create_time": "2022-01-12 11:09:24",
+    "task_id": "04e0960e735511ecab4b04ea56825bad"
+  },
+  {
+    "id": 33,
+    "dataset_type": "test",
+    "accuracy": 0,
+    "report": "{\"一般\": {\"precision\": 0.246583850931677, \"recall\": 0.397, \"f1-score\": 0.30421455938697317, \"support\": 1000}, \"貸款\": {\"precision\": 0.2526720820863617, \"recall\": 0.591, \"f1-score\": 0.35399820305480684, \"support\": 1000}, \"色情\": {\"precision\": 0.2455968688845401, \"recall\": 0.502, \"f1-score\": 0.32982917214191854, \"support\": 1000}, \"抽獎\": {\"precision\": 0.2505418292154313, \"recall\": 0.578, \"f1-score\": 0.3495615361354702, \"support\": 1000}, \"micro avg\": {\"precision\": 0.2491566265060241, \"recall\": 0.517, \"f1-score\": 0.336260162601626, \"support\": 4000}, \"macro avg\": {\"precision\": 0.24884865777950255, \"recall\": 0.517, \"f1-score\": 0.33440086767979216, \"support\": 4000}, \"weighted avg\": {\"precision\": 0.2488486577795025, \"recall\": 0.517, \"f1-score\": 0.3344008676797922, \"support\": 4000}, \"samples avg\": {\"precision\": 0.5609166666666667, \"recall\": 0.517, \"f1-score\": 0.22645833333333334, \"support\": 4000}, \"accuracy\": 0.0}",
+    "create_time": "2022-01-12 11:09:24",
+    "task_id": "04e0960e735511ecab4b04ea56825bad"
+  }
+]
+```
+
+> Noted that only the **trainable model** can be evaluated, the rule-based model such as keyword model and rule (regex) model won't be evaluated at the model preparing stage, the training_status will be marked as `untrainable` in `model_status` table.
+>
+> So **do not** pass this API with rule-based model id otherwise you won't get any result.
+
+
+
+#### model_abort
+
+Let's say the front user is accidently training a wrong model and he or she wanna stop the training step, can call this api:
+
+Request example:
+
+```shell
+curl -X 'POST' \
+  'http://<api address>:<api port>/models/abort/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "MODEL_JOB_ID": <yuor model_job_id>
+}'
+```
+
+ Response example:
+
+```shell
+"<yuor model_job_id> is successfully aborted, additional message: 1 break by the external user"
+```
+
+> Noted that if the model is at fitting step for example the `sklearn` model `fit()`, it will not be stopped until it is done.
+
+
+
+#### model_delete
+
+If you wanna delete a model, try this API. This API is corresponded to the `cancel_job` in the frontend
+
+Request example:
+
+```shell
+curl -X 'DELETE' \
+  'http://<api address>:<api port>/models/delete/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "MODEL_JOB_ID": <yuor model_job_id>
+}'
+```
+
+Response example:
+
+```shell
+"<yuor model_job_id> is successfully deleted, additional message: 1 is deleted"
+```
+
+> It is not recommended to use this API **alone** but only for testing. The function of `model_delete` API is wrap in the `model_preparing` step, which is, every time the users call a model preparing API from the frontend by a same model job (same model_job_id), it will clean up the previous record of the model in the backend from model_status table.
+>
+> Maybe in the future we can add the edition id which represent different models for a model_job.
+
+
 
 ## Error code 
 
@@ -643,6 +919,87 @@ Error code in this project is group by <u>API task error code</u> and <u>HTTP er
 | 200        | Successful Response | API successfully receive the required information            |
 | 422        | Validation Error    | API doesn't receive the proper information. This problem usually occurs in <u>wrong format of request body</u> at users post a create_task API |
 
+> There is no error_code in model API, every time user call a api, it will return a error_message which is contained inside the response body. 
+
+
+
+# Test
+
+There are two type of test file in this project, api and the rest. All of the testing files are managed under the tests directory, below is the test file structure:
+
+```
+tests
+├── __init__.py
+├── api
+│   ├── __init__.py
+│   ├── test_modeling_api.py
+│   └── test_predicting_api.py
+├── connection
+│   ├── __init__.py
+│   └── test_connection.py
+├── model
+│   ├── __init__.py
+│   ├── test_model_creator.py
+│   ├── test_rulebase_models.py
+│   └── test_supervise_models.py
+├── sample_data
+│   ├── dev.csv
+│   ├── labels.json
+│   ├── rulebase_testdata.csv
+│   ├── test.csv
+│   └── train.csv
+└── worker
+    ├── __init__.py
+    ├── test_dump_worker.py
+    ├── test_modeling_worker.py
+    ├── test_orm_worker.py
+    └── test_predict_worker.py
+
+```
+
+For API testing, please run the command:
+
+```shell
+$ make test_api
+```
+
+> Notice that this will test both modeling_api and predicting_api, if you want to test them one-by-one, please use `pytest <file dir>`
+
+For the rest of the parts:
+
+```shell
+$ python test.py --help
+Usage: test.py [OPTIONS]
+
+Options:
+  -D, --dir TEXT     [required]
+  -F, --file TEXT    [required]
+  -C, --class_ TEXT
+  -M, --method TEXT
+  --help             Show this message and exit.
+```
+
+for example:
+
+```shell
+$ python test.py -D worker -F test_modeling_worker -C TestModelingWorker2
+
+test tests.worker.test_modeling_worker.TestModelingWorker2
+[2022-01-12 10:22:43,572][modeling][INFO] start eval_outer_test_data task: 3298be1f6def11eca8ca04ea56825bad
+[2022-01-12 10:22:43,572][modeling][INFO] Initializing the model term_weight_model...
+[2022-01-12 10:22:43,580][modeling][INFO] preparing the datasets for task: 3298be1f6def11eca8ca04ea56825bad
+[2022-01-12 10:22:44,024][modeling][INFO] load the model 0_term_weight_model ...
+[2022-01-12 10:22:44,025][modeling][INFO] evaluating with ext_test data ...
+[2022-01-12 10:22:44,186][modeling][INFO] modeling task: 3298be1f6def11eca8ca04ea56825bad is finished
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.692s
+
+OK
+```
+
+
+
 
 
 ## System Recommendation and Baseline Performance
@@ -667,7 +1024,7 @@ Error code in this project is group by <u>API task error code</u> and <u>HTTP er
 
 ## Appendix
 
-**Problem of celery multiprocessing (Unsolved)**
+**1. Problem of celery multiprocessing (Unsolved)**
 
 ```bash
 [2021-11-09 09:03:32,151: ERROR/ForkPoolWorker-7] Task celery_worker.label_data[db5f76cc40f811ecb688d45d6456a14d] raised unexpected: AssertionError('daemonic processes are not allowed to have children')
@@ -709,3 +1066,30 @@ Ok, it seems that the problem is about python multiprocessing module (`-P prefor
 
 So how about using `eventlet` or `gevent`? with a multiprocessing module, they will all fail. I still cannot figure out any clue about this problem, the current way is to disable the memory track decorator, since it is not directly related to the project goal. 
 
+
+
+**2. Problem of the kombu JSON serialize problem (Unsolved)**
+
+```shell
+[2022-01-12 15:57:13,828: WARNING/MainProcess] C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\celery\app\trace.py:657: RuntimeWarning: Exception raised outside body: EncodeError(TypeError('Object of type type is not JSON serializable')):
+Traceback (most recent call last):
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\serialization.py", line 42, in _reraise_errors
+    yield
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\serialization.py", line 213, in dumps
+    payload = encoder(data)
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\utils\json.py", line 68, in dumps
+    return _dumps(s, cls=cls or _default_encoder,
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\__init__.py", line 234, in dumps
+    return cls(
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 199, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 257, in iterencode
+    return _iterencode(o, 0)
+  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\utils\json.py", line 58, in default
+    return super().default(o)
+  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 179, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type type is not JSON serializable
+```
+
+It occurs every time no matter when a task is done or failed, or every time of the status changed from a task, but this message seems to be nothing to do with the task (labeling or modeling), every task can be accomplished successfully even this annoying message shows up. There is still no anything bad for the task about this error message to be detected.

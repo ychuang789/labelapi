@@ -1,0 +1,150 @@
+from collections import defaultdict
+from typing import Iterable, Dict, List, Tuple
+
+from ahocorapy.keywordtree import KeywordTree
+from sklearn.preprocessing import MultiLabelBinarizer
+
+from models.audience_model_interfaces import RuleBaseModel
+from utils.data.input_example import InputExample
+from utils.enum_config import ModelType, PredictTarget, KeywordMatchType, Errors
+
+
+class KeywordModel(RuleBaseModel):
+    def __init__(self, model_dir_name=None,
+                 patterns: Dict[str, List[Tuple[str, KeywordMatchType]]] = None,
+                 name: str = None,
+                 model_type: ModelType = ModelType.KEYWORD_MODEL.value,
+                 case_sensitive: bool = False,
+                 feature=PredictTarget.CONTENT.value,
+                 verbose: bool = False):
+        super().__init__(name=name if name is not None else "KeywordModel",
+                         model_dir_name=model_dir_name, model_type=model_type,
+                         case_sensitive=case_sensitive, feature=feature,
+                         logger_name="KeywordModel", verbose=verbose)
+        self.logger.debug("model Init")
+        self.label_match_any_trees = dict()
+        self.label_match_start = defaultdict(list)
+        self.label_match_end = defaultdict(list)
+        self.label_match_full = defaultdict(list)
+        self.labels = []
+        if patterns:
+            self.load(patterns)
+
+    def load(self, label_keywords: Dict[str, List[Tuple[str, KeywordMatchType]]]):
+        for label, keywords in label_keywords.items():
+            if label not in self.labels:
+                self.labels.append(label)
+            self.label_match_any_trees[label] = KeywordTree(case_insensitive=(not self.case_sensitive))
+            for keyword, match_types in keywords:
+                if isinstance(match_types, KeywordMatchType):
+                    match_types = [match_types]
+                _keyword = keyword if self.case_sensitive else keyword.lower()
+                if KeywordMatchType.PARTIALLY in match_types:
+                    self.label_match_any_trees[label].add(_keyword)
+                if KeywordMatchType.START in match_types:
+                    self.label_match_start[label].append(_keyword)
+                if KeywordMatchType.END in match_types:
+                    self.label_match_end[label].append(_keyword)
+                if KeywordMatchType.ABSOLUTELY in match_types:
+                    self.label_match_full[label].append(_keyword)
+            self.label_match_any_trees[label].finalize()
+        self.logger.debug(f"label match any trees: {len(self.label_match_any_trees)}")
+        self.logger.debug(f"label match start: {len(self.label_match_start)}")
+        self.logger.debug(f"label match end: {len(self.label_match_end)}")
+        self.logger.debug(f"label match full: {len(self.label_match_full)}")
+        self.mlb = MultiLabelBinarizer(classes=list(label_keywords.keys()))
+        self.mlb.fit([[label] for label in list(label_keywords.keys())])
+
+    def predict(self, input_examples: Iterable[InputExample],
+                target: PredictTarget = None):
+
+        target = target if target is not None else self.target
+        x = parse_predict_target(input_examples=input_examples, target=target,
+                                 case_sensitive=self.case_sensitive)
+        matched_labels = []
+        match_count_list = []
+        for _predict_str in x:
+            _match_count_list = []
+            _matched_labels = []
+            for label in self.labels:
+                _matched_count = 0
+                _matched_pattern = []
+                _matched_rule = []
+                # start matching rules
+                _temp_matched_pattern = [i for i in self.label_match_any_trees[label].search_all(_predict_str.lower())]
+                if _temp_matched_pattern:
+                    # matched_result[label].append(1)
+                    # _matched_pattern.append([i for i in self.label_match_any_trees[label].search_all(_predict_str.lower())])
+                    _matched_pattern.append(_temp_matched_pattern)
+                    _matched_count += 1
+                    # break
+                for keyword in self.label_match_full[label]:
+                    if keyword == _predict_str:
+                        # matched_result[label].append(1)
+                        _matched_rule.append([(keyword, 0)])
+                        _matched_count += 1
+                        # break
+                for keyword in self.label_match_start[label]:
+                    if _predict_str.startswith(keyword):
+                        # matched_result[label].append(1)
+                        _matched_rule.append([(keyword, 0)])
+                        _matched_count += 1
+                        # break
+
+                for keyword in self.label_match_end[label]:
+                    if _predict_str.endswith(keyword):
+                        # matched_result[label].append(1)
+                        _matched_rule.append([(keyword, _predict_str.find(keyword))])
+                        _matched_count += 1
+                        # break
+                if _matched_count > 0:
+                    if _matched_pattern:
+                        _match_count_list.append((label, _matched_pattern))
+                    else:
+                        _match_count_list.append((label, _matched_rule))
+
+                    _matched_labels.append(label)
+            if len(_matched_labels) > 0:
+                matched_labels.append(tuple(_matched_labels))
+                match_count_list.append(_match_count_list)
+
+        self.logger.debug(f"Matched labels size: {len(matched_labels)}")
+        self.logger.debug(f"Matched count list size: {len(match_count_list)}")
+        if matched_labels:
+            return matched_labels, match_count_list
+        else:
+            return None, None
+
+    # def eval(self, examples: List[InputExample], y_true):
+    #     for index, y in enumerate(y_true):
+    #         y_true[index] = y
+    #
+    #     if self.mlb:
+    #         predict_labels, first_matched_keyword = self.predict(examples)
+    #         y_true = self.mlb.transform(y_true)
+    #         y_pred = self.mlb.transform(predict_labels)
+    #         acc = accuracy_score(y_true=y_true, y_pred=y_pred)
+    #         report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True, zero_division=1,
+    #                                        target_names=self.mlb.classes)
+    #         report['accuracy'] = acc
+    #         return report
+    #     else:
+    #         raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
+
+
+def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT.value,
+                         case_sensitive: bool = False) -> List[str]:
+    return [_parse_predict_target(input_example, target=target, case_sensitive=case_sensitive)
+            for input_example in input_examples]
+
+
+def _parse_predict_target(input_example: InputExample, target: PredictTarget = PredictTarget.CONTENT.value,
+                          case_sensitive: bool = False) -> str:
+    if target == PredictTarget.CONTENT.value:
+        return input_example.content if case_sensitive else input_example.content.lower()
+    elif target == PredictTarget.AUTHOR.value:
+        return input_example.author if case_sensitive else input_example.author.lower()
+    elif target == PredictTarget.S_AREA_ID.value:
+        return input_example.s_area_id if case_sensitive else input_example.s_area_id.lower()
+    else:
+        raise ValueError(Errors.UNKNOWN_PREDICT_TARGET_TYPE.value)

@@ -2,7 +2,9 @@ import os
 from dotenv import load_dotenv
 from datetime import date
 from pydantic import BaseModel, BaseSettings
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union
+
+from utils.enum_config import ModelType, PredictTarget
 
 SOURCE: Dict = {
     "Comment": [
@@ -743,6 +745,10 @@ SOURCE: Dict = {
     ]
 }
 
+# ==============================
+#             Dump
+# ==============================
+
 TABLE_PREFIX = 'wh_panel_mapping_'
 
 TABLE_GROUPS_FOR_INDEX = {
@@ -756,11 +762,41 @@ TABLE_GROUPS_FOR_INDEX = {
     'Blog': ['blog']
 }
 
-# don't delete or edit items in conflict_group, only add item
 CONFLICT_GROUPS = {
-    'GENDER': ('/male', '/female'),
-    'MARRIAGE': ('/unmarried', '/married'),
+    'GENDER': ['/male', '/female'],
+    'MARRIAGE': ['/unmarried', '/married'],
 }
+
+LABEL = {'男性': 'male',
+         '女性': 'female',
+         '未婚': 'unmarried',
+         '已婚': 'married',
+         '孩子': 'child',
+         '有子女': 'parenting',
+         '青年': 'young',
+         '上班族': 'employee',
+         '學生': 'student'}
+
+DUMP_COLUMNS = ('source_author', 'panel', 'create_time')
+
+SITE_SCHEMA = 'audience-toolkit-django'
+
+# ==============================
+#            Model
+# ==============================
+
+MODEL_PATH_FIELD_DIRECTORY = 'model_files'
+
+MODEL_INFORMATION = {
+    "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
+    "REGEX_MODEL" : "models.rule_based_models.regex_model.RegexModel",
+    "RANDOM_FOREST_MODEL" : "models.trainable_models.rf_model.RandomForestModel",
+    "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
+}
+
+# ==============================
+#          Application
+# ==============================
 
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
@@ -775,11 +811,22 @@ class DevelopConfig(BaseSettings):
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
+    CELERY_ACKS_LATE: bool = True
     DUMP_ZIP: bool = False
 
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
+
+# ==============================
+#          Connection
+# ==============================
+class TableName:
+    state = 'state'
+    model_status = 'model_status'
+    model_report = 'model_report'
+    term_weights = 'term_weights'
+
 
 class DatabaseConfig:
     load_dotenv()
@@ -798,46 +845,36 @@ class DatabaseConfig:
                               f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
                               f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
     DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
+    DUMP_TO_SCHEMA: str = os.getenv('DUMP_TO_SCHEMA')
+
+# ==============================
+#          API request
+# ==============================
 
 class TaskConfig(BaseModel):
     load_dotenv()
-    MODEL_TYPE: str = 'keyword_model'
-    PREDICT_TYPE: str = 'author_name'
     START_TIME: date = "2020-01-01"
     END_TIME: date = "2021-01-01"
-    PATTERN: Optional[Dict] = None
-    INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
-    INPUT_TABLE: str = os.getenv('INPUT_TABLE')
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+    PATTERN: Optional[List] = None
+    INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
+    INPUT_TABLE: str = os.getenv("INPUT_TABLE")
     COUNTDOWN: int = 5
     QUEUE: str = "queue1"
+    MODEL_JOB_LIST: List[int] = None
     SITE_CONFIG: Optional[Dict] = None
 
-class AbortionConfig(BaseModel):
+class AbortConfig(BaseModel):
     TASK_ID: str = 'string'
 
+class DeleteConfig(BaseModel):
+    TASK_ID: str = None
+
 class DumpConfig(BaseModel):
-    GROUP: str = "GENDER"
-    TASK_IDS: List[str] = None
-    PREVIOUS_YEAR: int = 2019
-    INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
-    OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
-
-
-class TaskList:
-    load_dotenv()
-    OUTPUT_HOST: str = os.getenv('OUTPUT_HOST')
-    OUTPUT_PORT: int = int(os.getenv('OUTPUT_PORT'))
-    OUTPUT_USER: str = os.getenv('OUTPUT_USER')
-    OUTPUT_PASSWORD: str = os.getenv('OUTPUT_PASSWORD')
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
-    ORDER_COLUMN: str = 'create_time'
-    NUMBER: int = 5
-    OFFSET: int = 1000
-    OUTPUT_ENGINE_INFO = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
-                         f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
-                         f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
-    TABLE: str = 'state'
+    ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
+    OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
+    NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
+    DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
+    QUEUE: str = "queue1"
 
 class TaskSampleResult:
     load_dotenv()
@@ -846,63 +883,35 @@ class TaskSampleResult:
     NUMBER: int = 50
     OFFSET: int = 1000
 
-LABEL = {'男性': 'male',
-         '女性': 'female',
-         '未婚': 'unmarried',
-         '已婚': 'married',
-         '孩子': 'child',
-         '有子女': 'parenting',
-         '青年': 'young',
-         '上班族': 'employee',
-         '學生': 'student'}
+class ModelingTrainingConfig(BaseModel):
+    #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
+    QUEUE: str = "queue2"
+    DATASET_DB: str = 'audience-toolkit-django'
+    DATASET_NO: int = 1
+    MODEL_JOB_ID: int = 0
+    PREDICT_TYPE: str = PredictTarget.CONTENT.name
+    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+                                               "feature_model": "SGD",
+                                               "patterns": None,
+                                               }
+
+class ModelingTestingConfig(BaseModel):
+    QUEUE: str = "queue2"
+    DATASET_DB: str = 'audience-toolkit-django'
+    DATASET_NO: int = 1
+    MODEL_JOB_ID: int = 0
+    PREDICT_TYPE: str = PredictTarget.CONTENT.name
+    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+                                               "patterns": None,
+                                               }
+
+class ModelingAbort(BaseModel):
+    MODEL_JOB_ID: int = 0
+
+class ModelingDelete(BaseModel):
+    MODEL_JOB_ID: int = None
 
 
-class RulesDatabase:
-    load_dotenv()
 
-
-
-# class DatabaseInfo:
-#     load_dotenv()
-#     host = os.getenv('INPUT_HOST')
-#     port = int(os.getenv('INPUT_PORT'))
-#     user = os.getenv('INPUT_USER')
-#     password = os.getenv('INPUT_PASSWORD')
-#     output_host = os.getenv('OUTPUT_HOST')
-#     output_port = int(os.getenv('OUTPUT_PORT'))
-#     output_user = os.getenv('OUTPUT_USER')
-#     output_password = os.getenv('OUTPUT_PASSWORD')
-#     input_schema = os.getenv('INPUT_SCHEMA')
-#     output_schema = os.getenv('OUTPUT_SCHEMA')
-#     rule_schemas = os.getenv('RULE_SHEMAS')
-#     output_engine_info = f'mysql+pymysql://{output_user}:{output_password}@{output_host}:{output_port}/{output_schema}?charset=utf8mb4'
-
-# class CreateTaskRequestBody(BaseModel):
-#     model_type: str = 'keyword_model'
-#     predict_type: str = 'author_name'
-#     start_time: datetime = "2020-01-01 00:00:00"
-#     end_time: datetime = "2021-01-01 00:00:00"
-#     target_schema: str = os.getenv('INPUT_SCHEMA')
-#     target_table: str = "ts_page_content"
-#     output_schema: str = os.getenv('OUTPUT_SCHEMA')
-#     countdown: int = 5
-#     queue: str = "queue1"
-
-# class TaskListRequestBody:
-#     load_dotenv()
-#     host = os.getenv('OUTPUT_HOST')
-#     port = int(os.getenv('OUTPUT_PORT'))
-#     user = os.getenv('OUTPUT_USER')
-#     password = os.getenv('OUTPUT_PASSWORD')
-#     output_schema = os.getenv('OUTPUT_SCHEMA')
-#     order_column: str = 'create_time'
-#     number: int = 5
-#     offset: int = 1000
-#     engine_info: str = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
-#     table: str = 'state'
-
-# class SampleResultRequestBody:
-#     order_column: str = "create_time"
-#     number: int = 50
-#     offset: int = 1000
-#     schema_name: str = 'audience_result'
