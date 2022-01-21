@@ -1,7 +1,5 @@
 import re
 from typing import Iterable, Dict, List
-
-from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import MultiLabelBinarizer
 
 from models.audience_model_interfaces import RuleBaseModel

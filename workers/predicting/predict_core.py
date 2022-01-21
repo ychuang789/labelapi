@@ -222,22 +222,27 @@ class PredictWorker:
                 model_worker = ModelingWorker(model_name=_model_information.model_name,
                                               predict_type=_model_information.feature.lower(),
                                               **info_dict)
+                try:
 
-                model_worker.init_model(is_train=False)
-                temp_list_label, temp_list_meta = self.predict_output_process(model_worker=model_worker, df=df)
+                    model_worker.init_model(is_train=False)
+                    temp_list_label, temp_list_meta = self.predict_output_process(model_worker=model_worker, df=df)
 
-                df['panel'] = temp_list_label
-                df['match_meta'] = temp_list_meta
-                df['match_meta'] = df['match_meta'].astype(str)
+                    df['panel'] = temp_list_label
+                    df['match_meta'] = temp_list_meta
+                    df['match_meta'] = df['match_meta'].astype(str)
 
-                df['task_id'] = [self.task_id]*len(df)
-                df['match_content'] = df[_model_information.feature.lower()]
+                    df['task_id'] = [self.task_id]*len(df)
+                    df['match_content'] = df[_model_information.feature.lower()]
 
-                df.rename(columns={'post_time': 'create_time'}, inplace=True)
-                df['source_author'] = df['s_id'] + '_' + df['author']
-                df['field_content'] = df['s_id']
+                    df.rename(columns={'post_time': 'create_time'}, inplace=True)
+                    df['source_author'] = df['s_id'] + '_' + df['author']
+                    df['field_content'] = df['s_id']
 
-                output_df = output_df.append(df)
+                    output_df = output_df.append(df)
+                except Exception as e:
+                    raise e
+                finally:
+                    model_worker.orm_cls.dispose()
 
             return output_df
 
