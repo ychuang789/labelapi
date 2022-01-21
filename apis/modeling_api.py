@@ -28,6 +28,7 @@ def model_preparing(body: ModelingTrainingConfig):
         modeling_task.apply_async(
             args=(
                 task_id,
+                body.MODEL_JOB_ID,
                 body.MODEL_TYPE,
                 body.PREDICT_TYPE,
                 body.DATASET_NO,
