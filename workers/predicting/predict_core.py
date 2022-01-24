@@ -341,7 +341,7 @@ class PredictWorker:
         self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).update(_config_dict)
         self.orm_cls.session.commit()
 
-    def _dispose(self):
+    def dispose(self):
         self.orm_cls.session.close()
         self.orm_cls.dispose()
 

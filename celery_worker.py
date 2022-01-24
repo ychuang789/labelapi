@@ -33,7 +33,7 @@ def label_data(task_id, model_job_list, input_schema, input_table, start_time, e
         labeling_worker.orm_cls.session.rollback()
         raise e
     finally:
-        labeling_worker._dispose()
+        labeling_worker.dispose()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.dump_result', ignore_result=True)
 def dump_result(id_list, old_table_database, new_table_database, dump_database):
