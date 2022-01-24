@@ -35,6 +35,7 @@ class PredictWorker:
         self.state = self.orm_cls.table_cls_dict.get(TableName.state)
         self.model_information, self.model_type = self.get_jobs_ids()
         self.predict_type = [i.feature.lower() for i in self.model_information]
+        self.model_worker_list = self.get_model_list()
 
     def run_task(self):
 
@@ -99,7 +100,7 @@ class PredictWorker:
             self.count += len(element)
 
             try:
-                _output, row_num = self.data_labeler(element, self.task_info.get('PATTERN'))
+                _output, row_num = self.data_labeler(element)
                 self.row_number += row_num
 
                 for k, v in _output.items():
@@ -130,12 +131,11 @@ class PredictWorker:
                 self.logger.error(err_msg)
                 raise e
 
-    def data_labeler(self, df, pattern = None):
+    def data_labeler(self, df):
 
-        model_info = {"patterns": pattern} if pattern else {}
         start = datetime.now()
         self.logger.info(f'start labeling at {start} ...')
-        df = self.predicting_output(df, **model_info)
+        df = self.predicting_output(df)
 
         _df_output = df[['id', 'task_id', 'source_author', 'create_time',
                          'panel', 'field_content', 'match_content', 'match_meta']]
@@ -210,28 +210,21 @@ class PredictWorker:
         self.logger.info(f'finish task {self.task_id} generate_production, total time: '
                          f'{(datetime.now() - self.start_time).total_seconds() / 60} minutes')
 
-    def predicting_output(self, dataframe, **model_info):
+    def predicting_output(self, dataframe):
         if self.model_information:
-            output_df = pd.DataFrame(columns=list(dataframe.columns)+['panel','match_content','match_meta',])
-            for idx, _model_information in enumerate(self.model_information):
+            output_df = pd.DataFrame(columns=list(dataframe.columns) + ['panel', 'match_content', 'match_meta', ])
+            for _model_information, model_worker in zip(self.model_information, self.model_worker_list):
                 df = dataframe.copy()
-                _pattern = model_info.get('patterns')[idx] if model_info.get('patterns') else None
 
-                info_dict = {'model_path': _model_information.model_path, 'patterns': _pattern}
-
-                model_worker = ModelingWorker(model_name=_model_information.model_name,
-                                              predict_type=_model_information.feature.lower(),
-                                              **info_dict)
                 try:
 
-                    model_worker.init_model(is_train=False)
                     temp_list_label, temp_list_meta = self.predict_output_process(model_worker=model_worker, df=df)
 
                     df['panel'] = temp_list_label
                     df['match_meta'] = temp_list_meta
                     df['match_meta'] = df['match_meta'].astype(str)
 
-                    df['task_id'] = [self.task_id]*len(df)
+                    df['task_id'] = [self.task_id] * len(df)
                     df['match_content'] = df[_model_information.feature.lower()]
 
                     df.rename(columns={'post_time': 'create_time'}, inplace=True)
@@ -326,6 +319,23 @@ class PredictWorker:
 
         model_type = ','.join(set(_model_type))
         return result, model_type
+
+    def get_model_list(self):
+        _temp_model_list = []
+        for model in self.model_information:
+
+            info_dict = {'model_path': model.model_path}
+
+            model_worker = ModelingWorker(
+                job_id=model.job_id,
+                model_name=model.model_name,
+                predict_type=model.feature.lower(),
+                **info_dict)
+            model_worker.init_model(is_train=False)
+
+            _temp_model_list.append(model_worker)
+
+        return _temp_model_list
 
     def _update_state(self, _config_dict: Dict):
         self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).update(_config_dict)

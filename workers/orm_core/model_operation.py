@@ -7,6 +7,7 @@ class ModelingCRUD(BaseOperation):
         super().__init__(connection_info=connection_info, auto_flush=auto_flush, echo=echo, **kwargs)
         self.ms = self.table_cls_dict.get(TableName.model_status)
         self.mr = self.table_cls_dict.get(TableName.model_report)
+        self.rule = self.table_cls_dict.get(TableName.rules)
 
     def model_status_changer(self, model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
         err_msg = f'{model_job_id} {status.value} by the external user'

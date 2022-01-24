@@ -62,23 +62,28 @@ def dump_result(id_list, old_table_database, new_table_database, dump_database):
 def modeling_task(task_id, model_job_id, model_name, predict_type, dataset_number, dataset_schema, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
-    model = ModelingWorker(model_name=model_name,
-                           predict_type=predict_type,
-                           dataset_number=dataset_number,
-                           dataset_schema=dataset_schema,
-                           **kwargs)
-    model.run_task(task_id=task_id, job_id=model_job_id)
+    model = ModelingWorker(
+        job_id=model_job_id,
+        model_name=model_name,
+        predict_type=predict_type,
+        dataset_number=dataset_number,
+        dataset_schema=dataset_schema,
+        **kwargs
+    )
+    model.run_task(task_id=task_id)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', ignore_result=True)
 def testing(job_id, model_name, predict_type, dataset_number, dataset_schema, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start job {job_id}')
-    model = ModelingWorker(model_name=model_name,
-                           predict_type=predict_type,
-                           dataset_number=dataset_number,
-                           dataset_schema=dataset_schema,
-                           **kwargs)
-    model.eval_outer_test_data(job_id)
+    model = ModelingWorker(
+        job_id=job_id,
+        model_name=model_name,
+        predict_type=predict_type,
+        dataset_number=dataset_number,
+        dataset_schema=dataset_schema,
+        **kwargs)
+    model.eval_outer_test_data()
 
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)

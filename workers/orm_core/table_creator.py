@@ -5,7 +5,9 @@ from sqlalchemy.orm import declarative_base, relationship, Session
 
 from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus
+
 Base: declarative_base = declarative_base()
+
 
 class State(Base):
     __tablename__ = TableName.state
@@ -58,7 +60,6 @@ class State(Base):
                f"{self.rate_of_label}, {self.run_time}, {self.check_point}, {self.error_message})"
 
 
-
 class ModelStatus(Base):
     __tablename__ = TableName.model_status
     task_id = Column(String(32), primary_key=True)
@@ -73,14 +74,22 @@ class ModelStatus(Base):
     # one-to-many collection
     report = relationship(
         "ModelReport",
-        backref='model_status',
+        backref="model_status",
         cascade="all, delete",
-        passive_deletes=True)
+        passive_deletes=True
+    )
     term_weight = relationship(
         "TermWeights",
-        backref='model_status',
+        backref="model_status",
         cascade="all, delete",
-        passive_deletes=True)
+        passive_deletes=True
+    )
+    rules = relationship(
+        "Rules",
+        backref="model_status",
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
     def __init__(self, task_id, model_name, training_status,
                  ext_status, feature, model_path,
@@ -99,6 +108,7 @@ class ModelStatus(Base):
         return f"ModelStatus({self.task_id}, {self.model_name}, {self.training_status}, " \
                f"{self.ext_status}, {self.feature}, {self.model_path}, {self.error_message}, " \
                f"{self.create_time}, {self.job_id})"
+
 
 class ModelReport(Base):
     __tablename__ = TableName.model_report
@@ -120,6 +130,7 @@ class ModelReport(Base):
         return f"ModelReport({self.dataset_type}, {self.accuracy}, {self.report}, " \
                f"{self.create_time}, {self.task_id})"
 
+
 class TermWeights(Base):
     __tablename__ = TableName.term_weights
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -139,6 +150,29 @@ class TermWeights(Base):
                f"{self.task_id})"
 
 
+class Rules(Base):
+    __tablename__ = TableName.rules
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(String(200), nullable=False)
+    rule_type = Column(String(20), nullable=False)
+    score = Column(DOUBLE, nullable=False)
+    label = Column(String(100), nullable=False)
+    match_type = Column(String(20), nullable=False)
+    task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+
+    def __init__(self, content, rule_type, score, label, match_type, task_id):
+        self.content = content
+        self.rule_type = rule_type
+        self.score = score
+        self.label = label
+        self.match_type = match_type
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"Rules({self.content}, {self.rule_type}, {self.score}, " \
+               f"{self.label}, {self.match_type}, {self.task_id})"
+
+
 def create_model_table() -> None:
     try:
         engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=True)
@@ -155,9 +189,7 @@ def create_model_table() -> None:
         engine.dispose()
 
 
-
 def table_cls_maker(engine: create_engine, add_new=False):
-
     meta = MetaData()
     if add_new:
         meta.reflect(engine, only=['model_status'])
@@ -187,7 +219,7 @@ def status_changer(model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskS
 
     try:
         session.query(ms).filter(ms.task_id == model_job_id).update({ms.training_status: status.value,
-                                                                ms.error_message: err_msg})
+                                                                     ms.error_message: err_msg})
         session.commit()
     except Exception as e:
         session.rollback()
@@ -213,9 +245,3 @@ def delete_record(model_job_id: int):
     finally:
         session.close()
         engine.dispose()
-
-
-
-
-
-

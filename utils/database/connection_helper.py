@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, DateTime, Table, Column, String, MetaData,
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.orm import declarative_base, relationship
 
-from settings import DatabaseConfig
+from settings import DatabaseConfig, TestDatabaseConfig
 
 
 def singleton(cls):
@@ -16,13 +16,14 @@ def singleton(cls):
         if cls not in _instance:
             _instance[cls] = cls()
         return _instance[cls]
+
     return inner
 
 
 # @singleton
 class DBConnector(object):
 
-    def __init__(self, conn = None):
+    def __init__(self, conn=None):
         self.conn = conn
 
     @retry(tries=5, delay=2)
@@ -30,13 +31,13 @@ class DBConnector(object):
         """create connection"""
         return pymysql.connect(**kwargs)
 
-
     def __enter__(self):
         self.conn = self.create_connection()
         return self.conn
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
+
 
 class DBConnection(object):
     connection = None
@@ -101,6 +102,23 @@ class ConnectionConfigGenerator:
                 'cursorclass': cursorclass}
 
     @staticmethod
+    def test_database(schema='audience-toolkit-django',
+                      host=TestDatabaseConfig.HOST,
+                      port=TestDatabaseConfig.PORT,
+                      user=TestDatabaseConfig.USER,
+                      password=TestDatabaseConfig.PASSWORD,
+                      charset='utf8mb4',
+                      cursorclass=pymysql.cursors.DictCursor):
+        """This one is only for data scrapping from the django site when testing the service at localhost"""
+        return {'host': host,
+                'port': port,
+                'user': user,
+                'password': password,
+                'db': schema,
+                'charset': charset,
+                'cursorclass': cursorclass}
+
+    @staticmethod
     def other_database(schema=None, host=None, port=None, user=None, password=None,
                        charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor):
         """return connection of outer database config dict"""
@@ -156,8 +174,9 @@ class QueryManager:
                     WHERE job_id in {tuple(job_ids)}
                     ORDER BY FIND_IN_SET(job_id, '{','.join([str(i) for i in job_ids])}');"""
 
-
-
-
-
-
+    @staticmethod
+    def get_rule_query(labeling_job_id: int):
+        return f"""SELECT * 
+                    FROM `audience-toolkit-django`.labeling_jobs_rule r 
+                    INNER JOIN `audience-toolkit-django`.labeling_jobs_label l USING(labeling_job_id)
+                    WHERE r.labeling_job_id = {labeling_job_id}"""

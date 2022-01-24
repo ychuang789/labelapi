@@ -6,6 +6,8 @@ from typing import Dict, Optional, List, Union
 
 from utils.enum_config import ModelType, PredictTarget
 
+load_dotenv()
+
 SOURCE: Dict = {
     "Comment": [
         "WH_F0183",
@@ -788,11 +790,12 @@ SITE_SCHEMA = 'audience-toolkit-django'
 MODEL_PATH_FIELD_DIRECTORY = 'model_files'
 
 MODEL_INFORMATION = {
-    "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
-    "REGEX_MODEL" : "models.rule_based_models.regex_model.RegexModel",
-    "RANDOM_FOREST_MODEL" : "models.trainable_models.rf_model.RandomForestModel",
-    "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
+    "KEYWORD_MODEL": "models.rule_based_models.keyword_model.KeywordModel",
+    "REGEX_MODEL": "models.rule_based_models.regex_model.RegexModel",
+    "RANDOM_FOREST_MODEL": "models.trainable_models.rf_model.RandomForestModel",
+    "TERM_WEIGHT_MODEL": "models.trainable_models.tw_model.TermWeightModel",
 }
+
 
 # ==============================
 #          Application
@@ -800,13 +803,13 @@ MODEL_INFORMATION = {
 
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
-    API_TITLE: str  = 'Audience API'
+    API_TITLE: str = 'Audience API'
     API_VERSION: float = 2.1
-    CELERY_NAME: str  = 'celery_worker'
-    CELERY_SQL_URI: str  = 'sqlite:///save.db'
-    CELERY_BACKEND: str  = 'db+sqlite:///save.db'
-    CELERY_BROKER: str  = 'redis://localhost'
-    CELERY_TIMEZONE: str  = 'Asia/Taipei'
+    CELERY_NAME: str = 'celery_worker'
+    CELERY_SQL_URI: str = 'sqlite:///save.db'
+    CELERY_BACKEND: str = 'db+sqlite:///save.db'
+    CELERY_BROKER: str = 'redis://localhost'
+    CELERY_TIMEZONE: str = 'Asia/Taipei'
     CELERY_ENABLE_UTC: bool = False
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
@@ -814,9 +817,11 @@ class DevelopConfig(BaseSettings):
     CELERY_ACKS_LATE: bool = True
     DUMP_ZIP: bool = False
 
+
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
+
 
 # ==============================
 #          Connection
@@ -826,6 +831,7 @@ class TableName:
     model_status = 'model_status'
     model_report = 'model_report'
     term_weights = 'term_weights'
+    rules = 'rules'
 
 
 class DatabaseConfig:
@@ -847,6 +853,19 @@ class DatabaseConfig:
     DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
     DUMP_TO_SCHEMA: str = os.getenv('DUMP_TO_SCHEMA')
 
+
+class TestDatabaseConfig:
+    load_dotenv()
+    HOST: str = os.getenv('190_HOST')
+    PORT: int = int(os.getenv('190_PORT'))
+    USER: str = os.getenv('190_USER')
+    PASSWORD: str = os.getenv('190_PASSWORD')
+
+
+load_dotenv()
+LOCAL_TEST = os.getenv('LOCAL_TEST', None)
+
+
 # ==============================
 #          API request
 # ==============================
@@ -855,7 +874,6 @@ class TaskConfig(BaseModel):
     load_dotenv()
     START_TIME: date = "2020-01-01"
     END_TIME: date = "2021-01-01"
-    PATTERN: Optional[List] = None
     INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
     INPUT_TABLE: str = os.getenv("INPUT_TABLE")
     COUNTDOWN: int = 5
@@ -863,11 +881,14 @@ class TaskConfig(BaseModel):
     MODEL_JOB_LIST: List[int] = None
     SITE_CONFIG: Optional[Dict] = None
 
+
 class AbortConfig(BaseModel):
     TASK_ID: str = 'string'
 
+
 class DeleteConfig(BaseModel):
     TASK_ID: str = None
+
 
 class DumpConfig(BaseModel):
     ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
@@ -876,6 +897,7 @@ class DumpConfig(BaseModel):
     DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
     QUEUE: str = "queue1"
 
+
 class TaskSampleResult:
     load_dotenv()
     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
@@ -883,8 +905,9 @@ class TaskSampleResult:
     NUMBER: int = 50
     OFFSET: int = 1000
 
+
 class ModelingTrainingConfig(BaseModel):
-    #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
+    # TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
     QUEUE: str = "queue2"
     DATASET_DB: str = 'audience-toolkit-django'
     DATASET_NO: int = 1
@@ -892,9 +915,9 @@ class ModelingTrainingConfig(BaseModel):
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "feature_model": "SGD",
-                                               "patterns": None,
+                                               "feature_model": "SGD"
                                                }
+
 
 class ModelingTestingConfig(BaseModel):
     QUEUE: str = "queue2"
@@ -903,15 +926,12 @@ class ModelingTestingConfig(BaseModel):
     MODEL_JOB_ID: int = 0
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "patterns": None,
-                                               }
+    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path"}
+
 
 class ModelingAbort(BaseModel):
     MODEL_JOB_ID: int = 0
 
+
 class ModelingDelete(BaseModel):
     MODEL_JOB_ID: int = None
-
-
-

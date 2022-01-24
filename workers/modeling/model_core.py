@@ -17,11 +17,12 @@ from workers.modeling.preprocess_core import PreprocessWorker
 from workers.orm_core.model_operation import ModelingCRUD
 
 
-class ModelingWorker():
-    def __init__(self, model_name: str, predict_type: str,
-                 dataset_number: int = None, dataset_schema: str = None,
-                 orm_cls: ModelingCRUD = None, preprocess: PreprocessWorker = None, logger_name: str = 'modeling',
-                 verbose: bool = False, **model_information):
+class ModelingWorker:
+    def __init__(self, job_id: int, model_name: str, predict_type: str, dataset_number: int = None,
+                 dataset_schema: str = None,orm_cls: ModelingCRUD = None, preprocess: PreprocessWorker = None,
+                 logger_name: str = 'modeling', verbose: bool = False, **model_information):
+
+        self.job_id = job_id
         self.model = None
         self.model_name = model_name
         self.predict_type = predict_type
@@ -31,21 +32,23 @@ class ModelingWorker():
         self.model_information = model_information
         self.orm_cls = orm_cls if orm_cls else ModelingCRUD(echo=verbose)
         self.preprocess = preprocess if preprocess \
-            else PreprocessWorker(dataset_number=self.dataset_number,dataset_schema=self.dataset_schema)
+            else PreprocessWorker(dataset_number=self.dataset_number, dataset_schema=self.dataset_schema)
+        self.target_name = self.predict_type.lower()
+        self.model_path = self.model_information.get('model_path', None)
 
-    def run_task(self, task_id: str, job_id: int = None) -> None:
+    def run_task(self, task_id: str) -> None:
 
         ms = self.orm_cls.ms
         mr = self.orm_cls.mr
 
         try:
-            if self.orm_cls.session.query(ms).filter(ms.job_id == job_id).all():
-                self.orm_cls.model_delete_record(model_job_id=job_id)
-            self.add_task_info(task_id=task_id, job_id=job_id, ext_test=False)
+            if self.orm_cls.session.query(ms).filter(ms.job_id == self.job_id).all():
+                self.orm_cls.model_delete_record(model_job_id=self.job_id)
+            self.add_task_info(task_id=task_id, ext_test=False)
 
             self.logger.info(f"start modeling task: {task_id}")
             self.logger.info(f'Initializing the model {self.model_name.lower()}...')
-            self.init_model()
+            self.init_model(task_id=task_id)
 
             if not hasattr(self.model, 'fit'):
                 err_msg = f'{self.model.name} is not trainable'
@@ -95,19 +98,20 @@ class ModelingWorker():
             self.orm_cls.session.rollback()
             err_msg = f"modeling task: {task_id} is failed since {e}"
             self.logger.error(err_msg)
-            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.training_status: ModelTaskStatus.FAILED.value,
-                                                                                 ms.error_message: err_msg})
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                {ms.training_status: ModelTaskStatus.FAILED.value,
+                 ms.error_message: err_msg})
             self.orm_cls.session.commit()
             raise e
         finally:
             self.orm_cls.dispose()
 
-    def eval_outer_test_data(self, job_id: int) -> None:
+    def eval_outer_test_data(self) -> None:
 
         ms = self.orm_cls.ms
         mr = self.orm_cls.mr
 
-        if not (result := self.orm_cls.session.query(ms).filter(ms.job_id == job_id).first()):
+        if not (result := self.orm_cls.session.query(ms).filter(ms.job_id == self.job_id).first()):
             err_msg = f'Model is not train or prepare yet, execute training API first'
             self.orm_cls.dispose()
             raise ValueError(err_msg)
@@ -157,24 +161,26 @@ class ModelingWorker():
             self.orm_cls.session.rollback()
             err_msg = f"modeling task: {task_id} is failed since {f}"
             self.logger.error(err_msg)
-            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
-                                                                                 ms.error_message: err_msg})
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                {ms.ext_status: ModelTaskStatus.FAILED.value,
+                 ms.error_message: err_msg})
             self.orm_cls.session.commit()
             raise f
         except Exception as e:
             self.orm_cls.session.rollback()
             err_msg = f"modeling task: {task_id} is failed since {e}"
             self.logger.error(err_msg)
-            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.FAILED.value,
-                                                                                 ms.error_message: err_msg})
+            self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                {ms.ext_status: ModelTaskStatus.FAILED.value,
+                 ms.error_message: err_msg})
             self.orm_cls.session.commit()
             raise e
         finally:
             self.orm_cls.dispose()
 
-    def init_model(self, is_train=True) -> None:
+    def init_model(self, is_train=True, task_id=None) -> None:
         try:
-            self.model = self.create_model_obj(is_train=is_train)
+            self.model = self.create_model_obj(is_train=is_train, task_id=task_id)
         except ModelTypeNotFoundError:
             err_msg = f'{self.model_name} is not a available model'
             self.logger.error(err_msg)
@@ -187,19 +193,16 @@ class ModelingWorker():
             self.logger.error(e)
             raise e
 
-    def get_model_class(self, model_name: str):
-        if model_name in MODEL_INFORMATION:
-            module_path, class_name = MODEL_INFORMATION.get(model_name).rsplit(sep='.', maxsplit=1)
+    def get_model_class(self):
+        if self.model_name in MODEL_INFORMATION:
+            module_path, class_name = MODEL_INFORMATION.get(self.model_name).rsplit(sep='.', maxsplit=1)
             return getattr(importlib.import_module(module_path), class_name), class_name
         else:
-            raise ModelTypeNotFoundError(f'{model_name} is not a available model')
+            raise ModelTypeNotFoundError(f'{self.model_name} is not a available model')
 
-    def create_model_obj(self, is_train: bool):
-        self.model_path = self.model_information.get('model_path', None)
-        self.pattern = self.model_information.get('patterns', None)
-        self.target_name = self.predict_type.lower()
+    def create_model_obj(self, is_train: bool, task_id: str = None):
         try:
-            model_class, class_name = self.get_model_class(self.model_name)
+            model_class, class_name = self.get_model_class()
         except ModelTypeNotFoundError:
             raise ModelTypeNotFoundError(f'{self.model_name} is not a available model')
 
@@ -212,18 +215,31 @@ class ModelingWorker():
             if isinstance(self.model, SupervisedModel):
                 self.model.load()
             if isinstance(self.model, RuleBaseModel):
-                if self.pattern:
-                    self.model.load(self.pattern)
-                else:
+                ms = self.orm_cls.ms
+                _model = self.orm_cls.session.query(ms).filter(ms.job_id == self.job_id).first()
+                pattern = _model.rules_collection
+
+                if not pattern or len(pattern) == 0:
                     raise ParamterMissingError(f'patterns are missing')
+
+                self.model.load((self.preprocess.load_rules(pattern)))
+        else:
+            if isinstance(self.model, RuleBaseModel):
+                self.logger.info("Write the rules into backend database")
+                bulk_rules = self.preprocess.get_rules(task_id)
+                if not bulk_rules:
+                    raise ValueError("Rules are not found")
+                try:
+                    self.orm_cls.session.bulk_save_objects(bulk_rules)
+                    self.orm_cls.session.commit()
+                except Exception as e:
+                    self.orm_cls.session.rollback()
+                    raise e
 
         return self.model
 
-
-    def add_task_info(self, task_id, job_id=None, ext_test=False):
-
+    def add_task_info(self, task_id, ext_test=False):
         ms = self.orm_cls.ms
-
         try:
             if not ext_test:
                 self.orm_cls.session.add(ms(task_id=task_id,
@@ -232,11 +248,12 @@ class ModelingWorker():
                                             feature=self.predict_type,
                                             model_path=self.model_information.get('model_path'),
                                             create_time=datetime.now(),
-                                            job_id=job_id
+                                            job_id=self.job_id
                                             ))
                 self.orm_cls.session.commit()
             else:
-                self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({ms.ext_status: ModelTaskStatus.PENDING.value})
+                self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
+                    {ms.ext_status: ModelTaskStatus.PENDING.value})
                 self.orm_cls.session.commit()
         except Exception as e:
             self.orm_cls.session.rollback()
@@ -246,7 +263,6 @@ class ModelingWorker():
     def data_preprocess(self, is_train: bool = True):
         if is_train:
             dataset: Dict = self.preprocess.run_processing()
-
             self.training_set = dataset.get(DatasetType.TRAIN.value)
             self.training_y = [[d.label] for d in self.training_set]
             self.dev_set = dataset.get(DatasetType.DEV.value)
@@ -261,6 +277,3 @@ class ModelingWorker():
             dataset = self.preprocess.run_processing(is_train=False)
             self.testing_set = dataset
             self.testing_y = [[d.label] for d in self.testing_set]
-
-
-
