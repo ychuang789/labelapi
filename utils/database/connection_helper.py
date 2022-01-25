@@ -153,7 +153,7 @@ class QueryManager:
                 return f"""SELECT *
                            FROM `audience-toolkit-django`.labeling_jobs_document d
                            INNER JOIN `audience-toolkit-django`.labeling_jobs_label l USING(labeling_job_id)
-                           WHERE d.labeling_job_id = {get_data}'"""
+                           WHERE d.labeling_job_id = {get_data}"""
 
         if kwargs.get('model_job_id') and not kwargs.get('model_report'):
             return f"""select * from model_status where job_id = {kwargs.get('model_job_id')}"""

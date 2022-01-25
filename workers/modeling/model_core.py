@@ -19,7 +19,7 @@ from workers.orm_core.model_operation import ModelingCRUD
 
 class ModelingWorker:
     def __init__(self, job_id: int, model_name: str, predict_type: str, dataset_number: int = None,
-                 dataset_schema: str = None,orm_cls: ModelingCRUD = None, preprocess: PreprocessWorker = None,
+                 dataset_schema: str = None, orm_cls: ModelingCRUD = None, preprocess: PreprocessWorker = None,
                  logger_name: str = 'modeling', verbose: bool = False, **model_information):
 
         self.job_id = job_id

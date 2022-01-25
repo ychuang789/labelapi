@@ -18,6 +18,7 @@ router = APIRouter(prefix='/models',
                    responses={404: {"description": "Not found"}},
                    )
 
+
 @router.post('/prepare/', description='preparing a model')
 def model_preparing(body: ModelingTrainingConfig):
     task_id = uuid.uuid1().hex
@@ -41,14 +42,14 @@ def model_preparing(body: ModelingTrainingConfig):
 
     except Exception as e:
         err_msg = f'failed to add training task info to modeling_status since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
 
     config.update({'task_id': task_id})
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
+
 @router.post('/test/', description='testing a model')
 def model_testing(body: ModelingTestingConfig):
-
     config = body.__dict__
 
     try:
@@ -66,9 +67,10 @@ def model_testing(body: ModelingTestingConfig):
 
     except Exception as e:
         err_msg = f'failed to add testing task info to modeling_status since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
+
 
 @router.get('/{model_job_id}')
 def model_status(model_job_id: int):
@@ -76,16 +78,19 @@ def model_status(model_job_id: int):
     try:
         err_msg = conn.model_get_status(model_job_id=model_job_id)
         result = {c.name: (getattr(err_msg, c.name) if not isinstance(getattr(err_msg, c.name), datetime)
-                                      else getattr(err_msg,c.name).strftime("%Y-%m-%d %H:%M:%S"))
-                             for c in err_msg.__table__.columns}
+                           else getattr(err_msg, c.name).strftime("%Y-%m-%d %H:%M:%S"))
+                  for c in err_msg.__table__.columns}
     except AttributeError:
         result = f'model_job task: {model_job_id} is not exists'
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(result))
     except Exception as e:
         result = f'failed to get status since {e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(result))
     finally:
         conn.dispose()
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+
 
 @router.get('/{model_job_id}/report/')
 def model_report(model_job_id):
@@ -117,6 +122,7 @@ def model_report(model_job_id):
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 
+
 @router.post('/abort/')
 def model_abort(abort_request_body: ModelingAbort):
     model_job_id = abort_request_body.MODEL_JOB_ID
@@ -130,6 +136,7 @@ def model_abort(abort_request_body: ModelingAbort):
         conn.dispose()
 
     return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
 
 @router.delete('/delete/')
 def model_delete(deletion: ModelingDelete):
