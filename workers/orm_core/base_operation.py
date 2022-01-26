@@ -1,3 +1,5 @@
+from datetime import datetime
+from decimal import Decimal
 from typing import List, Dict, Any
 
 from sqlalchemy import create_engine, inspect, MetaData
@@ -35,7 +37,17 @@ class BaseOperation():
         return show_table
 
     def orm_cls_to_dict(self, record) -> Dict[str, Any]:
-        return {c.name: getattr(record, c.name, None) for c in record.__table__.columns}
+        result_dict = {}
+        for c in record.__table__.columns:
+            if isinstance(getattr(record, c.name), datetime):
+                result_dict[c.name] = getattr(record, c.name).strftime("%Y-%m-%d %H:%M:%S")
+            elif isinstance(getattr(record, c.name), Decimal):
+                result_dict[c.name] = float(getattr(record, c.name))
+            else:
+                result_dict[c.name] = getattr(record, c.name)
+        return result_dict
+        # return {c.name: (getattr(record, c.name) if not isinstance(getattr(record, c.name), datetime)
+        #         else getattr(record, c.name).strftime("%Y-%m-%d %H:%M:%S")) for c in record.__table__.columns}
 
     def create_table_cls(self):
         tables = self.table_name_list

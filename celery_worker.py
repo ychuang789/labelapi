@@ -1,3 +1,5 @@
+from typing import List
+
 from celery import Celery
 from dump.groups.dump_core import DumpWorker
 
@@ -19,10 +21,10 @@ celery_app.conf.update(task_track_started=configuration.CELERY_TASK_TRACK_STARTE
 celery_app.conf.update(task_acks_late=configuration.CELERY_ACKS_LATE)
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.label_data', ignore_result=True)
-def label_data(task_id, model_job_list, input_schema, input_table, start_time, end_time,
-               site_config, **kwargs) -> None:
+def label_data(task_id: str, model_id_list: List[str], input_schema: str, input_table: str,
+               start_time: str, end_time: str, site_config: dict, **kwargs) -> None:
 
-    labeling_worker = PredictWorker(task_id=task_id, model_job_list=model_job_list,
+    labeling_worker = PredictWorker(task_id=task_id, model_id_list=model_id_list,
                                     input_schema=input_schema, input_table=input_table,
                                     start_time=start_time, end_time=end_time,
                                     site_connection_info=site_config, **kwargs)
@@ -59,25 +61,27 @@ def dump_result(id_list, old_table_database, new_table_database, dump_database):
     # dump_workflow.dump_zip()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.preparing', ignore_result=True)
-def modeling_task(task_id, model_job_id, model_name, predict_type, dataset_number, dataset_schema, **kwargs):
+def modeling_task(task_id: str, model_name: str, predict_type: str,
+                  dataset_number: int, dataset_schema: str, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start task {task_id}')
     model = ModelingWorker(
-        job_id=model_job_id,
+        task_id=task_id,
         model_name=model_name,
         predict_type=predict_type,
         dataset_number=dataset_number,
         dataset_schema=dataset_schema,
         **kwargs
     )
-    model.run_task(task_id=task_id)
+    model.run_task()
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', ignore_result=True)
-def testing(job_id, model_name, predict_type, dataset_number, dataset_schema, **kwargs):
+def testing(task_id: str, model_name: str,  predict_type: str,
+                  dataset_number: int, dataset_schema: str, **kwargs):
     _logger = get_logger('modeling')
-    _logger.info(f'start job {job_id}')
+    _logger.info(f'start job {task_id}')
     model = ModelingWorker(
-        job_id=job_id,
+        task_id=task_id,
         model_name=model_name,
         predict_type=predict_type,
         dataset_number=dataset_number,

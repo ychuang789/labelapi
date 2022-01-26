@@ -878,7 +878,7 @@ class TaskConfig(BaseModel):
     INPUT_TABLE: str = os.getenv("INPUT_TABLE")
     COUNTDOWN: int = 5
     QUEUE: str = "queue1"
-    MODEL_JOB_LIST: List[int] = None
+    MODEL_ID_LIST: List[str] = None
     SITE_CONFIG: Optional[Dict] = None
 
 
@@ -911,7 +911,7 @@ class ModelingTrainingConfig(BaseModel):
     QUEUE: str = "queue2"
     DATASET_DB: str = 'audience-toolkit-django'
     DATASET_NO: int = 1
-    MODEL_JOB_ID: int = 0
+    TASK_ID: str = None
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
@@ -923,15 +923,15 @@ class ModelingTestingConfig(BaseModel):
     QUEUE: str = "queue2"
     DATASET_DB: str = 'audience-toolkit-django'
     DATASET_NO: int = 1
-    MODEL_JOB_ID: int = 0
+    TASK_ID: str = None
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path"}
 
 
 class ModelingAbort(BaseModel):
-    MODEL_JOB_ID: int = 0
+    TASK_ID: str = None
 
 
 class ModelingDelete(BaseModel):
-    MODEL_JOB_ID: int = None
+    TASK_ID: str = None

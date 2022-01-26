@@ -16,11 +16,11 @@ from workers.predicting.production_info_core import TaskInfo
 
 class PredictWorker:
     def __init__(self, task_id: str, input_schema: str, input_table: str, start_time: str,
-                 end_time: str, model_job_list: List[int], site_connection_info: Dict[str, Union[str, int]] = None,
+                 end_time: str, model_id_list: List[str], site_connection_info: Dict[str, Union[str, int]] = None,
                  logger_name='label_data', orm_cls: PredictingCRUD = None, verbose=False, **kwargs):
         self.task_id = task_id
         self.logger = get_logger(logger_name, verbose=verbose)
-        self.model_job_list = model_job_list
+        self.model_id_list = model_id_list
         self.input_schema = input_schema
         self.input_table = input_table
         self.start_date = datetime.strptime(start_time, "%Y-%m-%dT00:00:00")
@@ -311,8 +311,8 @@ class PredictWorker:
         ms = self.orm_cls.table_cls_dict.get(TableName.model_status)
         result = []
         _model_type = []
-        for i in self.model_job_list:
-            record = self.orm_cls.session.query(ms).filter(ms.job_id == i).first()
+        for i in self.model_id_list:
+            record = self.orm_cls.session.query(ms).filter(ms.task_id == i).first()
             _model_type.append(record.model_name)
             # result.append({c.name: getattr(record, c.name, None) for c in record.__table__.columns})
             result.append(record)
@@ -327,7 +327,7 @@ class PredictWorker:
             info_dict = {'model_path': model.model_path}
 
             model_worker = ModelingWorker(
-                job_id=model.job_id,
+                task_id=model.job_id,
                 model_name=model.model_name,
                 predict_type=model.feature.lower(),
                 **info_dict)

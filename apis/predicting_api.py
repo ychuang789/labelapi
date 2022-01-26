@@ -34,7 +34,7 @@ def create_task(body: TaskConfig):
         task_id = uuid.uuid1().hex
         label_data.apply_async(
             args=(
-                task_id, body.MODEL_JOB_LIST, body.INPUT_SCHEMA,
+                task_id, body.MODEL_ID_LIST, body.INPUT_SCHEMA,
                 body.INPUT_TABLE, body.START_TIME, body.END_TIME,
                 body.SITE_CONFIG,
             ),

@@ -9,39 +9,36 @@ class ModelingCRUD(BaseOperation):
         self.mr = self.table_cls_dict.get(TableName.model_report)
         self.rule = self.table_cls_dict.get(TableName.rules)
 
-    def model_status_changer(self, model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
-        err_msg = f'{model_job_id} {status.value} by the external user'
-
+    def model_status_changer(self, task_id: str, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
+        err_msg = f'{task_id} {status.value} by the external user'
         try:
-            self.session.query(self.ms).filter(self.ms.job_id == model_job_id).update({self.ms.training_status: status.value,
-                                                                         self.ms.error_message: err_msg})
+            self.session.query(self.ms).filter(self.ms.task_id == task_id).update({self.ms.training_status: status.value,
+                                                                                   self.ms.error_message: err_msg})
             self.session.commit()
-            return err_msg
         except Exception as e:
             self.session.rollback()
             raise e
 
-    def model_delete_record(self, model_job_id: int):
-        err_msg = f'{model_job_id} is deleted'
-
+    def model_delete_record(self, task_id: str):
+        err_msg = f'{task_id} is deleted'
         try:
-            record = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).all()
-            for r in record:
-                self.session.delete(r)
-                self.session.commit()
-            return err_msg
+            record = self.session.query(self.ms).get(task_id)
+            self.session.delete(record)
+            self.session.commit()
+
         except Exception as e:
             self.session.rollback()
             raise e
 
-    def model_get_status(self, model_job_id: int):
-        record = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).first()
-        return record
+    def model_get_status(self, task_id: str):
+        return self.orm_cls_to_dict(self.session.query(self.ms).get(task_id))
 
-    def model_get_report(self, model_job_id: int):
-        record = self.session.query(self.ms).filter(self.ms.job_id == model_job_id).first()
-        # get() vs first()
-        return record.model_report_collection
+    def model_get_report(self, task_id: str):
+        reports = self.session.query(self.mr).filter(self.mr.task_id == task_id).all()
+        return [self.orm_cls_to_dict(r) for r in reports]
+
+    def model_get_rules(self, task_id: str):
+        return self.session.query(self.rule).filter(self.rule.task_id == task_id).all()
 
 
 

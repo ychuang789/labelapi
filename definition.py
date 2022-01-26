@@ -13,6 +13,9 @@ Path(SAVE_FOLDER).mkdir(exist_ok=True)
 RULE_FOLDER = Path(ROOT_DIR / "rules")
 Path(RULE_FOLDER).mkdir(exist_ok=True)
 
+MODEL_IMPORT_FOLDER = Path(ROOT_DIR / "upload_files")
+Path(MODEL_IMPORT_FOLDER).mkdir(exist_ok=True)
+
 # only use this in lab machine
 AUDIENCE_PRODUCTION_PATH = '/home/deeprd2/audience_production'
 
