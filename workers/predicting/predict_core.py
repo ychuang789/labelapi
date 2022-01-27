@@ -36,6 +36,7 @@ class PredictWorker:
         self.model_information, self.model_type = self.get_jobs_ids()
         self.predict_type = [i.feature.lower() for i in self.model_information]
         self.model_worker_list = self.get_model_list()
+        self._temp_conn = self.orm_cls.engine.connect() # use for to_sql statement
 
     def run_task(self):
 
@@ -70,6 +71,7 @@ class PredictWorker:
         self.data_generator(list(self.table_dict.keys()))
 
     def batch_process(self):
+
         for idx, elements in enumerate(get_batch_by_timedelta(schema=self.input_schema,
                                                               predict_type=self.predict_type,
                                                               table=self.input_table,
@@ -167,7 +169,8 @@ class PredictWorker:
                 create_table(_table_name, self.logger, schema=DatabaseConfig.OUTPUT_SCHEMA)
 
             try:
-                _df_write.to_sql(name=_table_name, con=self.orm_cls.engine, if_exists='append', index=False)
+
+                _df_write.to_sql(name=_table_name, con=self._temp_conn, if_exists='append', index=False)
                 self.logger.info(f'successfully write data into {DatabaseConfig.OUTPUT_SCHEMA}.{_table_name}')
 
             except Exception as e:
@@ -342,6 +345,7 @@ class PredictWorker:
         self.orm_cls.session.commit()
 
     def dispose(self):
+        self._temp_conn.close()
         self.orm_cls.session.close()
         self.orm_cls.dispose()
 

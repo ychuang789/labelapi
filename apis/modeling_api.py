@@ -59,7 +59,7 @@ def model_testing(body: ModelingTestingConfig):
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
 
 
-@router.get('/{model_job_id}')
+@router.get('/{task_id}')
 def model_status(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -75,7 +75,7 @@ def model_status(task_id: str):
         conn.dispose()
 
 
-@router.get('/{model_job_id}/report/')
+@router.get('/{task_id}/report/')
 def model_report(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
 
