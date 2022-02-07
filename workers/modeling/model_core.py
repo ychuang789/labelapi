@@ -1,17 +1,21 @@
 import importlib
 import json
+from collections import defaultdict
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Tuple, List
+
+import numpy as np
+from sklearn import preprocessing
 
 from models.audience_model_interfaces import SupervisedModel, RuleBaseModel
 
 from models.trainable_models.tw_model import TermWeightModel
-from settings import MODEL_INFORMATION
+from settings import MODEL_INFORMATION, TERM_WEIGHT_FIELDS_MAPPING
 
 from utils.data.data_helper import get_term_weights_objects
 from utils.general_helper import get_logger
 from utils.enum_config import ModelTaskStatus, DatasetType
-from utils.exception_manager import ModelTypeNotFoundError, ParamterMissingError
+from utils.exception_manager import ModelTypeNotFoundError, ParamterMissingError, UploadModelError
 from workers.modeling.preprocess_core import PreprocessWorker
 
 from workers.orm_core.model_operation import ModelingCRUD
@@ -42,7 +46,7 @@ class ModelingWorker:
 
         try:
             if self.orm_cls.session.query(ms).filter(ms.task_id == self.task_id).all():
-                self.orm_cls.model_delete_record(task_id=self.task_id)
+                self.orm_cls.delete_record(task_id=self.task_id)
             self.add_task_info(ext_test=False)
 
             self.logger.info(f"start modeling task: {self.task_id}")
@@ -214,7 +218,7 @@ class ModelingWorker:
             if isinstance(self.model, SupervisedModel):
                 self.model.load()
             if isinstance(self.model, RuleBaseModel):
-                pattern = self.orm_cls.model_get_rules(task_id=self.task_id)
+                pattern = self.orm_cls.get_rules(task_id=self.task_id)
                 if not pattern or len(pattern) == 0:
                     raise ParamterMissingError(f'patterns are missing')
                 self.model.load((self.preprocess.load_rules(pattern)))
@@ -271,3 +275,61 @@ class ModelingWorker:
             dataset = self.preprocess.run_processing(is_train=False)
             self.testing_set = dataset
             self.testing_y = [[d.label] for d in self.testing_set]
+
+    @staticmethod
+    def import_term_weights(file, filename: str, task_id: str, upload_job_id: int, required_fields=None, normalize_score=True):
+
+        orm_worker = ModelingCRUD()
+        upload_model = orm_worker.upload_model
+        id_ = orm_worker.start_upload_model_to_table(task_id=task_id, upload_job_id=upload_job_id, filename=filename)
+
+        if not required_fields:
+            required_fields = TERM_WEIGHT_FIELDS_MAPPING
+        label_term_weight: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
+
+        try:
+            csv_rows = PreprocessWorker.read_csv_file(file, required_fields)
+
+            for index, row in enumerate(csv_rows):
+                data = defaultdict(str)
+                for _field in required_fields.keys():
+                    field_data = row.get(_field, None) or row.get(required_fields.get(_field), None)
+                    if _field == 'score':
+                        field_data = field_data if field_data else 1
+                    data[_field] = field_data
+                label_str: str = data.get('label', None)
+                content = data.get('content', None)
+                score = data.get('score', 1)
+                label_term_weight[label_str].append((content, score))
+            if normalize_score:
+                normalized_label_term_weight = {}
+                for label, term_weight in label_term_weight.items():
+                    terms, weights = [[i for i, j in term_weight],
+                                      [j for i, j in term_weight]]
+                    weights = np.array(weights)
+                    weights = weights.reshape(-1, 1)
+                    min_max_scaler = preprocessing.MinMaxScaler()
+                    weights_minmax = min_max_scaler.fit_transform(weights)
+                    weights_minmax = [round(weight[0], 6) for weight in weights_minmax]
+                    normalized_label_term_weight[label] = [t_w for t_w in zip(terms, weights_minmax)]
+                label_term_weight = normalized_label_term_weight
+
+            term_weight_bulk_list = get_term_weights_objects(task_id=task_id, term_weight_dict=label_term_weight)
+            orm_worker.session.bulk_save_objects(term_weight_bulk_list)
+            orm_worker.session.query(upload_model).filter(upload_model.id == id_).update(
+                {upload_model.status: ModelTaskStatus.FINISHED.value}
+            )
+            orm_worker.session.commit()
+        except Exception as e:
+            orm_worker.session.rollback()
+            err_msg = f"{task_id} failed to upload term weight since {e}"
+            orm_worker.session.query(upload_model).filter(upload_model.id == id_).update(
+                {upload_model.status: ModelTaskStatus.FAILED.value}
+            )
+            orm_worker.session.commit()
+            raise UploadModelError(err_msg)
+        finally:
+            orm_worker.dispose()
+
+
+

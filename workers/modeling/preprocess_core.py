@@ -1,8 +1,11 @@
+import codecs
+import csv
 import random
 
 from collections import defaultdict
 from typing import Dict, List, Any, Union, Iterator
 
+import cchardet
 import pandas as pd
 
 from settings import LOCAL_TEST
@@ -129,3 +132,31 @@ class PreprocessWorker():
         else:
             return DBConnection.execute_query(query=QueryManager.get_rule_query(labeling_job_id=self.dataset_number),
                                               **ConnectionConfigGenerator.rd2_database(schema=self.dataset_schema))
+
+    @staticmethod
+    def read_csv_file(file, required_fields):
+        delimiters = [',', '\t']
+        encoding = cchardet.detect(file.read())['encoding']
+        file.seek(0)
+        csv_file = header = exist_field = None
+        for delimiter in delimiters:
+            csv_file = csv.DictReader(codecs.iterdecode(file, encoding), skipinitialspace=True,
+                                      delimiter=delimiter,
+                                      quoting=csv.QUOTE_ALL)
+            header = csv_file.fieldnames
+            print(header)
+            if isinstance(required_fields, dict):
+                if len(set(required_fields.keys()).intersection(header)) > 0:
+                    exist_field = set(required_fields.keys()).intersection(header)
+                    break
+                elif len(set(required_fields.values()).intersection(header)) > 0:
+                    exist_field = set(required_fields.values()).intersection(header)
+                    break
+            else:
+                if len(set(required_fields).intersection(header)) > 0:
+                    exist_field = set(required_fields).intersection(header)
+                    break
+        if csv_file is None or exist_field is None:
+            raise ValueError(f"csv欄位讀取錯誤，請確認所使用的欄位分隔符號是否屬於於「{' or '.join(delimiters)}」其中一種。")
+
+        return csv_file

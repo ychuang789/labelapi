@@ -1,7 +1,9 @@
+from datetime import datetime
+
 from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import declarative_base, relationship, Session
+from sqlalchemy.orm import declarative_base, relationship, Session, backref
 
 from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus
@@ -90,6 +92,12 @@ class ModelStatus(Base):
         cascade="all, delete",
         passive_deletes=True
     )
+    upload_model = relationship(
+        "UploadModel",
+        backref="model_status",
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
     def __init__(self, task_id, model_name, training_status,
                  ext_status, feature, model_path,
@@ -171,6 +179,26 @@ class Rules(Base):
     def __repr__(self):
         return f"Rules({self.content}, {self.rule_type}, {self.score}, " \
                f"{self.label}, {self.match_type}, {self.task_id})"
+
+
+class UploadModel(Base):
+    __tablename__ = TableName.upload_model
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    filename = Column(String(100))
+    status = Column(String(32))
+    create_time = Column(DateTime, default=datetime.now())
+    error_message = Column(LONGTEXT)
+    upload_job_id = Column(Integer, unique=True)
+    task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+
+    def __init__(self, file, status, create_time, task_id):
+        self.file = file
+        self.status = status
+        self.create_time = create_time
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"UploadModel({self.file}, {self.status}, {self.create_time}, {self.task_id})"
 
 
 def create_model_table() -> None:

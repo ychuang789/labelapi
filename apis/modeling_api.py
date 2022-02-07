@@ -5,9 +5,10 @@ from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from celery_worker import modeling_task, testing
+from celery_worker import modeling_task, testing, import_model
 from definition import MODEL_IMPORT_FOLDER
-from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
+from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete, \
+    ModelingUpload
 from workers.orm_core.model_operation import ModelingCRUD
 
 router = APIRouter(prefix='/models',
@@ -63,7 +64,7 @@ def model_testing(body: ModelingTestingConfig):
 def model_status(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        result = conn.model_get_status(task_id=task_id)
+        result = conn.get_status(task_id=task_id)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
     except AttributeError:
         result = f'model_job task: {task_id} is not exists'
@@ -80,7 +81,7 @@ def model_report(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
 
     try:
-        result = conn.model_get_report(task_id=task_id)
+        result = conn.get_report(task_id=task_id)
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
     except AttributeError:
         result = f'model_job task: {task_id} is not exists'
@@ -96,7 +97,7 @@ def model_report(task_id: str):
 def model_abort(body: ModelingAbort):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        msg = conn.model_status_changer(task_id=body.TASK_ID)
+        msg = conn.status_changer(task_id=body.TASK_ID)
         err_msg = f'{body.TASK_ID} is successfully aborted, additional message: {msg}'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
     except Exception as e:
@@ -110,7 +111,7 @@ def model_abort(body: ModelingAbort):
 def model_delete(body: ModelingDelete):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        conn.model_delete_record(task_id=body.TASK_ID)
+        conn.delete_record(task_id=body.TASK_ID)
         err_msg = f'{body.TASK_ID} is successfully deleted'
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
     except Exception as e:
@@ -120,18 +121,45 @@ def model_delete(body: ModelingDelete):
         conn.dispose()
 
 
-@router.post('/import_model/')
-def model_import(file: UploadFile = File(...)):
+@router.put('/import_model/')
+def model_import(body: ModelingUpload, file: UploadFile = File(...)):
     upload_filepath = os.path.join(MODEL_IMPORT_FOLDER, file.filename)
+
     try:
         with open(upload_filepath, 'wb+') as file_object:
             file_object.write(file.file.read())
-        err_msg = f"save {file.filename} to {MODEL_IMPORT_FOLDER}"
+        import_model.apply_async(
+            args=(file.file, file.filename, body.TASK_ID, body.UPLOAD_JOB_ID),
+            queue=body.QUEUE
+        )
+        err_msg = f"successfully save {file.filename}"
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
     except Exception as e:
         err_msg = f"failed to save {file.filename} since {e}"
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             content=jsonable_encoder(err_msg))
+
+
+@router.get('/{task_id}/import_model/{upload_job_id}')
+def get_import_model_status(task_id: str, upload_job_id: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        result = conn.get_upload_model_status(upload_job_id=upload_job_id)
+        if not result:
+            result = f'import_model task: {task_id}_{upload_job_id} is not exists'
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(result))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+    except AttributeError:
+        result = f'import_model task: {task_id}_{upload_job_id} is not exists'
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(result))
+    except Exception as e:
+        result = f'failed to get status since {e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(result))
+    finally:
+        conn.dispose()
+
 
 
 

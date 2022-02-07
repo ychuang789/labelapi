@@ -796,6 +796,12 @@ MODEL_INFORMATION = {
     "TERM_WEIGHT_MODEL": "models.trainable_models.tw_model.TermWeightModel",
 }
 
+TERM_WEIGHT_FIELDS_MAPPING = {
+    'content': '字詞',
+    'label': '標籤',
+    'score': '分數',
+}
+
 
 # ==============================
 #          Application
@@ -832,6 +838,7 @@ class TableName:
     model_report = 'model_report'
     term_weights = 'term_weights'
     rules = 'rules'
+    upload_model = 'upload_model'
 
 
 # class InputConnection(BaseSettings):
@@ -974,3 +981,10 @@ class ModelingAbort(BaseModel):
 
 class ModelingDelete(BaseModel):
     TASK_ID: str = None
+
+
+class ModelingUpload(BaseModel):
+    QUEUE: str = "queue2"
+    TASK_ID: str = None
+    UPLOAD_JOB_ID: int = None
+
