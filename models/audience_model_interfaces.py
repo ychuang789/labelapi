@@ -74,3 +74,5 @@ class SupervisedModel(ABC):
         """load the model, make sure to do it before predicting extral test set"""
         raise NotImplementedError
 
+
+

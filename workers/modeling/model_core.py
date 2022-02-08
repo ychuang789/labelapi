@@ -19,6 +19,7 @@ from utils.exception_manager import ModelTypeNotFoundError, ParamterMissingError
 from workers.modeling.preprocess_core import PreprocessWorker
 
 from workers.orm_core.model_operation import ModelingCRUD
+from workers.orm_core.table_creator import EvalDetails
 
 
 class ModelingWorker:
@@ -73,29 +74,47 @@ class ModelingWorker:
             if isinstance(self.model, TermWeightModel):
                 bulk_list = get_term_weights_objects(self.task_id, self.model.label_term_weights)
                 self.orm_cls.session.bulk_save_objects(bulk_list)
-                # self.orm_cls.session.add_all(bulk_list)
                 self.orm_cls.session.commit()
 
             self.logger.info(f"evaluating the model ...")
-            dev_report = self.model.eval(self.dev_set, self.dev_y)
-            self.orm_cls.session.add(mr(task_id=self.task_id,
-                                        dataset_type=DatasetType.DEV.value,
-                                        accuracy=dev_report.get('accuracy'),
-                                        report=json.dumps(dev_report, ensure_ascii=False),
-                                        create_time=datetime.now()
-                                        ))
+            dev_report, dev_predict_labels = self.model.eval(self.dev_set, self.dev_y)
+            dev_report_cls = mr(task_id=self.task_id,
+                                dataset_type=DatasetType.DEV.value,
+                                accuracy=dev_report.get('accuracy'),
+                                report=json.dumps(dev_report, ensure_ascii=False),
+                                create_time=datetime.now()
+                                )
+            self.orm_cls.session.add(dev_report_cls)
+
             self.logger.info(f"testing the model ...")
-            test_report = self.model.eval(self.testing_set, self.testing_y)
-            self.orm_cls.session.add(mr(task_id=self.task_id,
-                                        dataset_type=DatasetType.TEST.value,
-                                        accuracy=test_report.get('accuracy'),
-                                        report=json.dumps(test_report, ensure_ascii=False),
-                                        create_time=datetime.now()
-                                        ))
+            test_report, test_predict_labels = self.model.eval(self.testing_set, self.testing_y)
+            test_report_cls = mr(task_id=self.task_id,
+                                 dataset_type=DatasetType.TEST.value,
+                                 accuracy=test_report.get('accuracy'),
+                                 report=json.dumps(test_report, ensure_ascii=False),
+                                 create_time=datetime.now()
+                                 )
+            self.orm_cls.session.add(test_report_cls)
+
             self.orm_cls.session.query(ms).filter(ms.task_id == self.task_id).update({
                 ms.training_status: ModelTaskStatus.FINISHED.value
             })
             self.orm_cls.session.commit()
+
+            # bulk save eval_details
+            self.logger.info(f"saving eval_details ...")
+            dev_eval_details_bulk_list = self.bulk_insert_eval_details(dataset=self.dev_set,
+                                                                       y_pred=dev_predict_labels,
+                                                                       report_id=dev_report_cls.id)
+            self.orm_cls.session.bulk_save_objects(dev_eval_details_bulk_list)
+
+            test_eval_details_bulk_list = self.bulk_insert_eval_details(dataset=self.testing_set,
+                                                                        y_pred=test_predict_labels,
+                                                                        report_id=test_report_cls.id)
+            self.orm_cls.session.bulk_save_objects(test_eval_details_bulk_list)
+
+            self.orm_cls.session.commit()
+
             self.logger.info(f"modeling task: {self.task_id} is finished")
         except Exception as e:
             self.orm_cls.session.rollback()
@@ -145,19 +164,30 @@ class ModelingWorker:
             self.data_preprocess(is_train=False)
 
             self.logger.info(f"evaluating with ext_test data ...")
-            report = self.model.eval(self.testing_set, self.testing_y)
+            report, predict_labels = self.model.eval(self.testing_set, self.testing_y)
 
-            self.orm_cls.session.add(mr(task_id=task_id,
-                                        dataset_type=DatasetType.EXT_TEST.value,
-                                        accuracy=report.get('accuracy', -1),
-                                        report=json.dumps(report, ensure_ascii=False),
-                                        create_time=datetime.now()
-                                        ))
+            test_report_cls = mr(task_id=task_id,
+                                 dataset_type=DatasetType.EXT_TEST.value,
+                                 accuracy=report.get('accuracy', -1),
+                                 report=json.dumps(report, ensure_ascii=False),
+                                 create_time=datetime.now()
+                                 )
+
+            self.orm_cls.session.add(test_report_cls)
 
             self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update({
                 ms.ext_status: ModelTaskStatus.FINISHED.value
             })
             self.orm_cls.session.commit()
+
+            self.logger.info(f"saving eval_details ...")
+            test_eval_details_bulk_list = self.bulk_insert_eval_details(dataset=self.testing_set,
+                                                                        y_pred=predict_labels,
+                                                                        report_id=test_report_cls.id)
+            self.orm_cls.session.bulk_save_objects(test_eval_details_bulk_list)
+
+            self.orm_cls.session.commit()
+
             self.logger.info(f"modeling task: {task_id} is finished")
 
         except FileNotFoundError as f:
@@ -276,8 +306,23 @@ class ModelingWorker:
             self.testing_set = dataset
             self.testing_y = [[d.label] for d in self.testing_set]
 
+    def bulk_insert_eval_details(self, dataset, y_pred, report_id):
+        bulk_list = []
+        for data, y in zip(dataset, y_pred):
+            bulk_list.append(
+                EvalDetails(
+                    doc_id=data.id_,
+                    ground_truth=data.label,
+                    predict_label=y,
+                    task_id=self.task_id,
+                    report_id=report_id
+                )
+            )
+        return bulk_list
+
     @staticmethod
-    def import_term_weights(file, filename: str, task_id: str, upload_job_id: int, required_fields=None, normalize_score=True):
+    def import_term_weights(file, filename: str, task_id: str, upload_job_id: int, required_fields=None,
+                            normalize_score=True):
 
         orm_worker = ModelingCRUD()
         upload_model = orm_worker.upload_model
@@ -330,6 +375,3 @@ class ModelingWorker:
             raise UploadModelError(err_msg)
         finally:
             orm_worker.dispose()
-
-
-

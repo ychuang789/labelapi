@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from scipy.signal import cascade
 from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.ext.automap import automap_base
@@ -99,6 +100,13 @@ class ModelStatus(Base):
         passive_deletes=True
     )
 
+    eval_details = relationship(
+        "EvalDetails",
+        backref="model_status",
+        cascade="all, delete",
+        passive_deletes=True
+    )
+
     def __init__(self, task_id, model_name, training_status,
                  ext_status, feature, model_path,
                  error_message, create_time, job_id):
@@ -126,6 +134,12 @@ class ModelReport(Base):
     report = Column(String(1000), nullable=False)
     create_time = Column(DateTime, nullable=False)
     task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+    eval_details = relationship(
+        "EvalDetails",
+        backref="model_report",
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
     def __init__(self, dataset_type, accuracy, report, create_time, task_id):
         self.dataset_type = dataset_type
@@ -137,6 +151,26 @@ class ModelReport(Base):
     def __repr__(self):
         return f"ModelReport({self.dataset_type}, {self.accuracy}, {self.report}, " \
                f"{self.create_time}, {self.task_id})"
+
+
+class EvalDetails(Base):
+    __tablename__ = TableName.eval_details
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    doc_id = Column(Integer)
+    ground_truth = Column(String(100))
+    predict_label = Column(String(100))
+    report_id = Column(Integer, ForeignKey('model_report.id', ondelete="CASCADE"))
+    task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+
+    def __init__(self, doc_id, ground_truth, predict_label, report_id, task_id):
+        self.doc_id = doc_id
+        self.ground_truth = ground_truth
+        self.predict_label = predict_label
+        self.report_id = report_id
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"EvalDetails({self.task_id}:{self.doc_id}, {self.ground_truth}, {self.predict_label})"
 
 
 class TermWeights(Base):

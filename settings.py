@@ -839,6 +839,7 @@ class TableName:
     term_weights = 'term_weights'
     rules = 'rules'
     upload_model = 'upload_model'
+    eval_details = 'eval_details'
 
 
 # class InputConnection(BaseSettings):
