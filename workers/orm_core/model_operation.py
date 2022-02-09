@@ -10,6 +10,7 @@ class ModelingCRUD(BaseOperation):
         self.mr = self.table_cls_dict.get(TableName.model_report)
         self.rule = self.table_cls_dict.get(TableName.rules)
         self.upload_model = self.table_cls_dict.get(TableName.upload_model)
+        self.eval_details = self.table_cls_dict.get(TableName.eval_details)
 
     def status_changer(self, task_id: str, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
         err_msg = f'{task_id} {status.value} by the external user'
@@ -64,8 +65,44 @@ class ModelingCRUD(BaseOperation):
         obj = self.session.query(self.upload_model).filter(self.upload_model.upload_job_id == upload_job_id).one()
         return self.orm_cls_to_dict(obj)
 
+    def get_eval_details(self, task_id: str, report_id: int, limit: int = None):
+        if limit:
+            obj = self.session.query(self.eval_details). \
+                filter(self.eval_details.task_id == task_id,
+                       self.eval_details.report_id == report_id).limit(limit).all()
+        else:
+            obj = self.session.query(self.eval_details).\
+                filter(self.eval_details.task_id == task_id,
+                       self.eval_details.report_id == report_id).all()
 
+        return [self.orm_cls_to_dict(o) for o in obj]
 
+    def get_eval_details_false_prediction(self, task_id: str, report_id: int, limit: int = None):
+        if limit:
+            obj = self.session.query(self.eval_details). \
+                filter(self.eval_details.task_id == task_id,
+                       self.eval_details.report_id == report_id,
+                       self.eval_details.ground_truth != self.eval_details.predict_label).limit(limit).all()
+        else:
+            obj = self.session.query(self.eval_details). \
+                filter(self.eval_details.task_id == task_id,
+                       self.eval_details.report_id == report_id,
+                       self.eval_details.ground_truth != self.eval_details.predict_label).all()
 
+        return [self.orm_cls_to_dict(o) for o in obj]
+
+    def get_eval_details_true_prediction(self, task_id: str, report_id: int, limit: int = None):
+        if limit:
+            obj = self.session.query(self.eval_details). \
+                filter(self.eval_details.task_id == task_id,
+                       self.eval_details.report_id == report_id,
+                       self.eval_details.ground_truth == self.eval_details.predict_label).limit(limit).all()
+        else:
+            obj = self.session.query(self.eval_details). \
+                filter(self.eval_details.task_id == task_id,
+                       self.eval_details.report_id == report_id,
+                       self.eval_details.ground_truth != self.eval_details.predict_label).all()
+
+        return [self.orm_cls_to_dict(o) for o in obj]
 
 

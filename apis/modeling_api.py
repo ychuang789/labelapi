@@ -161,6 +161,54 @@ def get_import_model_status(task_id: str, upload_job_id: int):
         conn.dispose()
 
 
+@router.get('/{task_id}/eval_details/{report_id}/{limit}')
+def get_eval_details(task_id: str, report_id: int, limit: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        results = conn.get_eval_details(task_id=task_id, report_id=report_id, limit=limit)
+        if not results:
+            results = f"There are no eval details for task {task_id}, report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+    finally:
+        conn.dispose()
 
+
+@router.get('/{task_id}/false_predict/{report_id}/{limit}')
+def get_eval_details_false_prediction(task_id: str, report_id: int, limit: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        results = conn.get_eval_details_false_prediction(task_id=task_id, report_id=report_id, limit=limit)
+        if not results:
+            results = f"There are no eval details for task {task_id}, report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+    finally:
+        conn.dispose()
+
+
+@router.get('/{task_id}/true_predict/{report_id}/{limit}')
+def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        results = conn.get_eval_details_true_prediction(task_id=task_id, report_id=report_id, limit=limit)
+        if not results:
+            results = f"There are no eval details for task {task_id}, report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+    finally:
+        conn.dispose()
 
 
