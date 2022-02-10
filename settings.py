@@ -4,6 +4,7 @@ from datetime import date
 from pydantic import BaseModel, BaseSettings, Field
 from typing import Dict, Optional, List, Union
 
+from definition import SAVE_DETAIL_FOLDER
 from utils.enum_config import ModelType, PredictTarget
 
 load_dotenv()
@@ -801,6 +802,8 @@ TERM_WEIGHT_FIELDS_MAPPING = {
     'label': '標籤',
     'score': '分數',
 }
+
+SAVE_DETAIL_EXTENSION = {'csv'}
 
 
 # ==============================

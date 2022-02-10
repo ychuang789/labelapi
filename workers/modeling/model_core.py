@@ -1,3 +1,4 @@
+import csv
 import importlib
 import json
 from collections import defaultdict
@@ -11,6 +12,7 @@ from models.audience_model_interfaces import SupervisedModel, RuleBaseModel
 
 from models.trainable_models.tw_model import TermWeightModel
 from settings import MODEL_INFORMATION, TERM_WEIGHT_FIELDS_MAPPING
+from utils.data.data_download import pre_check
 
 from utils.data.data_helper import get_term_weights_objects
 from utils.general_helper import get_logger
@@ -115,6 +117,9 @@ class ModelingWorker:
 
             self.orm_cls.session.commit()
 
+            self.write_csv(dataset=self.dev_set, y_pred=dev_predict_labels, report_id=dev_report_cls.id)
+            self.write_csv(dataset=self.testing_set, y_pred=test_predict_labels, report_id=test_report_cls.id)
+
             self.logger.info(f"modeling task: {self.task_id} is finished")
         except Exception as e:
             self.orm_cls.session.rollback()
@@ -187,6 +192,8 @@ class ModelingWorker:
             self.orm_cls.session.bulk_save_objects(test_eval_details_bulk_list)
 
             self.orm_cls.session.commit()
+
+            self.write_csv(dataset=self.testing_set, y_pred=predict_labels, report_id=test_report_cls.id)
 
             self.logger.info(f"modeling task: {task_id} is finished")
 
@@ -312,6 +319,7 @@ class ModelingWorker:
             bulk_list.append(
                 EvalDetails(
                     doc_id=data.id_,
+                    content=getattr(data, self.target_name),
                     ground_truth=data.label,
                     predict_label=y,
                     task_id=self.task_id,
@@ -319,6 +327,22 @@ class ModelingWorker:
                 )
             )
         return bulk_list
+
+    def write_csv(self, dataset, y_pred, report_id):
+        filename = f'{report_id}_{self.model_name.lower()}.csv'
+        filepath = pre_check(filename)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            fieldnames = ['doc_id', 'content', 'ground_truth', 'predict_label']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for data, y in zip(dataset, y_pred):
+                writer.writerow({
+                    'doc_id': data.id_,
+                    'content': getattr(data, self.target_name),
+                    'ground_truth': data.label,
+                    'predict_label': y
+                })
 
     @staticmethod
     def import_term_weights(file, filename: str, task_id: str, upload_job_id: int, required_fields=None,

@@ -157,20 +157,23 @@ class EvalDetails(Base):
     __tablename__ = TableName.eval_details
     id = Column(Integer, primary_key=True, autoincrement=True)
     doc_id = Column(Integer)
+    content = Column(LONGTEXT)
     ground_truth = Column(String(100))
     predict_label = Column(String(100))
     report_id = Column(Integer, ForeignKey('model_report.id', ondelete="CASCADE"))
     task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
 
-    def __init__(self, doc_id, ground_truth, predict_label, report_id, task_id):
+    def __init__(self, doc_id, content, ground_truth, predict_label, report_id, task_id):
         self.doc_id = doc_id
+        self.content = content
         self.ground_truth = ground_truth
         self.predict_label = predict_label
         self.report_id = report_id
         self.task_id = task_id
 
     def __repr__(self):
-        return f"EvalDetails({self.task_id}:{self.doc_id}, {self.ground_truth}, {self.predict_label})"
+        return f"EvalDetails({self.task_id}:{self.doc_id}, {self.content}, " \
+               f"{self.ground_truth}, {self.predict_label})"
 
 
 class TermWeights(Base):

@@ -3,12 +3,13 @@ from fastapi import APIRouter, UploadFile, File
 
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from celery_worker import modeling_task, testing, import_model
 from definition import MODEL_IMPORT_FOLDER
 from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete, \
     ModelingUpload
+from utils.data.data_download import find_file
 from workers.orm_core.model_operation import ModelingCRUD
 
 router = APIRouter(prefix='/models',
@@ -210,5 +211,22 @@ def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
     finally:
         conn.dispose()
+
+
+@router.get('/{report_id}/download_details/')
+def download_details(report_id: int):
+    try:
+        filename, filepath = find_file(report_id)
+        if filename and filepath:
+            return FileResponse(status_code=status.HTTP_200_OK, path=filepath, filename=filename)
+        else:
+            results = f"There are no eval details for report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+
+
+
 
 

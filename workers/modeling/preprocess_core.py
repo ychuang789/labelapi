@@ -110,7 +110,7 @@ class PreprocessWorker():
 
         return self.preprocess_example(examples=examples, sample_count=sample_count, shuffle=shuffle)
 
-    def preprocess_example(self, examples: Dict, sample_count: int = None, shuffle: bool = True) -> Iterator[InputExample]:
+    def preprocess_example(self, examples: dict, sample_count: int = None, shuffle: bool = True) -> Iterator[InputExample]:
         dataset = []
         for label, rows in examples.items():
             if sample_count and len(rows) >= sample_count:
