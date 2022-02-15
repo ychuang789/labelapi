@@ -1,13 +1,16 @@
 from settings import DatabaseConfig, TableName
-from utils.enum_config import ModelTaskStatus
-from utils.exception_manager import UploadModelError
+from utils.enum_config import ModelTaskStatus, ModelType
+from utils.exception_manager import UploadModelError, ModelTypeError, TWMissingError
 from workers.orm_core.base_operation import BaseOperation
+from workers.orm_core.table_creator import TermWeights
+
 
 class ModelingCRUD(BaseOperation):
     def __init__(self, connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO, auto_flush=False, echo=False, **kwargs):
         super().__init__(connection_info=connection_info, auto_flush=auto_flush, echo=echo, **kwargs)
         self.ms = self.table_cls_dict.get(TableName.model_status)
         self.mr = self.table_cls_dict.get(TableName.model_report)
+        self.tw = self.table_cls_dict.get(TableName.term_weights)
         self.rule = self.table_cls_dict.get(TableName.rules)
         self.upload_model = self.table_cls_dict.get(TableName.upload_model)
         self.eval_details = self.table_cls_dict.get(TableName.eval_details)
@@ -15,8 +18,9 @@ class ModelingCRUD(BaseOperation):
     def status_changer(self, task_id: str, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
         err_msg = f'{task_id} {status.value} by the external user'
         try:
-            self.session.query(self.ms).filter(self.ms.task_id == task_id).update({self.ms.training_status: status.value,
-                                                                                   self.ms.error_message: err_msg})
+            self.session.query(self.ms).filter(self.ms.task_id == task_id).update(
+                {self.ms.training_status: status.value,
+                 self.ms.error_message: err_msg})
             self.session.commit()
         except Exception as e:
             self.session.rollback()
@@ -71,7 +75,7 @@ class ModelingCRUD(BaseOperation):
                 filter(self.eval_details.task_id == task_id,
                        self.eval_details.report_id == report_id).limit(limit).all()
         else:
-            obj = self.session.query(self.eval_details).\
+            obj = self.session.query(self.eval_details). \
                 filter(self.eval_details.task_id == task_id,
                        self.eval_details.report_id == report_id).all()
 
@@ -105,4 +109,48 @@ class ModelingCRUD(BaseOperation):
 
         return [self.orm_cls_to_dict(o) for o in obj]
 
+    def add_term_weight(self, task_id: str, label: str, term: str, weight: float):
+        try:
+            task = self.get_status(task_id=task_id)
 
+            if task['model_name'] not in {ModelType.TERM_WEIGHT_MODEL.name}:
+                raise ModelTypeError(f'Task {task_id} is not supported term weight curd, '
+                                     f'since the model type is {task["model_name"]}')
+
+            tw_cls = self.tw(label=label, term=term, weight=weight, task_id=task_id)
+            self.session.add(tw_cls)
+            self.session.commit()
+        except AttributeError as a:
+            self.session.rollback()
+            raise a
+        except Exception as e:
+            self.session.rollback()
+            raise e
+
+    def get_term_weight_set(self, task_id: str):
+        term_weight_set = self.session.query(self.ms).get(task_id).term_weights_collection
+        if not term_weight_set:
+            raise ModelTypeError(f'Task {task_id} is not supported term weight curd')
+        return [self.orm_cls_to_dict(t) for t in term_weight_set]
+
+    def update_term_weight(self, tw_id: int, label: str, term: str, weight: float):
+        try:
+            term_weight = self.session.query(self.tw).get(tw_id)
+            if not term_weight:
+                raise TWMissingError(f'term_weight {tw_id} is not found')
+            term_weight.update({self.tw.label: label, self.tw.term: term, self.tw.weight: weight})
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e
+
+    def delete_term_weight(self, tw_id: int):
+        try:
+            term_weight = self.session.query(self.tw).get(tw_id)
+            if not term_weight:
+                raise TWMissingError(f'term_weight {tw_id} is not found')
+            self.session.delete(term_weight)
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e

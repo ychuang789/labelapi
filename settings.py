@@ -845,50 +845,6 @@ class TableName:
     eval_details = 'eval_details'
 
 
-# class InputConnection(BaseSettings):
-#     input_host: str = Field(..., env="INPUT_HOST")
-#     input_port: int = Field(..., env="INPUT_PORT")
-#     input_user: str = Field(..., env="INPUT_USER")
-#     input_password: str = Field(..., env="INPUT_PASSWORD")
-#     input_schema: str = Field(..., env="INPUT_SCHEMA")
-#     input_table: str = Field(..., env="INPUT_TABLE")
-#
-#     class Config:
-#         env_prefix = "INPUT"
-#         env_file = '.env'
-#         env_file_encoding = 'utf-8'
-#
-#
-# class OutputConnection(BaseSettings):
-#     output_host: str = Field(..., env="OUTPUT_HOST")
-#     output_port: int = Field(..., env="OUTPUT_PORT")
-#     output_user: str = Field(..., env="OUTPUT_USER")
-#     output_password: str = Field(..., env="OUTPUT_PASSWORD")
-#     output_schema: str = Field(..., env="OUTPUT_SCHEMA")
-#
-#     class Config:
-#         env_prefix = "OUTPUT"
-#         env_file = '.env'
-#         env_file_encoding = 'utf-8'
-#
-#
-# class DumpConneciton(BaseSettings):
-#     dump_from_schema: str = Field(..., env="DUMP_FROM_SCHEMA")
-#     dump_to_schema: str = Field(..., env="DUMP_TO_SCHEMA")
-#
-#     class Config:
-#         env_prefix = "DUMP"
-#         env_file = '.env'
-#         env_file_encoding = 'utf-8'
-#
-#
-# class ConnectionConfig(InputConnection, OutputConnection, DumpConneciton):
-#     def output_engine_info(self):
-#         return f'mysql+pymysql://{self.output_user}:' \
-#                f'{self.output_password}@{self.output_host}:' \
-#                f'{self.output_port}/{self.output_schema}?charset=utf8mb4'
-
-
 class DatabaseConfig:
     INPUT_HOST: str = os.getenv('INPUT_HOST')
     INPUT_PORT: int = int(os.getenv('INPUT_PORT'))
@@ -922,73 +878,73 @@ LOCAL_TEST = os.getenv('LOCAL_TEST', None)
 #          API request
 # ==============================
 
-class TaskConfig(BaseModel):
-    START_TIME: date = "2020-01-01"
-    END_TIME: date = "2021-01-01"
-    INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
-    INPUT_TABLE: str = os.getenv("INPUT_TABLE")
-    COUNTDOWN: int = 5
-    QUEUE: str = "queue1"
-    MODEL_ID_LIST: List[str] = None
-    SITE_CONFIG: Optional[Dict] = None
-
-
-class AbortConfig(BaseModel):
-    TASK_ID: str = 'string'
-
-
-class DeleteConfig(BaseModel):
-    TASK_ID: str = None
-
-
-class DumpConfig(BaseModel):
-    ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
-    OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
-    NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
-    DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
-    QUEUE: str = "queue1"
-
-
-class TaskSampleResult:
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
-    ORDER_COLUMN: str = 'create_time'
-    NUMBER: int = 50
-    OFFSET: int = 1000
-
-
-class ModelingTrainingConfig(BaseModel):
-    # TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
-    QUEUE: str = "queue2"
-    DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
-    TASK_ID: str = None
-    PREDICT_TYPE: str = PredictTarget.CONTENT.name
-    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "feature_model": "SGD"
-                                               }
-
-
-class ModelingTestingConfig(BaseModel):
-    QUEUE: str = "queue2"
-    DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
-    TASK_ID: str = None
-    PREDICT_TYPE: str = PredictTarget.CONTENT.name
-    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path"}
-
-
-class ModelingAbort(BaseModel):
-    TASK_ID: str = None
-
-
-class ModelingDelete(BaseModel):
-    TASK_ID: str = None
-
-
-class ModelingUpload(BaseModel):
-    QUEUE: str = "queue2"
-    TASK_ID: str = None
-    UPLOAD_JOB_ID: int = None
+# class TaskConfig(BaseModel):
+#     START_TIME: date = "2020-01-01"
+#     END_TIME: date = "2021-01-01"
+#     INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
+#     INPUT_TABLE: str = os.getenv("INPUT_TABLE")
+#     COUNTDOWN: int = 5
+#     QUEUE: str = "queue1"
+#     MODEL_ID_LIST: List[str] = None
+#     SITE_CONFIG: Optional[Dict] = None
+#
+#
+# class AbortConfig(BaseModel):
+#     TASK_ID: str = 'string'
+#
+#
+# class DeleteConfig(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class DumpConfig(BaseModel):
+#     ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
+#     OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
+#     NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
+#     DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
+#     QUEUE: str = "queue1"
+#
+#
+# class TaskSampleResult:
+#     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+#     ORDER_COLUMN: str = 'create_time'
+#     NUMBER: int = 50
+#     OFFSET: int = 1000
+#
+#
+# class ModelingTrainingConfig(BaseModel):
+#     # TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
+#     QUEUE: str = "queue2"
+#     DATASET_DB: str = 'audience-toolkit-django'
+#     DATASET_NO: int = 1
+#     TASK_ID: str = None
+#     PREDICT_TYPE: str = PredictTarget.CONTENT.name
+#     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+#     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+#                                                "feature_model": "SGD"
+#                                                }
+#
+#
+# class ModelingTestingConfig(BaseModel):
+#     QUEUE: str = "queue2"
+#     DATASET_DB: str = 'audience-toolkit-django'
+#     DATASET_NO: int = 1
+#     TASK_ID: str = None
+#     PREDICT_TYPE: str = PredictTarget.CONTENT.name
+#     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+#     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path"}
+#
+#
+# class ModelingAbort(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class ModelingDelete(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class ModelingUpload(BaseModel):
+#     QUEUE: str = "queue2"
+#     TASK_ID: str = None
+#     UPLOAD_JOB_ID: int = None
 

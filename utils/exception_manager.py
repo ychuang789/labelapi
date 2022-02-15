@@ -42,6 +42,17 @@ class OutputZIPNotFoundError(Exception):
         return OutputZIPNotFoundError, (self.msg,)
 
 
+class ModelTypeError(Exception):
+    """wrong model type implement"""
+
+    def __init__(self, msg):
+        super().__init__(msg)
+        self.msg = msg
+
+    def __reduce__(self):
+        return ModelTypeError, (self.msg,)
+
+
 class ModelTypeNotFoundError(Exception):
     """wrong model type input from api"""
 
@@ -73,6 +84,17 @@ class TWFeatureModelNotFoundError(Exception):
 
     def __reduce__(self):
         return TWFeatureModelNotFoundError, (self.msg,)
+
+
+class TWMissingError(Exception):
+    """term_weight is not exist"""
+
+    def __init__(self, msg):
+        super().__init__(msg)
+        self.msg = msg
+
+    def __reduce__(self):
+        return TWMissingError, (self.msg,)
 
 
 class UploadModelError(Exception):

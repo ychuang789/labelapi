@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from celery_worker import label_data, dump_result
-from settings import TaskConfig, TaskSampleResult, AbortConfig, DumpConfig, DeleteConfig
+from apis.input_class.predicting_input import TaskConfig, TaskSampleResult, AbortConfig, DumpConfig, DeleteConfig
 from utils.database.database_helper import scrap_data_to_dict
 from utils.general_helper import get_logger, uuid_validator
 from workers.orm_core.predict_operation import PredictingCRUD

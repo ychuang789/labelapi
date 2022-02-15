@@ -7,9 +7,12 @@ from fastapi.responses import JSONResponse, FileResponse
 
 from celery_worker import modeling_task, testing, import_model
 from definition import MODEL_IMPORT_FOLDER
-from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete, \
-    ModelingUpload
+from settings import DatabaseConfig
+from apis.input_class.modeling_input import ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, \
+    ModelingDelete, \
+    ModelingUpload, TermWeightsAdd, TermWeightsUpdate, TermWeightsDelete
 from utils.data.data_download import find_file
+from utils.exception_manager import ModelTypeError, TWMissingError
 from workers.orm_core.model_operation import ModelingCRUD
 
 router = APIRouter(prefix='/models',
@@ -213,7 +216,7 @@ def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
         conn.dispose()
 
 
-@router.get('/{report_id}/download_details/')
+@router.get('/download_details/{report_id}')
 def download_details(report_id: int):
     try:
         filename, filepath = find_file(report_id)
@@ -225,6 +228,86 @@ def download_details(report_id: int):
     except Exception as e:
         results = f"failed to get eval details since {e}"
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+
+
+@router.put('/term_weight/add')
+def term_weight_add(body: TermWeightsAdd):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        conn.add_term_weight(task_id=body.TASK_ID,
+                             label=body.LABEL,
+                             term=body.TERM,
+                             weight=body.WEIGHT)
+        err_msg = f"term weight is successfully added"
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except AttributeError:
+        err_msg = f"Task {body.TASK_ID} is not prepared or not trained yet"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    except ModelTypeError:
+        err_msg = f"Task {body.TASK_ID} model is not supported term weight CURD"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+
+@router.get('/{task_id}/term_weight')
+def get_term_weights(task_id: str):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        result = conn.get_term_weight_set(task_id=task_id)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+    except AttributeError:
+        err_msg = f"Task {task_id} is not prepared or not trained yet"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    except ModelTypeError:
+        err_msg = f"Task {task_id} model is not supported term weight CURD"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+
+@router.put('/term_weight/update')
+def term_weight_update(body: TermWeightsUpdate):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        conn.update_term_weight(tw_id=body.TERM_WEIGHT_ID,
+                                label=body.LABEL,
+                                term=body.TERM,
+                                weight=body.WEIGHT)
+        err_msg = f"Done, term_weight {body.TERM_WEIGHT_ID} is updated"
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    except TWMissingError:
+        err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+
+@router.delete('/term_weight/delete')
+def term_weight_delete(body: TermWeightsDelete):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        conn.delete_term_weight(tw_id=body.TERM_WEIGHT_ID)
+        err_msg = f"Done, Term weight {body.TERM_WEIGHT_ID} is deleted"
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except TWMissingError:
+        err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
 
 
 
