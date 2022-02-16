@@ -46,48 +46,32 @@ class PredictTarget(Enum):
     S_AREA_ID = "s_area_id"
     TITLE = "title"
 
-class RulesTarget:
-    AUTHOR_NAME_KEYWORD = Path(RULE_FOLDER / "author_name.pkl")
+class RuleType(Enum):
+    KEYWORD = "keyword"
+    REGEX = "regex"
+    TERM_WEIGHT = "term_weight"
 
-class KeywordMatchType:
-    PARTIALLY = "partially"
-    ABSOLUTELY = "absolutely"
-    START = "start"
-    END = "end"
+class MatchType(Enum):
+    START = 'start'
+    END = 'end'
+    EXACTLY = 'exactly'
+    PARTIALLY = 'partially'
 
 class Errors(Enum):
     UNKNOWN_DB_TYPE = "Unknown database type."
     UNKNOWN_PREDICT_TARGET_TYPE = "Unknown predicting target type."
 
-# class SampleResultTable(str, Enum):
-#     blog = 'wh_panel_mapping_blog'
-#     Comment = 'wh_panel_mapping_Comment'
-#     Dcard = 'wh_panel_mapping_Dcard'
-#     fbfans = 'wh_panel_mapping_fbfans'
-#     fbgroup = 'wh_panel_mapping_fbgroup'
-#     fbkol = 'wh_panel_mapping_fbkol'
-#     fbpm = 'wh_panel_mapping_fbpm'
-#     fbprivategroup = 'wh_panel_mapping_fbprivategroup'
-#     forum = 'wh_panel_mapping_forum'
-#     Instagram = 'wh_panel_mapping_Instagram'
-#     news = 'wh_panel_mapping_news'
-#     plurk = 'wh_panel_mapping_plurk'
-#     Ptt = 'wh_panel_mapping_Ptt'
-#     Tiktok = 'wh_panel_mapping_Tiktok'
-#     Twitter = 'wh_panel_mapping_Twitter'
-#     video = 'wh_panel_mapping_video'
-#     Youtube = 'wh_panel_mapping_Youtube'
-#
-# class Label(str, Enum):
-#     male = '男性'
-#     female = '女性'
-#     unmarried = '未婚'
-#     married = '已婚'
-#     child = '孩子'
-#     parenting = '有子女'
-#     young = '青年'
-#     employee = '上班族'
-#     student = '學生'
+class RulesTarget:
+    AUTHOR_NAME_KEYWORD = Path(RULE_FOLDER / "author_name.pkl")
+
+# Todo: 修改 abs -> exactly，對應站台
+class KeywordMatchType:
+    PARTIALLY = "partially"
+    EXACTLY = 'exactly'
+    START = "start"
+    END = "end"
+
+
 
 
 

@@ -42,7 +42,6 @@ class PredictingCRUD(BaseOperation):
         return query
 
     def abort_task(self, task_id):
-
         try:
             change_status = {self.st.stat: PredictTaskStatus.BREAK.value}
             self.session.query(self.st).filter(self.st.task_id == task_id).update(change_status)
@@ -52,13 +51,10 @@ class PredictingCRUD(BaseOperation):
             raise e
 
     def delete_task(self, task_id):
-        err_msg = f"delete {task_id} successfully"
         try:
-            record = self.session.query(self.st).filter(self.st.task_id == task_id).all()
-            for r in record:
-                self.session.delete(r)
-                self.session.commit()
-            return err_msg
+            record = self.session.query(self.st).get(task_id)
+            self.session.delete(record)
+            self.session.commit()
         except Exception as e:
             self.session.rollback()
             raise e

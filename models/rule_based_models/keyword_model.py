@@ -45,7 +45,7 @@ class KeywordModel(RuleBaseModel):
                     self.label_match_start[label].append(_keyword)
                 if KeywordMatchType.END in match_types:
                     self.label_match_end[label].append(_keyword)
-                if KeywordMatchType.ABSOLUTELY in match_types:
+                if KeywordMatchType.EXACTLY in match_types:
                     self.label_match_full[label].append(_keyword)
             self.label_match_any_trees[label].finalize()
         self.logger.debug(f"label match any trees: {len(self.label_match_any_trees)}")

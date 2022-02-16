@@ -1,10 +1,13 @@
 import os
 from dotenv import load_dotenv
 from datetime import date
-from pydantic import BaseModel, BaseSettings
+from pydantic import BaseModel, BaseSettings, Field
 from typing import Dict, Optional, List, Union
 
+from definition import SAVE_DETAIL_FOLDER
 from utils.enum_config import ModelType, PredictTarget
+
+load_dotenv()
 
 SOURCE: Dict = {
     "Comment": [
@@ -788,11 +791,20 @@ SITE_SCHEMA = 'audience-toolkit-django'
 MODEL_PATH_FIELD_DIRECTORY = 'model_files'
 
 MODEL_INFORMATION = {
-    "KEYWORD_MODEL" : "models.rule_based_models.keyword_model.KeywordModel",
-    "REGEX_MODEL" : "models.rule_based_models.regex_model.RegexModel",
-    "RANDOM_FOREST_MODEL" : "models.trainable_models.rf_model.RandomForestModel",
-    "TERM_WEIGHT_MODEL" : "models.trainable_models.tw_model.TermWeightModel",
+    "KEYWORD_MODEL": "models.rule_based_models.keyword_model.KeywordModel",
+    "REGEX_MODEL": "models.rule_based_models.regex_model.RegexModel",
+    "RANDOM_FOREST_MODEL": "models.trainable_models.rf_model.RandomForestModel",
+    "TERM_WEIGHT_MODEL": "models.trainable_models.tw_model.TermWeightModel",
 }
+
+TERM_WEIGHT_FIELDS_MAPPING = {
+    'content': '字詞',
+    'label': '標籤',
+    'score': '分數',
+}
+
+SAVE_DETAIL_EXTENSION = {'csv'}
+
 
 # ==============================
 #          Application
@@ -800,13 +812,13 @@ MODEL_INFORMATION = {
 
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
-    API_TITLE: str  = 'Audience API'
+    API_TITLE: str = 'Audience API'
     API_VERSION: float = 2.1
-    CELERY_NAME: str  = 'celery_worker'
-    CELERY_SQL_URI: str  = 'sqlite:///save.db'
-    CELERY_BACKEND: str  = 'db+sqlite:///save.db'
-    CELERY_BROKER: str  = 'redis://localhost'
-    CELERY_TIMEZONE: str  = 'Asia/Taipei'
+    CELERY_NAME: str = 'celery_worker'
+    CELERY_SQL_URI: str = 'sqlite:///save.db'
+    CELERY_BACKEND: str = 'db+sqlite:///save.db'
+    CELERY_BROKER: str = 'redis://localhost'
+    CELERY_TIMEZONE: str = 'Asia/Taipei'
     CELERY_ENABLE_UTC: bool = False
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
@@ -814,9 +826,11 @@ class DevelopConfig(BaseSettings):
     CELERY_ACKS_LATE: bool = True
     DUMP_ZIP: bool = False
 
+
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
+
 
 # ==============================
 #          Connection
@@ -826,10 +840,12 @@ class TableName:
     model_status = 'model_status'
     model_report = 'model_report'
     term_weights = 'term_weights'
+    rules = 'rules'
+    upload_model = 'upload_model'
+    eval_details = 'eval_details'
 
 
 class DatabaseConfig:
-    load_dotenv()
     INPUT_HOST: str = os.getenv('INPUT_HOST')
     INPUT_PORT: int = int(os.getenv('INPUT_PORT'))
     INPUT_USER: str = os.getenv('INPUT_USER')
@@ -847,71 +863,88 @@ class DatabaseConfig:
     DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
     DUMP_TO_SCHEMA: str = os.getenv('DUMP_TO_SCHEMA')
 
+
+class TestDatabaseConfig:
+    HOST: str = os.getenv('190_HOST')
+    PORT: int = int(os.getenv('190_PORT'))
+    USER: str = os.getenv('190_USER')
+    PASSWORD: str = os.getenv('190_PASSWORD')
+
+
+LOCAL_TEST = os.getenv('LOCAL_TEST', None)
+
+
 # ==============================
 #          API request
 # ==============================
 
-class TaskConfig(BaseModel):
-    load_dotenv()
-    START_TIME: date = "2020-01-01"
-    END_TIME: date = "2021-01-01"
-    PATTERN: Optional[List] = None
-    INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
-    INPUT_TABLE: str = os.getenv("INPUT_TABLE")
-    COUNTDOWN: int = 5
-    QUEUE: str = "queue1"
-    MODEL_JOB_LIST: List[int] = None
-    SITE_CONFIG: Optional[Dict] = None
-
-class AbortConfig(BaseModel):
-    TASK_ID: str = 'string'
-
-class DeleteConfig(BaseModel):
-    TASK_ID: str = None
-
-class DumpConfig(BaseModel):
-    ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
-    OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
-    NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
-    DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
-    QUEUE: str = "queue1"
-
-class TaskSampleResult:
-    load_dotenv()
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
-    ORDER_COLUMN: str = 'create_time'
-    NUMBER: int = 50
-    OFFSET: int = 1000
-
-class ModelingTrainingConfig(BaseModel):
-    #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
-    QUEUE: str = "queue2"
-    DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
-    MODEL_JOB_ID: int = 0
-    PREDICT_TYPE: str = PredictTarget.CONTENT.name
-    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "feature_model": "SGD",
-                                               "patterns": None,
-                                               }
-
-class ModelingTestingConfig(BaseModel):
-    QUEUE: str = "queue2"
-    DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
-    MODEL_JOB_ID: int = 0
-    PREDICT_TYPE: str = PredictTarget.CONTENT.name
-    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "patterns": None,
-                                               }
-
-class ModelingAbort(BaseModel):
-    MODEL_JOB_ID: int = 0
-
-class ModelingDelete(BaseModel):
-    MODEL_JOB_ID: int = None
-
-
+# class TaskConfig(BaseModel):
+#     START_TIME: date = "2020-01-01"
+#     END_TIME: date = "2021-01-01"
+#     INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
+#     INPUT_TABLE: str = os.getenv("INPUT_TABLE")
+#     COUNTDOWN: int = 5
+#     QUEUE: str = "queue1"
+#     MODEL_ID_LIST: List[str] = None
+#     SITE_CONFIG: Optional[Dict] = None
+#
+#
+# class AbortConfig(BaseModel):
+#     TASK_ID: str = 'string'
+#
+#
+# class DeleteConfig(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class DumpConfig(BaseModel):
+#     ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
+#     OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
+#     NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
+#     DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
+#     QUEUE: str = "queue1"
+#
+#
+# class TaskSampleResult:
+#     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+#     ORDER_COLUMN: str = 'create_time'
+#     NUMBER: int = 50
+#     OFFSET: int = 1000
+#
+#
+# class ModelingTrainingConfig(BaseModel):
+#     # TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
+#     QUEUE: str = "queue2"
+#     DATASET_DB: str = 'audience-toolkit-django'
+#     DATASET_NO: int = 1
+#     TASK_ID: str = None
+#     PREDICT_TYPE: str = PredictTarget.CONTENT.name
+#     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+#     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+#                                                "feature_model": "SGD"
+#                                                }
+#
+#
+# class ModelingTestingConfig(BaseModel):
+#     QUEUE: str = "queue2"
+#     DATASET_DB: str = 'audience-toolkit-django'
+#     DATASET_NO: int = 1
+#     TASK_ID: str = None
+#     PREDICT_TYPE: str = PredictTarget.CONTENT.name
+#     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+#     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path"}
+#
+#
+# class ModelingAbort(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class ModelingDelete(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class ModelingUpload(BaseModel):
+#     QUEUE: str = "queue2"
+#     TASK_ID: str = None
+#     UPLOAD_JOB_ID: int = None
 

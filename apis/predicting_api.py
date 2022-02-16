@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from celery_worker import label_data, dump_result
-from settings import TaskConfig, TaskSampleResult, AbortConfig, DumpConfig, DeleteConfig
+from apis.input_class.predicting_input import TaskConfig, TaskSampleResult, AbortConfig, DumpConfig, DeleteConfig
 from utils.database.database_helper import scrap_data_to_dict
 from utils.general_helper import get_logger, uuid_validator
 from workers.orm_core.predict_operation import PredictingCRUD
@@ -34,7 +34,7 @@ def create_task(body: TaskConfig):
         task_id = uuid.uuid1().hex
         label_data.apply_async(
             args=(
-                task_id, body.MODEL_JOB_LIST, body.INPUT_SCHEMA,
+                task_id, body.MODEL_ID_LIST, body.INPUT_SCHEMA,
                 body.INPUT_TABLE, body.START_TIME, body.END_TIME,
                 body.SITE_CONFIG,
             ),

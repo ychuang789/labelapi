@@ -100,7 +100,7 @@ class RandomForestModel(SupervisedModel):
                 report['accuracy'] = acc
             else:
                 report = classification_report(y_true, predict_labels, output_dict=True)
-            return report
+            return report, predict_labels
         else:
             raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
 

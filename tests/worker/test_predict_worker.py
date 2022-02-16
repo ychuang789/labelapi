@@ -42,7 +42,7 @@ class TestPredictWorker(TestCase):
     }
 
     def setUp(self) -> None:
-        self.labeling_worker = PredictWorker(task_id=self.task_id, model_job_list=self.model_job_lists,
+        self.labeling_worker = PredictWorker(task_id=self.task_id, model_id_list=self.model_job_lists,
                                              input_schema=self.input_schema, input_table=self.input_table,
                                              predict_type=self.predict_type, start_time=self.start_time,
                                              end_time=self.end_time, site_connection_info=self.kwargs['SITE_CONFIG'],

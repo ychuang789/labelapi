@@ -12,15 +12,15 @@ class TestModelORMWorker(TestCase):
         self.orm_cls = ModelingCRUD(connection_info=self.conn)
 
     def test_status_changer(self):
-        er = self.orm_cls.model_status_changer(model_job_id=self.model_job_id)
+        er = self.orm_cls.status_changer(task_id=self.model_job_id)
         self.assertIsInstance(er, str)
 
     def test_get_status(self):
-        record = self.orm_cls.model_get_status(model_job_id=self.model_job_id)
+        record = self.orm_cls.get_status(task_id=self.model_job_id)
         self.assertIsNotNone(record)
 
     def test_get_report(self):
-        report = self.orm_cls.model_get_report(model_job_id=self.model_job_id)
+        report = self.orm_cls.get_report(task_id=self.model_job_id)
         self.assertIsNotNone(report)
 
     def test_dispose(self):

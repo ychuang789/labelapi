@@ -1,11 +1,16 @@
+from datetime import datetime
+
+from scipy.signal import cascade
 from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import declarative_base, relationship, Session
+from sqlalchemy.orm import declarative_base, relationship, Session, backref
 
 from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus
+
 Base: declarative_base = declarative_base()
+
 
 class State(Base):
     __tablename__ = TableName.state
@@ -58,7 +63,6 @@ class State(Base):
                f"{self.rate_of_label}, {self.run_time}, {self.check_point}, {self.error_message})"
 
 
-
 class ModelStatus(Base):
     __tablename__ = TableName.model_status
     task_id = Column(String(32), primary_key=True)
@@ -73,14 +77,35 @@ class ModelStatus(Base):
     # one-to-many collection
     report = relationship(
         "ModelReport",
-        backref='model_status',
+        backref="model_status",
         cascade="all, delete",
-        passive_deletes=True)
+        passive_deletes=True
+    )
     term_weight = relationship(
         "TermWeights",
-        backref='model_status',
+        backref="model_status",
         cascade="all, delete",
-        passive_deletes=True)
+        passive_deletes=True
+    )
+    rules = relationship(
+        "Rules",
+        backref="model_status",
+        cascade="all, delete",
+        passive_deletes=True
+    )
+    upload_model = relationship(
+        "UploadModel",
+        backref="model_status",
+        cascade="all, delete",
+        passive_deletes=True
+    )
+
+    eval_details = relationship(
+        "EvalDetails",
+        backref="model_status",
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
     def __init__(self, task_id, model_name, training_status,
                  ext_status, feature, model_path,
@@ -100,6 +125,7 @@ class ModelStatus(Base):
                f"{self.ext_status}, {self.feature}, {self.model_path}, {self.error_message}, " \
                f"{self.create_time}, {self.job_id})"
 
+
 class ModelReport(Base):
     __tablename__ = TableName.model_report
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -108,6 +134,12 @@ class ModelReport(Base):
     report = Column(String(1000), nullable=False)
     create_time = Column(DateTime, nullable=False)
     task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+    eval_details = relationship(
+        "EvalDetails",
+        backref="model_report",
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
     def __init__(self, dataset_type, accuracy, report, create_time, task_id):
         self.dataset_type = dataset_type
@@ -119,6 +151,30 @@ class ModelReport(Base):
     def __repr__(self):
         return f"ModelReport({self.dataset_type}, {self.accuracy}, {self.report}, " \
                f"{self.create_time}, {self.task_id})"
+
+
+class EvalDetails(Base):
+    __tablename__ = TableName.eval_details
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    doc_id = Column(Integer)
+    content = Column(LONGTEXT)
+    ground_truth = Column(String(100))
+    predict_label = Column(String(100))
+    report_id = Column(Integer, ForeignKey('model_report.id', ondelete="CASCADE"))
+    task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+
+    def __init__(self, doc_id, content, ground_truth, predict_label, report_id, task_id):
+        self.doc_id = doc_id
+        self.content = content
+        self.ground_truth = ground_truth
+        self.predict_label = predict_label
+        self.report_id = report_id
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"EvalDetails({self.task_id}:{self.doc_id}, {self.content}, " \
+               f"{self.ground_truth}, {self.predict_label})"
+
 
 class TermWeights(Base):
     __tablename__ = TableName.term_weights
@@ -139,6 +195,49 @@ class TermWeights(Base):
                f"{self.task_id})"
 
 
+class Rules(Base):
+    __tablename__ = TableName.rules
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(String(200), nullable=False)
+    rule_type = Column(String(20), nullable=False)
+    score = Column(DOUBLE, nullable=False)
+    label = Column(String(100), nullable=False)
+    match_type = Column(String(20), nullable=False)
+    task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+
+    def __init__(self, content, rule_type, score, label, match_type, task_id):
+        self.content = content
+        self.rule_type = rule_type
+        self.score = score
+        self.label = label
+        self.match_type = match_type
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"Rules({self.content}, {self.rule_type}, {self.score}, " \
+               f"{self.label}, {self.match_type}, {self.task_id})"
+
+
+class UploadModel(Base):
+    __tablename__ = TableName.upload_model
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    filename = Column(String(100))
+    status = Column(String(32))
+    create_time = Column(DateTime, default=datetime.now())
+    error_message = Column(LONGTEXT)
+    upload_job_id = Column(Integer, unique=True)
+    task_id = Column(String(32), ForeignKey('model_status.task_id', ondelete="CASCADE"))
+
+    def __init__(self, file, status, create_time, task_id):
+        self.file = file
+        self.status = status
+        self.create_time = create_time
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"UploadModel({self.file}, {self.status}, {self.create_time}, {self.task_id})"
+
+
 def create_model_table() -> None:
     try:
         engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=True)
@@ -155,9 +254,7 @@ def create_model_table() -> None:
         engine.dispose()
 
 
-
 def table_cls_maker(engine: create_engine, add_new=False):
-
     meta = MetaData()
     if add_new:
         meta.reflect(engine, only=['model_status'])
@@ -187,7 +284,7 @@ def status_changer(model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskS
 
     try:
         session.query(ms).filter(ms.task_id == model_job_id).update({ms.training_status: status.value,
-                                                                ms.error_message: err_msg})
+                                                                     ms.error_message: err_msg})
         session.commit()
     except Exception as e:
         session.rollback()
@@ -213,9 +310,3 @@ def delete_record(model_job_id: int):
     finally:
         session.close()
         engine.dispose()
-
-
-
-
-
-

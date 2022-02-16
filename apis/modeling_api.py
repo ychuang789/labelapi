@@ -1,15 +1,18 @@
-from datetime import datetime
-from decimal import Decimal
-
-from fastapi import APIRouter
-import uuid
+import os
+from fastapi import APIRouter, UploadFile, File
 
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
-from celery_worker import modeling_task, testing
-from settings import DatabaseConfig, ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, ModelingDelete
+from celery_worker import modeling_task, testing, import_model
+from definition import MODEL_IMPORT_FOLDER
+from settings import DatabaseConfig
+from apis.input_class.modeling_input import ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, \
+    ModelingDelete, \
+    ModelingUpload, TermWeightsAdd, TermWeightsUpdate, TermWeightsDelete
+from utils.data.data_download import find_file
+from utils.exception_manager import ModelTypeError, TWMissingError
 from workers.orm_core.model_operation import ModelingCRUD
 
 router = APIRouter(prefix='/models',
@@ -18,129 +21,295 @@ router = APIRouter(prefix='/models',
                    responses={404: {"description": "Not found"}},
                    )
 
+
 @router.post('/prepare/', description='preparing a model')
 def model_preparing(body: ModelingTrainingConfig):
-    task_id = uuid.uuid1().hex
-
-    config = body.__dict__
-
+    # task_id = uuid.uuid1().hex
     try:
         modeling_task.apply_async(
             args=(
-                task_id,
-                body.MODEL_JOB_ID,
+                body.TASK_ID,
                 body.MODEL_TYPE,
                 body.PREDICT_TYPE,
                 body.DATASET_NO,
                 body.DATASET_DB
             ),
             kwargs=body.MODEL_INFO,
-            task_id=task_id,
+            task_id=body.TASK_ID,
             queue=body.QUEUE
         )
-
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(body.TASK_ID))
     except Exception as e:
         err_msg = f'failed to add training task info to modeling_status since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
 
-    config.update({'task_id': task_id})
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
 @router.post('/test/', description='testing a model')
 def model_testing(body: ModelingTestingConfig):
-
-    config = body.__dict__
-
     try:
         testing.apply_async(
             args=(
-                body.MODEL_JOB_ID,
+                body.TASK_ID,
                 body.MODEL_TYPE,
                 body.PREDICT_TYPE,
                 body.DATASET_NO,
                 body.DATASET_DB
             ),
-            kwargs=config,
+            kwargs=body.MODEL_INFO,
             queue=body.QUEUE
         )
-
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(body.TASK_ID))
     except Exception as e:
         err_msg = f'failed to add testing task info to modeling_status since {e}'
-        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(config))
 
-@router.get('/{model_job_id}')
-def model_status(model_job_id: int):
+@router.get('/{task_id}')
+def model_status(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        err_msg = conn.model_get_status(model_job_id=model_job_id)
-        result = {c.name: (getattr(err_msg, c.name) if not isinstance(getattr(err_msg, c.name), datetime)
-                                      else getattr(err_msg,c.name).strftime("%Y-%m-%d %H:%M:%S"))
-                             for c in err_msg.__table__.columns}
+        result = conn.get_status(task_id=task_id)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
     except AttributeError:
-        result = f'model_job task: {model_job_id} is not exists'
+        result = f'model_job task: {task_id} is not exists'
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(result))
     except Exception as e:
         result = f'failed to get status since {e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(result))
     finally:
         conn.dispose()
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 
-@router.get('/{model_job_id}/report/')
-def model_report(model_job_id):
+@router.get('/{task_id}/report/')
+def model_report(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
 
     try:
-        temp_result = conn.model_get_report(model_job_id=model_job_id)
-
-        result = []
-        for t in temp_result:
-            _result_dict = {}
-            for c in t.__table__.columns:
-                key = c.name
-                if isinstance(getattr(t, c.name), datetime):
-                    value = getattr(t, c.name).strftime("%Y-%m-%d %H:%M:%S")
-                elif isinstance(getattr(t, c.name), Decimal):
-                    value = float(getattr(t, c.name))
-                else:
-                    value = getattr(t, c.name)
-                _result_dict.update({key: value})
-            result.append(_result_dict)
-
+        result = conn.get_report(task_id=task_id)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
     except AttributeError:
-        result = f'model_job task: {model_job_id} is not exists'
+        result = f'model_job task: {task_id} is not exists'
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(result))
     except Exception as e:
         result = f'failed to get report since {e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(result))
     finally:
         conn.dispose()
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
 
 @router.post('/abort/')
-def model_abort(abort_request_body: ModelingAbort):
-    model_job_id = abort_request_body.MODEL_JOB_ID
+def model_abort(body: ModelingAbort):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        msg = conn.model_status_changer(model_job_id=model_job_id)
-        err_msg = f'{model_job_id} is successfully aborted, additional message: {msg}'
+        msg = conn.status_changer(task_id=body.TASK_ID)
+        err_msg = f'{body.TASK_ID} is successfully aborted, additional message: {msg}'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
     except Exception as e:
-        err_msg = f'{model_job_id} abortion is failed since {e}'
+        err_msg = f'{body.TASK_ID} abortion is failed since {e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
     finally:
         conn.dispose()
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
 @router.delete('/delete/')
-def model_delete(deletion: ModelingDelete):
-    delete_model_job_id = deletion.MODEL_JOB_ID
+def model_delete(body: ModelingDelete):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        msg = conn.model_delete_record(model_job_id=delete_model_job_id)
-        err_msg = f'{delete_model_job_id} is successfully deleted, additional message: {msg}'
+        conn.delete_record(task_id=body.TASK_ID)
+        err_msg = f'{body.TASK_ID} is successfully deleted'
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
     except Exception as e:
-        err_msg = f'{delete_model_job_id} deletion is failed since {e}'
+        err_msg = f'{body.TASK_ID} deletion is failed since {e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
     finally:
         conn.dispose()
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+@router.put('/import_model/')
+def model_import(body: ModelingUpload, file: UploadFile = File(...)):
+    upload_filepath = os.path.join(MODEL_IMPORT_FOLDER, file.filename)
+
+    try:
+        with open(upload_filepath, 'wb+') as file_object:
+            file_object.write(file.file.read())
+        import_model.apply_async(
+            args=(file.file, file.filename, body.TASK_ID, body.UPLOAD_JOB_ID),
+            queue=body.QUEUE
+        )
+        err_msg = f"successfully save {file.filename}"
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    except Exception as e:
+        err_msg = f"failed to save {file.filename} since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            content=jsonable_encoder(err_msg))
+
+
+@router.get('/{task_id}/import_model/{upload_job_id}')
+def get_import_model_status(task_id: str, upload_job_id: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        result = conn.get_upload_model_status(upload_job_id=upload_job_id)
+        if not result:
+            result = f'import_model task: {task_id}_{upload_job_id} is not exists'
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(result))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+    except AttributeError:
+        result = f'import_model task: {task_id}_{upload_job_id} is not exists'
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(result))
+    except Exception as e:
+        result = f'failed to get status since {e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(result))
+    finally:
+        conn.dispose()
+
+
+@router.get('/{task_id}/eval_details/{report_id}/{limit}')
+def get_eval_details(task_id: str, report_id: int, limit: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        results = conn.get_eval_details(task_id=task_id, report_id=report_id, limit=limit)
+        if not results:
+            results = f"There are no eval details for task {task_id}, report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+    finally:
+        conn.dispose()
+
+
+@router.get('/{task_id}/false_predict/{report_id}/{limit}')
+def get_eval_details_false_prediction(task_id: str, report_id: int, limit: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        results = conn.get_eval_details_false_prediction(task_id=task_id, report_id=report_id, limit=limit)
+        if not results:
+            results = f"There are no eval details for task {task_id}, report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+    finally:
+        conn.dispose()
+
+
+@router.get('/{task_id}/true_predict/{report_id}/{limit}')
+def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        results = conn.get_eval_details_true_prediction(task_id=task_id, report_id=report_id, limit=limit)
+        if not results:
+            results = f"There are no eval details for task {task_id}, report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+        else:
+            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+    finally:
+        conn.dispose()
+
+
+@router.get('/download_details/{report_id}')
+def download_details(report_id: int):
+    try:
+        filename, filepath = find_file(report_id)
+        if filename and filepath:
+            return FileResponse(status_code=status.HTTP_200_OK, path=filepath, filename=filename)
+        else:
+            results = f"There are no eval details for report {report_id}"
+            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
+    except Exception as e:
+        results = f"failed to get eval details since {e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
+
+
+@router.put('/term_weight/add')
+def term_weight_add(body: TermWeightsAdd):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        conn.add_term_weight(task_id=body.TASK_ID,
+                             label=body.LABEL,
+                             term=body.TERM,
+                             weight=body.WEIGHT)
+        err_msg = f"term weight is successfully added"
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except AttributeError:
+        err_msg = f"Task {body.TASK_ID} is not prepared or not trained yet"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    except ModelTypeError:
+        err_msg = f"Task {body.TASK_ID} model is not supported term weight CURD"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+
+@router.get('/{task_id}/term_weight')
+def get_term_weights(task_id: str):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        result = conn.get_term_weight_set(task_id=task_id)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+    except AttributeError:
+        err_msg = f"Task {task_id} is not prepared or not trained yet"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    except ModelTypeError:
+        err_msg = f"Task {task_id} model is not supported term weight CURD"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+
+@router.put('/term_weight/update')
+def term_weight_update(body: TermWeightsUpdate):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        conn.update_term_weight(tw_id=body.TERM_WEIGHT_ID,
+                                label=body.LABEL,
+                                term=body.TERM,
+                                weight=body.WEIGHT)
+        err_msg = f"Done, term_weight {body.TERM_WEIGHT_ID} is updated"
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+
+    except TWMissingError:
+        err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+
+@router.delete('/term_weight/delete')
+def term_weight_delete(body: TermWeightsDelete):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    try:
+        conn.delete_term_weight(tw_id=body.TERM_WEIGHT_ID)
+        err_msg = f"Done, Term weight {body.TERM_WEIGHT_ID} is deleted"
+        return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
+    except TWMissingError:
+        err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
+
+
+
+
+
