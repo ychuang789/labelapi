@@ -16,7 +16,7 @@ from utils.data.data_download import pre_check
 
 from utils.data.data_helper import get_term_weights_objects
 from utils.general_helper import get_logger
-from utils.enum_config import ModelTaskStatus, DatasetType
+from utils.enum_config import ModelTaskStatus, DatasetType, RuleType, ModelType
 from utils.exception_manager import ModelTypeNotFoundError, ParamterMissingError, UploadModelError
 from workers.modeling.preprocess_core import PreprocessWorker
 
@@ -255,10 +255,18 @@ class ModelingWorker:
             if isinstance(self.model, SupervisedModel):
                 self.model.load()
             if isinstance(self.model, RuleBaseModel):
-                pattern = self.orm_cls.get_rules(task_id=self.task_id)
-                if not pattern or len(pattern) == 0:
+                rules = self.orm_cls.get_rules(task_id=self.task_id)
+                if not rules or len(rules) == 0:
                     raise ParamterMissingError(f'patterns are missing')
-                self.model.load((self.preprocess.load_rules(pattern)))
+                rules_dict = defaultdict(list)
+                for rule in rules:
+                    if self.model_name == ModelType.REGEX_MODEL.name:
+                        rules_dict[rule.label].append(str(rule.content))
+                    elif self.model_name == ModelType.KEYWORD_MODEL.name:
+                        rules_dict[rule.label].append((rule.content, rule.match_type))
+                    else:
+                        raise ValueError(f"{rule.rule_type} is not a proper rule type for the task")
+                self.model.load(rules_dict)
         else:
             if isinstance(self.model, RuleBaseModel):
                 self.logger.info("Write the rules into backend database")

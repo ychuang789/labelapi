@@ -330,7 +330,7 @@ class PredictWorker:
             info_dict = {'model_path': model.model_path}
 
             model_worker = ModelingWorker(
-                task_id=model.job_id,
+                task_id=model.task_id,
                 model_name=model.model_name,
                 predict_type=model.feature.lower(),
                 **info_dict)

@@ -66,12 +66,12 @@ class PreprocessWorker():
         rules_dict = defaultdict(list)
         for rule in rules:
             if rule.rule_type == RuleType.REGEX.value:
-                rules_dict[rule.label].append(rule.content)
+                rules_dict[rule.label].append(str(rule.content))
             elif rule.rule_type == RuleType.KEYWORD.value:
                 rules_dict[rule.label].append((rule.content, rule.match_type))
             else:
                 raise ValueError(f"{rule.rule_type} is not a proper rule type for the task")
-        return rules_dict
+        return dict(rules_dict)
 
     def load_examples(self, data: Union[str, List[Dict[str, Any]]],
                       sample_count: int = None, shuffle: bool = True, labels=None):
