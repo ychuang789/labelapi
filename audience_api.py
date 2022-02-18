@@ -1,5 +1,9 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from apis import modeling_api, predicting_api
 from utils.general_helper import get_logger, get_config
@@ -36,9 +40,28 @@ app = FastAPI(title=configuration.API_TITLE,
               # dependencies=[Depends(get_query_token)]
               )
 
+
+def request_validation_exception_handler(request, exc: RequestValidationError) -> JSONResponse:
+    """ref: https://blog.csdn.net/weixin_36179862/article/details/110507491"""
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": jsonable_encoder(exc.errors())},
+    )
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
+
 app.include_router(predicting_api.router)
 app.include_router(modeling_api.router)
-
 
 if __name__ == '__main__':
     uvicorn.run("__main__:app", host=configuration.API_HOST, debug=True)

@@ -11,7 +11,7 @@ from settings import DatabaseConfig
 from apis.input_class.modeling_input import ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, \
     ModelingDelete, \
     ModelingUpload, TermWeightsAdd, TermWeightsUpdate, TermWeightsDelete
-from utils.data.data_download import find_file
+from utils.data.data_download import find_file, term_weight_to_file
 from utils.exception_manager import ModelTypeError, TWMissingError
 from workers.orm_core.model_operation import ModelingCRUD
 
@@ -272,7 +272,7 @@ def get_term_weights(task_id: str):
         conn.dispose()
 
 
-@router.put('/term_weight/update')
+@router.post('/term_weight/update')
 def term_weight_update(body: TermWeightsUpdate):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -309,6 +309,23 @@ def term_weight_delete(body: TermWeightsDelete):
     finally:
         conn.dispose()
 
+
+@router.get('/{task_id}/term_weight/download')
+def term_weight_download(task_id: str):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    filename=f"{task_id}_term_weight"
+    try:
+        result = conn.get_term_weight_set(task_id=task_id)
+        filepath = term_weight_to_file(term_weight_set=result['data'], filename=filename)
+        return FileResponse(status_code=status.HTTP_200_OK, path=filepath, filename=filename)
+    except AttributeError:
+        err_msg = f"Task {task_id} is not prepared or not trained yet"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()
 
 
 

@@ -117,8 +117,8 @@ class ModelingWorker:
 
             self.orm_cls.session.commit()
 
-            self.write_csv(dataset=self.dev_set, y_pred=dev_predict_labels, report_id=dev_report_cls.id)
-            self.write_csv(dataset=self.testing_set, y_pred=test_predict_labels, report_id=test_report_cls.id)
+            self.write_csv(dataset=self.dev_set, y_pred=dev_predict_labels, setname='dev')
+            self.write_csv(dataset=self.testing_set, y_pred=test_predict_labels, setname='test')
 
             self.logger.info(f"modeling task: {self.task_id} is finished")
         except Exception as e:
@@ -193,7 +193,7 @@ class ModelingWorker:
 
             self.orm_cls.session.commit()
 
-            self.write_csv(dataset=self.testing_set, y_pred=predict_labels, report_id=test_report_cls.id)
+            self.write_csv(dataset=self.testing_set, y_pred=predict_labels, setname='ext_test')
 
             self.logger.info(f"modeling task: {task_id} is finished")
 
@@ -253,7 +253,12 @@ class ModelingWorker:
 
         if not is_train:
             if isinstance(self.model, SupervisedModel):
-                self.model.load()
+                if self.model_name == ModelType.TERM_WEIGHT_MODEL.name:
+                    term_weight_set = self.orm_cls.get_term_weight_set(task_id=self.task_id)['data']
+                    label_term_weights = self.preprocess.load_term_weight_from_db(term_weight_set)
+                    self.model.load(label_term_weights=label_term_weights)
+                else:
+                    self.model.load()
             if isinstance(self.model, RuleBaseModel):
                 rules = self.orm_cls.get_rules(task_id=self.task_id)
                 if not rules or len(rules) == 0:
@@ -336,8 +341,8 @@ class ModelingWorker:
             )
         return bulk_list
 
-    def write_csv(self, dataset, y_pred, report_id):
-        filename = f'{report_id}_{self.model_name.lower()}.csv'
+    def write_csv(self, dataset, y_pred, setname):
+        filename = f'{self.model_name.lower()}_{self.task_id}_{setname}.csv'
         filepath = pre_check(filename)
 
         with open(filepath, 'w', encoding='utf-8') as f:

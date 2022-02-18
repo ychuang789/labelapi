@@ -131,14 +131,17 @@ class ModelingCRUD(BaseOperation):
         term_weight_set = self.session.query(self.ms).get(task_id).term_weights_collection
         if not term_weight_set:
             raise ModelTypeError(f'Task {task_id} is not supported term weight curd')
-        return [self.orm_cls_to_dict(t) for t in term_weight_set]
+        return {"data": [self.orm_cls_to_dict(t) for t in term_weight_set]}
 
     def update_term_weight(self, tw_id: int, label: str, term: str, weight: float):
         try:
             term_weight = self.session.query(self.tw).get(tw_id)
             if not term_weight:
                 raise TWMissingError(f'term_weight {tw_id} is not found')
-            term_weight.update({self.tw.label: label, self.tw.term: term, self.tw.weight: weight})
+            term_weight.term = term
+            term_weight.label = label
+            term_weight.weight = weight
+
             self.session.commit()
         except Exception as e:
             self.session.rollback()

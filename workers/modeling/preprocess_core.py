@@ -3,7 +3,7 @@ import csv
 import random
 
 from collections import defaultdict
-from typing import Dict, List, Any, Union, Iterator
+from typing import Dict, List, Any, Union, Iterator, Tuple
 
 import cchardet
 import pandas as pd
@@ -160,3 +160,11 @@ class PreprocessWorker():
             raise ValueError(f"csv欄位讀取錯誤，請確認所使用的欄位分隔符號是否屬於於「{' or '.join(delimiters)}」其中一種。")
 
         return csv_file
+
+    @staticmethod
+    def load_term_weight_from_db(term_weight_set: List[dict]) -> Dict[str, List[Tuple[str, float]]]:
+        output_dict = defaultdict(list)
+        for term_weight in term_weight_set:
+            output_dict[term_weight['label']].append((term_weight['term'], term_weight['weight']))
+
+        return output_dict

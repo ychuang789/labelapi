@@ -2,7 +2,7 @@ import csv
 import os
 from typing import List
 
-from definition import SAVE_DETAIL_FOLDER
+from definition import SAVE_DETAIL_FOLDER, SAVE_TW_FOLDER
 from settings import SAVE_DETAIL_EXTENSION
 
 
@@ -16,6 +16,16 @@ def list_dict_to_csv(dataset: List[dict], filename: str):
 def pre_check(filename: str):
     filename = filename if check_extension(filename) else filename + '.csv'
     filepath = os.path.join(SAVE_DETAIL_FOLDER, filename)
+
+    if check_file_exist(filepath):
+        truncate_file(filepath)
+
+    return filepath
+
+
+def term_weight_pre_check(filename: str):
+    filename = filename if check_extension(filename) else filename + '.csv'
+    filepath = os.path.join(SAVE_TW_FOLDER, filename)
 
     if check_file_exist(filepath):
         truncate_file(filepath)
@@ -64,3 +74,22 @@ def find_file(report_id: int):
                 return file, os.path.join(root, file)
 
     return None
+
+
+def term_weight_to_file(term_weight_set: List[dict], filename: str):
+
+    filepath = term_weight_pre_check(filename)
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        fieldnames = ['id', 'label', 'term', 'weight']
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for data in term_weight_set:
+            writer.writerow({
+                'id': data['id'],
+                'label': data['label'],
+                'term': data['term'],
+                'weight': data['weight']
+            })
+
+    return filepath
