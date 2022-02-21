@@ -67,10 +67,12 @@ def write_file(dataset: List[dict], filepath: str):
         raise e
 
 
-def find_file(report_id: int):
+def find_file(task_id: str, file_type: str):
+
     for root, dirs, files in os.walk(SAVE_DETAIL_FOLDER):
         for file in files:
-            if file.startswith(f'{report_id}'):
+            file_name = file.rsplit('.')[0]
+            if task_id in file_name and file_name.endswith(file_type):
                 return file, os.path.join(root, file)
 
     return None

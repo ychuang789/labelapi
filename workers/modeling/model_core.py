@@ -358,10 +358,25 @@ class ModelingWorker:
                 })
 
     @staticmethod
-    def import_term_weights(file, filename: str, task_id: str, upload_job_id: int, required_fields=None,
+    def import_term_weights(file, filename: str, task_id: str, upload_job_id: int,
+                            feature: str, model_path: str, required_fields=None,
                             normalize_score=True):
 
         orm_worker = ModelingCRUD()
+        if not orm_worker.session.query(orm_worker.ms).get(task_id):
+            try:
+                orm_worker.session.add(orm_worker.ms(task_id=task_id,
+                                                     model_name=ModelType.TERM_WEIGHT_MODEL.name,
+                                                     training_status=ModelTaskStatus.PENDING.value,
+                                                     feature=feature,
+                                                     model_path=model_path,
+                                                     create_time=datetime.now()
+                                                     ))
+                orm_worker.session.commit()
+            except Exception as e:
+                orm_worker.session.rollback()
+                raise f"cannot create a upload term weight task since {e}"
+
         upload_model = orm_worker.upload_model
         id_ = orm_worker.start_upload_model_to_table(task_id=task_id, upload_job_id=upload_job_id, filename=filename)
 
@@ -401,12 +416,22 @@ class ModelingWorker:
             orm_worker.session.query(upload_model).filter(upload_model.id == id_).update(
                 {upload_model.status: ModelTaskStatus.FINISHED.value}
             )
+
+            orm_worker.session.query(orm_worker.ms).filter(
+                orm_worker.ms.task_id == task_id).update(
+                {orm_worker.ms.training_status: ModelTaskStatus.SUCCESS.value}
+            )
+
             orm_worker.session.commit()
         except Exception as e:
             orm_worker.session.rollback()
             err_msg = f"{task_id} failed to upload term weight since {e}"
             orm_worker.session.query(upload_model).filter(upload_model.id == id_).update(
                 {upload_model.status: ModelTaskStatus.FAILED.value}
+            )
+            orm_worker.session.query(orm_worker.ms).filter(
+                orm_worker.ms.task_id == task_id).update(
+                {orm_worker.ms.training_status: ModelTaskStatus.FAILED.value}
             )
             orm_worker.session.commit()
             raise UploadModelError(err_msg)

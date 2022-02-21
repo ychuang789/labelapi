@@ -133,7 +133,7 @@ def model_import(body: ModelingUpload, file: UploadFile = File(...)):
         with open(upload_filepath, 'wb+') as file_object:
             file_object.write(file.file.read())
         import_model.apply_async(
-            args=(file.file, file.filename, body.TASK_ID, body.UPLOAD_JOB_ID),
+            args=(file.file, file.filename, body.TASK_ID, body.UPLOAD_JOB_ID, body.PREDICT_TYPE, body.MODEL_PATH),
             queue=body.QUEUE
         )
         err_msg = f"successfully save {file.filename}"
@@ -216,14 +216,14 @@ def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
         conn.dispose()
 
 
-@router.get('/download_details/{report_id}')
-def download_details(report_id: int):
+@router.get('/download_details/{task_id}/{file_type}')
+def download_details(task_id: str, file_type: str):
     try:
-        filename, filepath = find_file(report_id)
+        filename, filepath = find_file(task_id, file_type)
         if filename and filepath:
             return FileResponse(status_code=status.HTTP_200_OK, path=filepath, filename=filename)
         else:
-            results = f"There are no eval details for report {report_id}"
+            results = f"There are no eval details for {task_id} {file_type} set"
             return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
     except Exception as e:
         results = f"failed to get eval details since {e}"

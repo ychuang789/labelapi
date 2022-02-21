@@ -23,7 +23,6 @@ input_female_2 = InputExample(id_="1", s_area_id="ptt_woman_talk", author="Alice
 input_young = InputExample(id_="1", s_area_id="1", author="Alice", title="", content=post_young,
                            post_time=datetime.now())
 
-
 training_file = os.path.join(ROOT_DIR, "tests/sample_data/train.csv")
 testing_file = os.path.join(ROOT_DIR, "tests/sample_data/test.csv")
 
@@ -32,6 +31,7 @@ train_y = [[d.label] for d in training_set]
 
 testing_set = load_examples(testing_file)
 test_y = [[d.label] for d in testing_set]
+
 
 class TestRandomForestModel(TestCase):
     model_path = "1_random_forest_model"
@@ -51,6 +51,7 @@ class TestRandomForestModel(TestCase):
         self.model.load()
         self.model.eval(examples=testing_set, y_true=test_y)
 
+
 class TestTermWeightModel(TestCase):
     model_path = "2_term_weight_model"
     model = TermWeightModel(model_dir_name=model_path, na_tag='一般')
@@ -64,8 +65,3 @@ class TestTermWeightModel(TestCase):
     def test_eval(self):
         self.model.load()
         self.model.eval(examples=testing_set, y_true=test_y)
-
-
-
-
-

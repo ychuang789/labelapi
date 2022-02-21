@@ -40,6 +40,8 @@ class ModelingUpload(BaseModel):
     QUEUE: str = "queue2"
     TASK_ID: str = None
     UPLOAD_JOB_ID: int = None
+    PREDICT_TYPE: str = PredictTarget.CONTENT.name
+    MODEL_PATH: str = None
 
 
 class TermWeightsAdd(BaseModel):
