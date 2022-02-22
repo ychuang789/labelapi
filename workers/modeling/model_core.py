@@ -334,7 +334,7 @@ class ModelingWorker:
                     doc_id=data.id_,
                     content=getattr(data, self.target_name),
                     ground_truth=data.label,
-                    predict_label=y,
+                    predict_label=y if not isinstance(y, list) else ','.join(y),
                     task_id=self.task_id,
                     report_id=report_id
                 )
