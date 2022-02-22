@@ -109,7 +109,7 @@ class TermWeightModel(SupervisedModel):
             report = classification_report(y_true=y_true, y_pred=y_pred, output_dict=True, zero_division=1,
                                            target_names=self.mlb.classes)
             report['accuracy'] = acc
-            return report, y_pred
+            return report, predict_labels
         else:
             raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
 
