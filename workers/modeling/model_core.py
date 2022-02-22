@@ -14,9 +14,9 @@ from models.trainable_models.tw_model import TermWeightModel
 from settings import MODEL_INFORMATION, TERM_WEIGHT_FIELDS_MAPPING
 from utils.data.data_download import pre_check
 
-from utils.data.data_helper import get_term_weights_objects
+from utils.data.data_helper import get_term_weights_objects, get_term_weights_from_file
 from utils.general_helper import get_logger
-from utils.enum_config import ModelTaskStatus, DatasetType, RuleType, ModelType
+from utils.enum_config import ModelTaskStatus, DatasetType, ModelType
 from utils.exception_manager import ModelTypeNotFoundError, ParamterMissingError, UploadModelError
 from workers.modeling.preprocess_core import PreprocessWorker
 
@@ -358,60 +358,50 @@ class ModelingWorker:
                 })
 
     @staticmethod
-    def import_term_weights(file, filename: str, task_id: str, upload_job_id: int,
-                            feature: str, model_path: str, required_fields=None,
-                            normalize_score=True):
-
+    def import_term_weights(filepath: str, filename:str, task_id: str):
         orm_worker = ModelingCRUD()
-        if not orm_worker.session.query(orm_worker.ms).get(task_id):
-            try:
-                orm_worker.session.add(orm_worker.ms(task_id=task_id,
-                                                     model_name=ModelType.TERM_WEIGHT_MODEL.name,
-                                                     training_status=ModelTaskStatus.PENDING.value,
-                                                     feature=feature,
-                                                     model_path=model_path,
-                                                     create_time=datetime.now()
-                                                     ))
-                orm_worker.session.commit()
-            except Exception as e:
-                orm_worker.session.rollback()
-                raise f"cannot create a upload term weight task since {e}"
 
         upload_model = orm_worker.upload_model
-        id_ = orm_worker.start_upload_model_to_table(task_id=task_id, upload_job_id=upload_job_id, filename=filename)
-
-        if not required_fields:
-            required_fields = TERM_WEIGHT_FIELDS_MAPPING
-        label_term_weight: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
+        id_ = orm_worker.start_upload_model_to_table(task_id=task_id,
+                                                     filename=filename)
 
         try:
-            csv_rows = PreprocessWorker.read_csv_file(file, required_fields)
-
-            for index, row in enumerate(csv_rows):
-                data = defaultdict(str)
-                for _field in required_fields.keys():
-                    field_data = row.get(_field, None) or row.get(required_fields.get(_field), None)
-                    if _field == 'score':
-                        field_data = field_data if field_data else 1
-                    data[_field] = field_data
-                label_str: str = data.get('label', None)
-                content = data.get('content', None)
-                score = data.get('score', 1)
-                label_term_weight[label_str].append((content, score))
-            if normalize_score:
-                normalized_label_term_weight = {}
-                for label, term_weight in label_term_weight.items():
-                    terms, weights = [[i for i, j in term_weight],
-                                      [j for i, j in term_weight]]
-                    weights = np.array(weights)
-                    weights = weights.reshape(-1, 1)
-                    min_max_scaler = preprocessing.MinMaxScaler()
-                    weights_minmax = min_max_scaler.fit_transform(weights)
-                    weights_minmax = [round(weight[0], 6) for weight in weights_minmax]
-                    normalized_label_term_weight[label] = [t_w for t_w in zip(terms, weights_minmax)]
-                label_term_weight = normalized_label_term_weight
-
-            term_weight_bulk_list = get_term_weights_objects(task_id=task_id, term_weight_dict=label_term_weight)
+            # if not required_fields:
+            #     required_fields = TERM_WEIGHT_FIELDS_MAPPING
+            # label_term_weight: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
+            # csv_rows = PreprocessWorker.read_csv_file(file)
+            # for index, row in enumerate(csv_rows):
+            #     data = defaultdict(str)
+            #     for _field in required_fields.keys():
+            #         field_data = row.get(_field, None) or row.get(required_fields.get(_field), None)
+            #         if _field == 'score':
+            #             field_data = field_data if field_data else 1
+            #         data[_field] = field_data
+            #     label_str: str = data.get('label', None)
+            #     content = data.get('content', None)
+            #     score = data.get('score', 1)
+            #     label_term_weight[label_str].append((content, score))
+            # if normalize_score:
+            #     normalized_label_term_weight = {}
+            #     for label, term_weight in label_term_weight.items():
+            #         terms, weights = [[i for i, j in term_weight],
+            #                           [j for i, j in term_weight]]
+            #         weights = np.array(weights)
+            #         weights = weights.reshape(-1, 1)
+            #         min_max_scaler = preprocessing.MinMaxScaler()
+            #         weights_minmax = min_max_scaler.fit_transform(weights)
+            #         weights_minmax = [round(weight[0], 6) for weight in weights_minmax]
+            #         normalized_label_term_weight[label] = [t_w for t_w in zip(terms, weights_minmax)]
+            #     label_term_weight = normalized_label_term_weight
+            if not orm_worker.session.query(orm_worker.ms).get(task_id):
+                raise ValueError(f"Model {task_id} is not trained yet.")
+            else:
+                previous_term_weight_set = orm_worker.session.query(orm_worker.tw).filter(
+                    orm_worker.tw.task_id == task_id)
+                previous_term_weight_set.delete()
+                orm_worker.session.commit()
+            csv_rows = PreprocessWorker.read_csv_file(filepath)
+            term_weight_bulk_list = get_term_weights_from_file(task_id=task_id, term_weight_list=csv_rows)
             orm_worker.session.bulk_save_objects(term_weight_bulk_list)
             orm_worker.session.query(upload_model).filter(upload_model.id == id_).update(
                 {upload_model.status: ModelTaskStatus.FINISHED.value}
@@ -419,7 +409,7 @@ class ModelingWorker:
 
             orm_worker.session.query(orm_worker.ms).filter(
                 orm_worker.ms.task_id == task_id).update(
-                {orm_worker.ms.training_status: ModelTaskStatus.SUCCESS.value}
+                {orm_worker.ms.training_status: ModelTaskStatus.FINISHED.value}
             )
 
             orm_worker.session.commit()
@@ -427,7 +417,8 @@ class ModelingWorker:
             orm_worker.session.rollback()
             err_msg = f"{task_id} failed to upload term weight since {e}"
             orm_worker.session.query(upload_model).filter(upload_model.id == id_).update(
-                {upload_model.status: ModelTaskStatus.FAILED.value}
+                {upload_model.status: ModelTaskStatus.FAILED.value,
+                 upload_model.error_message: err_msg}
             )
             orm_worker.session.query(orm_worker.ms).filter(
                 orm_worker.ms.task_id == task_id).update(

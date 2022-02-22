@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus, ModelType
 from utils.exception_manager import UploadModelError, ModelTypeError, TWMissingError
@@ -46,12 +48,12 @@ class ModelingCRUD(BaseOperation):
     def get_rules(self, task_id: str):
         return self.session.query(self.rule).filter(self.rule.task_id == task_id).all()
 
-    def start_upload_model_to_table(self, task_id: str, upload_job_id: int, filename: str):
+    def start_upload_model_to_table(self, task_id: str, filename: str):
         temp_model = self.upload_model(
             filename=filename,
             status=ModelTaskStatus.STARTED.value,
-            upload_job_id=upload_job_id,
-            task_id=task_id
+            task_id=task_id,
+            create_time=datetime.now()
         )
         try:
             self.session.add(

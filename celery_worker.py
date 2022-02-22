@@ -93,20 +93,10 @@ def testing(task_id: str, model_name: str, predict_type: str,
 
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.import_model', ignore_result=True)
-def import_model(file, filename: str, task_id: str, upload_job_id: int, feature: str,
-                 model_path: str, required_fields=None, normalize_score=True):
+def import_model(filepath, filename, task_id: str):
     _logger = get_logger('modeling')
     _logger.info(f'start importing model of {task_id}')
-    ModelingWorker.import_term_weights(
-        file=file,
-        filename=filename,
-        task_id=task_id,
-        upload_job_id=upload_job_id,
-        feature=feature,
-        model_path=model_path,
-        required_fields=required_fields,
-        normalize_score=normalize_score
-    )
+    ModelingWorker.import_term_weights(filepath=filepath, filename=filename, task_id=task_id)
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
 # def testing(**kwargs):
