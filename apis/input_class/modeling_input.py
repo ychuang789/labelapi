@@ -36,12 +36,6 @@ class ModelingDelete(BaseModel):
     TASK_ID: str = None
 
 
-class ModelingUpload(BaseModel):
-    QUEUE: str = "queue2"
-    TASK_ID: str = None
-    UPLOAD_JOB_ID: int = None
-
-
 class TermWeightsAdd(BaseModel):
     TASK_ID: str
     LABEL: str

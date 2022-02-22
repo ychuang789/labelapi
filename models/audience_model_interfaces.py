@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Iterable, List, Tuple
@@ -10,6 +9,7 @@ from utils.data.input_example import InputExample
 from utils.enum_config import ModelType, PredictTarget
 
 MODEL_ROOT = Path(settings.MODEL_PATH_FIELD_DIRECTORY)
+
 
 class RuleBaseModel(ABC):
     def __init__(self, name: str, model_dir_name: str, model_type: ModelType,
@@ -38,7 +38,6 @@ class RuleBaseModel(ABC):
     # def eval(self, examples: List[InputExample], y_true):
     #     """evaluate with validation set, return the report"""
     #     pass
-
 
 
 class SupervisedModel(ABC):
@@ -70,9 +69,6 @@ class SupervisedModel(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def load(self):
+    def load(self, **kwargs):
         """load the model, make sure to do it before predicting extral test set"""
         raise NotImplementedError
-
-
-

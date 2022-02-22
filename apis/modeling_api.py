@@ -1,4 +1,5 @@
 import os
+
 from fastapi import APIRouter, UploadFile, File
 
 from fastapi import status
@@ -9,9 +10,8 @@ from celery_worker import modeling_task, testing, import_model
 from definition import MODEL_IMPORT_FOLDER
 from settings import DatabaseConfig
 from apis.input_class.modeling_input import ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, \
-    ModelingDelete, \
-    ModelingUpload, TermWeightsAdd, TermWeightsUpdate, TermWeightsDelete
-from utils.data.data_download import find_file
+    ModelingDelete, TermWeightsAdd, TermWeightsUpdate, TermWeightsDelete
+from utils.data.data_download import find_file, term_weight_to_file
 from utils.exception_manager import ModelTypeError, TWMissingError
 from workers.orm_core.model_operation import ModelingCRUD
 
@@ -125,16 +125,16 @@ def model_delete(body: ModelingDelete):
         conn.dispose()
 
 
-@router.put('/import_model/')
-def model_import(body: ModelingUpload, file: UploadFile = File(...)):
+@router.post('/{task_id}/import_model/')
+def model_import(task_id, file: UploadFile = File(...)):
     upload_filepath = os.path.join(MODEL_IMPORT_FOLDER, file.filename)
 
     try:
         with open(upload_filepath, 'wb+') as file_object:
             file_object.write(file.file.read())
         import_model.apply_async(
-            args=(file.file, file.filename, body.TASK_ID, body.UPLOAD_JOB_ID),
-            queue=body.QUEUE
+            args=(upload_filepath, file.filename, task_id),
+            queue="queue2"
         )
         err_msg = f"successfully save {file.filename}"
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
@@ -145,24 +145,24 @@ def model_import(body: ModelingUpload, file: UploadFile = File(...)):
                             content=jsonable_encoder(err_msg))
 
 
-@router.get('/{task_id}/import_model/{upload_job_id}')
-def get_import_model_status(task_id: str, upload_job_id: int):
-    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
-    try:
-        result = conn.get_upload_model_status(upload_job_id=upload_job_id)
-        if not result:
-            result = f'import_model task: {task_id}_{upload_job_id} is not exists'
-            return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(result))
-        else:
-            return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
-    except AttributeError:
-        result = f'import_model task: {task_id}_{upload_job_id} is not exists'
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(result))
-    except Exception as e:
-        result = f'failed to get status since {e}'
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(result))
-    finally:
-        conn.dispose()
+# @router.get('/{task_id}/import_model/{upload_job_id}')
+# def get_import_model_status(task_id: str, upload_job_id: int):
+#     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+#     try:
+#         result = conn.get_upload_model_status(upload_job_id=upload_job_id)
+#         if not result:
+#             result = f'import_model task: {task_id}_{upload_job_id} is not exists'
+#             return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(result))
+#         else:
+#             return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(result))
+#     except AttributeError:
+#         result = f'import_model task: {task_id}_{upload_job_id} is not exists'
+#         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(result))
+#     except Exception as e:
+#         result = f'failed to get status since {e}'
+#         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(result))
+#     finally:
+#         conn.dispose()
 
 
 @router.get('/{task_id}/eval_details/{report_id}/{limit}')
@@ -216,14 +216,14 @@ def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
         conn.dispose()
 
 
-@router.get('/download_details/{report_id}')
-def download_details(report_id: int):
+@router.get('/download_details/{task_id}/{file_type}')
+def download_details(task_id: str, file_type: str):
     try:
-        filename, filepath = find_file(report_id)
+        filename, filepath = find_file(task_id, file_type)
         if filename and filepath:
             return FileResponse(status_code=status.HTTP_200_OK, path=filepath, filename=filename)
         else:
-            results = f"There are no eval details for report {report_id}"
+            results = f"There are no eval details for {task_id} {file_type} set"
             return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
     except Exception as e:
         results = f"failed to get eval details since {e}"
@@ -272,7 +272,7 @@ def get_term_weights(task_id: str):
         conn.dispose()
 
 
-@router.put('/term_weight/update')
+@router.post('/term_weight/update')
 def term_weight_update(body: TermWeightsUpdate):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -310,6 +310,19 @@ def term_weight_delete(body: TermWeightsDelete):
         conn.dispose()
 
 
-
-
-
+@router.get('/{task_id}/term_weight/download')
+def term_weight_download(task_id: str):
+    conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+    filename = f"{task_id}_term_weight"
+    try:
+        result = conn.get_term_weight_set(task_id=task_id)
+        filepath = term_weight_to_file(term_weight_set=result['data'], filename=filename)
+        return FileResponse(status_code=status.HTTP_200_OK, path=filepath, filename=filename + '.csv')
+    except AttributeError:
+        err_msg = f"Task {task_id} is not prepared or not trained yet"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    except Exception as e:
+        err_msg = f"{e}"
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
+    finally:
+        conn.dispose()

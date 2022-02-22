@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 from unittest import TestCase
 
-
 from definition import ROOT_DIR
 from models.rule_based_models.regex_model import RegexModel
 from models.rule_based_models.keyword_model import KeywordModel
@@ -21,7 +20,7 @@ input_female = InputExample(id_="1", s_area_id="ptt_woman_talk", author="Alice",
                             post_time=datetime.now(), label="female")
 
 input_female_2 = InputExample(id_="1", s_area_id="ptt_woman_talk", author="John", title="", content=post_female_2,
-                            post_time=datetime.now(), label="female")
+                              post_time=datetime.now(), label="female")
 
 input_young = InputExample(id_="1", s_area_id="1", author="Alice", title="", content=post_young,
                            post_time=datetime.now())
@@ -38,29 +37,25 @@ class TestRuleBaseModel(TestCase):
     source_rules = {"female": ["ptt_woman_talk"]}
 
     def setUp(self) -> None:
-        self.content_rule_base_model = RegexModel(self.model_dir, self.content_rules)
-        self.name_rule_base_model = RegexModel(self.model_dir, self.name_rules)
-        self.source_rule_base_model = RegexModel(self.model_dir, self.source_rules)
-        self.name_eval = RegexModel(self.model_dir, self.source_rules)
+        self.content_rule_base_model = RegexModel(model_dir_name=self.model_dir, patterns=self.content_rules)
+        self.name_rule_base_model = RegexModel(model_dir_name=self.model_dir, patterns=self.name_rules)
+        self.source_rule_base_model = RegexModel(model_dir_name=self.model_dir, patterns=self.source_rules)
+        self.name_eval = RegexModel(model_dir_name=self.model_dir, patterns=self.source_rules)
 
     def test_predict_content(self):
-
         label = "young"
         rs, prob = self.content_rule_base_model.predict([input_young], target=PredictTarget.CONTENT.value)
         self.assertTrue(label in rs[0])
 
     def test_predict_name(self):
-
         label = "female"
         rs, prob = self.name_rule_base_model.predict([input_young], target=PredictTarget.AUTHOR.value)
         self.assertTrue(label in rs[0])
 
     def test_predict_source(self):
-
         label = "female"
         rs, prob = self.source_rule_base_model.predict([input_female], target=PredictTarget.S_AREA_ID.value)
         self.assertTrue(label in rs[0])
-
 
 
 class TestKeyWordBaseModel(TestCase):
@@ -69,11 +64,8 @@ class TestKeyWordBaseModel(TestCase):
     patterns = read_from_dir(ModelType.KEYWORD_MODEL.value, PredictTarget.AUTHOR.value)
 
     def test_predict_source(self):
-
-        self.source_rule_base_model = KeywordModel(self.model_dir, self.source_rules)
+        self.source_rule_base_model = KeywordModel(model_dir_name=self.model_dir, patterns=self.source_rules)
         label = "female"
         rs, prob = self.source_rule_base_model.predict([input_female], target=PredictTarget.S_AREA_ID.value)
         print(prob)
         self.assertTrue(label in rs[0])
-
-
