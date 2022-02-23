@@ -1,6 +1,6 @@
-Audience API v 2.2
+# Audience API v 2.2
 
-###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-01-05
+###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-02-23
 
 中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pptx)
 
@@ -16,48 +16,13 @@ Audience API v 2.2
   + [Initialize the worker](#initialize-the-worker)
   + [Run the API](#run-the-api)
 + [Usage](#usage)
-  + [swagger UI](#swagger-ui)
-  + [Task](#task)
-    + [create_task](#create_task)
-    + [task_list](#task_list)
-    + [check_status](#check_status)
-    + [sample_result](#sample_result)
-  + [Model](#model)
-    + [model_preparing](#model_preparing)
-    + [model_testing](#model_testing)
-    + [model_status](#model_status)
-    + [model_report](#model_report)
-    + [model_abort](#model_abort)
-    + [model_delete](#model_delete)
+  + [Swagger](#swagger)
+  + [Example](#eample)
 + [Error code](#error-code)
 + [System Recommendation and Baseline Performance](#system-recommendation-and-baseline-performance)
 + [Appendix](#appendix)
 
 ## Description
-
-此 WEB API 專案基於協助貼標站台進行貼標任務而建立，支援使用者選擇貼標模型與規則，並且可以呼叫 API 回傳抽樣結果檢查貼概況。API 服務:
-
-+ Task
-
-1. create_task : 依據使用者定義之情況，建立任務流程 (貼標 -> 上架)，並執行任務
-2. task_list : 回傳近期執行之任務與之相關資訊
-3. check_status : 輸入任務ID，檢查任務進度(貼標狀態、上架狀態)
-4. sample_result : 輸入任務ID，回傳抽樣之上架資料
-5. abort_task : 依據使用者輸入之任務 ID，終止任務
-6. dump_tasks : 產出上架資料
-
-+ Model
-
-1. model_preparing : 模型準備，訓練、驗證機器學習模型，儲存規則模型資訊
-2. model_testing : 測試模型，目前版本僅提供機器學習模型測試
-3. model_status : 輸入 job_id，回傳模型狀態資訊 ( job_id 對應前台 `ModelingJob.id`)
-4. model_report : 輸入 job_id，回傳所以對應之驗證報告
-5. model_abort : 輸入 job_id，中斷模型準備或測試任務
-6. model_delete : 輸入 job_id，刪除對應之所有紀錄  
-
-貼標專案流程為，從使用者定義之情況建立貼標任務 Task (如 日期資訊、資料庫資訊等) ，訪問資料庫擷取相關資料進行貼標，選取 Model 準備好的模型，貼標完資料根據來源分別儲存至不同的結果資料表。過程的任務資訊 (如 任務開始時間、任務狀態、貼標時間) 和驗證資訊 (如 接收資料長度、產出資料長度、上架資料筆數、貼標率等) 會儲存於使用者預先定義的結果資料庫中的 state 資料表。
-
----
 
 These WEB APIs is built for the usage of data labeling tasks supporting users selecting models and rules to labeling the target range of data, and result sampling. There are four APIs in this project:
 
@@ -73,13 +38,21 @@ These WEB APIs is built for the usage of data labeling tasks supporting users se
 
 1. model_preparing : train and validate a model with saving it to model directory, if the model cannot be trained, save the record to model_status.      
 2. model_testing : test a model with a external test data.         
-3. model_status : get the model status information with a target job_id.       
-4. model_report : get the model report information with a target job_id.   
-5. model_abort : break a task with a target job_id.   
+3. model_status : get the model status information with a target task_id.       
+4. model_report : get the model report information with a target task_id.   
+5. model_abort : break a task with a target task_id.   
 6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.  
-7. model_import : input term weight file.
+7. model_import : input term weight file to a task.
 8. get_import_model_status : track the schedule of model_import.
-9. get_eval_details : 
+9. get_eval_details :  return a limit query set of detail row data from a specific report of a task.
+10. get_eval_false_prediction : return a limit query set of detail false prediction row data from a specific report of a task.
+11. get_eval_true_prediction : return a limit query set of detail true prediction row data from a specific report of a task.
+12. download_details : download details prediction row data as a csv file of a specific dataset type.
+13. term_weight_add : add a single row of term weight to a task.
+14. get term weight : retrieve all term weight data from a task.
+15. term_weight_update : update a specific term weight data from a task.
+16. term_weight_delete : delete a specific term weight data from a task.
+17. term_weight_download: download whole term weight data as csv from a task. 
 
 The total flow in brief of `create_task` is that the API will query the database via conditions and information which place by users, label those data, and output the data to a target database storing by `source_id` . The progress and validation information will be stored in the table, name `state`, inside the user define output schema which will be automatically created at the first time that user call `create_task` API.
 
@@ -97,7 +70,7 @@ The total flow in brief of `create_task` is that the API will query the database
 
 <img src="graph/model_worker.png">
 
-
+<img src="graph/erd.png">
 
 ## Built With
 
@@ -111,7 +84,7 @@ The total flow in brief of `create_task` is that the API will query the database
   + FastAPI 0.68.1
   + Scikit-learn
   + Sqlalchemy
-+ Test with
++ Deploy with
   + Windows 10 Python 3.8
   + Ubuntu 18.04.5 LTS Python 3.8
 
@@ -258,7 +231,7 @@ $ make run_api
 
 If you have done the quick start and you want to test the API functions or expect a web-based user-interface, you can type `<api address>:<api port>/docs` in the browser (for example http://127.0.0.1:8000/docs) to open a Swagger user-interface, for more information see [Swagger](https://swagger.io/). It is very simple to use by following the quick demonstration below :
 
-### swagger 
+### Swagger 
 
 + Type `<api address>:<api port>/docs` in the web browser, for example if you test the API at localhost `127.0.0.1/docs`
 
@@ -278,7 +251,7 @@ If you have done the quick start and you want to test the API functions or expec
 
 Otherwise modify  curl to calling API. Follow below parts :  
 
-#### create_task
+#### Example
 
 Input the task information for example model type, predict type, date info, etc., and return task_id with task configuration.
 
@@ -531,28 +504,3 @@ So how about using `eventlet` or `gevent`? with a multiprocessing module, they w
 
 
 
-**2. Problem of the kombu JSON serialize problem (Unsolved)**
-
-```shell
-[2022-01-12 15:57:13,828: WARNING/MainProcess] C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\celery\app\trace.py:657: RuntimeWarning: Exception raised outside body: EncodeError(TypeError('Object of type type is not JSON serializable')):
-Traceback (most recent call last):
-  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\serialization.py", line 42, in _reraise_errors
-    yield
-  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\serialization.py", line 213, in dumps
-    payload = encoder(data)
-  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\utils\json.py", line 68, in dumps
-    return _dumps(s, cls=cls or _default_encoder,
-  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\__init__.py", line 234, in dumps
-    return cls(
-  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 199, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 257, in iterencode
-    return _iterencode(o, 0)
-  File "C:\Users\ychuang\PycharmProjects\Audience_api\venv\lib\site-packages\kombu\utils\json.py", line 58, in default
-    return super().default(o)
-  File "C:\Users\ychuang\AppData\Local\Programs\Python\Python38\lib\json\encoder.py", line 179, in default
-    raise TypeError(f'Object of type {o.__class__.__name__} '
-TypeError: Object of type type is not JSON serializable
-```
-
-It occurs every time no matter when a task is done or failed, or every time of the status changed from a task, but this message seems to be nothing to do with the task (labeling or modeling), every task can be accomplished successfully even this annoying message shows up. There is still no anything bad for the task about this error message to be detected.
