@@ -366,33 +366,6 @@ class ModelingWorker:
                                                      filename=filename)
 
         try:
-            # if not required_fields:
-            #     required_fields = TERM_WEIGHT_FIELDS_MAPPING
-            # label_term_weight: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
-            # csv_rows = PreprocessWorker.read_csv_file(file)
-            # for index, row in enumerate(csv_rows):
-            #     data = defaultdict(str)
-            #     for _field in required_fields.keys():
-            #         field_data = row.get(_field, None) or row.get(required_fields.get(_field), None)
-            #         if _field == 'score':
-            #             field_data = field_data if field_data else 1
-            #         data[_field] = field_data
-            #     label_str: str = data.get('label', None)
-            #     content = data.get('content', None)
-            #     score = data.get('score', 1)
-            #     label_term_weight[label_str].append((content, score))
-            # if normalize_score:
-            #     normalized_label_term_weight = {}
-            #     for label, term_weight in label_term_weight.items():
-            #         terms, weights = [[i for i, j in term_weight],
-            #                           [j for i, j in term_weight]]
-            #         weights = np.array(weights)
-            #         weights = weights.reshape(-1, 1)
-            #         min_max_scaler = preprocessing.MinMaxScaler()
-            #         weights_minmax = min_max_scaler.fit_transform(weights)
-            #         weights_minmax = [round(weight[0], 6) for weight in weights_minmax]
-            #         normalized_label_term_weight[label] = [t_w for t_w in zip(terms, weights_minmax)]
-            #     label_term_weight = normalized_label_term_weight
             if not orm_worker.session.query(orm_worker.ms).get(task_id):
                 raise ValueError(f"Model {task_id} is not trained yet.")
             else:

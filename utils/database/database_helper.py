@@ -10,8 +10,9 @@ from utils.enum_config import PredictTarget
 from utils.general_helper import get_logger
 from settings import DatabaseConfig
 
+
 @retry(tries=5, delay=3)
-def connect_database(schema = None, output = False, site_input: Optional[Dict] = None):
+def connect_database(schema=None, output=False, site_input: Optional[Dict] = None):
     if site_input:
         _config = site_input
         _config.update({
@@ -46,8 +47,10 @@ def connect_database(schema = None, output = False, site_input: Optional[Dict] =
         logging.error('Fail to connect to database.')
         raise e
 
+
 def to_dataframe(data):
     return pd.DataFrame.from_dict(data)
+
 
 def scrap_data_to_dict(query: str, schema: str):
     connection = connect_database(schema=schema, output=True)
@@ -56,6 +59,7 @@ def scrap_data_to_dict(query: str, schema: str):
     result = cur.fetchall()
     connection.close()
     return result
+
 
 def create_table(table_ID: str, logger: get_logger, schema=None):
     insert_sql = f'CREATE TABLE IF NOT EXISTS `{table_ID}`(' \
@@ -80,8 +84,9 @@ def create_table(table_ID: str, logger: get_logger, schema=None):
     finally:
         connection.close()
 
+
 # TODO: refactor
-def drop_table(table_name: str, schema=None) :
+def drop_table(table_name: str, schema=None):
     drop_sql = f'DROP TABLE {table_name};'
     connection = connect_database(schema=schema, output=True)
     try:
@@ -93,11 +98,13 @@ def drop_table(table_name: str, schema=None) :
     finally:
         connection.close()
 
+
 def get_sample_query(_id, tablename, number):
     q = f"(SELECT * FROM {tablename} WHERE task_id = '{_id}' " \
         f"AND rand() <= 0.2 " \
         f"LIMIT {number})"
     return q
+
 
 def get_timedelta_query(predict_type, table, start_time, end_time):
     base = f"""SELECT * FROM {table} WHERE author IS NOT NULL AND s_id IS NOT NULL AND post_time >= '{start_time}' AND post_time <= '{end_time}'"""
@@ -136,6 +143,7 @@ def get_batch_by_timedelta(schema, predict_type, table,
                 cursor = connection.cursor()
                 query = get_timedelta_query(predict_type, table, begin_date, start_date_interval)
                 cursor.execute(query)
+                # TODO: Add preprocessing module here to filter the input data set
                 result = to_dataframe(cursor.fetchall())
                 yield result, begin_date
                 begin_date += interval
@@ -150,7 +158,7 @@ def get_batch_by_timedelta(schema, predict_type, table,
 def add_column(schema, table, col_name, col_type, **kwargs):
     if kwargs:
         condition = ''
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             condition += f' {k} {v}'
     else:
         condition = ''
@@ -163,6 +171,7 @@ def add_column(schema, table, col_name, col_type, **kwargs):
         cursor.execute(q)
         connection.close()
 
+
 def alter_column_type(schema: str, table_name: str, column_name: str, datatype: str) -> None:
     q = f"""ALTER TABLE {table_name} MODIFY {column_name} {datatype};"""
     connection = connect_database(schema, output=True)
@@ -170,9 +179,10 @@ def alter_column_type(schema: str, table_name: str, column_name: str, datatype: 
     cur.execute(q)
     connection.close()
 
+
 def get_batch_by_timedelta_new(schema, predict_type, table,
-                           begin_date: datetime, last_date: datetime,
-                           interval: timedelta = timedelta(hours=6), site_input=None):
+                               begin_date: datetime, last_date: datetime,
+                               interval: timedelta = timedelta(hours=6), site_input=None):
     connection = connect_database(schema=schema, site_input=site_input)
     while begin_date <= last_date:
         if begin_date + interval > last_date:
@@ -187,6 +197,3 @@ def get_batch_by_timedelta_new(schema, predict_type, table,
             yield result, begin_date
             begin_date += interval
             cursor.close()
-
-
-

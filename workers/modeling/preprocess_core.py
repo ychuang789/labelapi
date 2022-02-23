@@ -1,11 +1,9 @@
-import codecs
 import csv
 import random
 
 from collections import defaultdict
 from typing import Dict, List, Any, Union, Iterator, Tuple
 
-import cchardet
 import pandas as pd
 
 from settings import LOCAL_TEST
@@ -178,3 +176,7 @@ class PreprocessWorker():
             output_dict[term_weight['label']].append((term_weight['term'], term_weight['weight']))
 
         return output_dict
+
+    # TODO: ADD content preprocessing method
+
+    # TODO: Add content deletion method
