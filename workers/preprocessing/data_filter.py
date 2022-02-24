@@ -17,3 +17,5 @@ class DataFilterWorker:
     def check_data_to_delete(self, row_data):
         pass
 
+    def check_data_to_alter(self, row_data):
+        pass

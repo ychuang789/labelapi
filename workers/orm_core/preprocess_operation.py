@@ -5,7 +5,7 @@ from utils.exception_manager import DataMissingError
 from workers.orm_core.base_operation import BaseOperation
 
 
-class PreprocessCURD(BaseOperation):
+class PreprocessCRUD(BaseOperation):
     def __init__(self, connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO, auto_flush=False, echo=False, **kwargs):
         super().__init__(connection_info=connection_info, auto_flush=auto_flush, echo=echo, **kwargs)
         self.filter_rules = self.table_cls_dict.get(TableName.filter_rules)
