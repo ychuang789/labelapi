@@ -14,7 +14,7 @@ from utils.enum_config import DatasetType, RuleType
 from workers.orm_core.table_creator import Rules
 
 
-class PreprocessWorker():
+class PreprocessWorker:
 
     def __init__(self, dataset_number, dataset_schema):
         self.dataset_number = dataset_number

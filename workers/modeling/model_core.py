@@ -3,22 +3,19 @@ import importlib
 import json
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, Tuple, List
-
-import numpy as np
-from sklearn import preprocessing
+from typing import Dict
 
 from models.audience_model_interfaces import SupervisedModel, RuleBaseModel
 
 from models.trainable_models.tw_model import TermWeightModel
-from settings import MODEL_INFORMATION, TERM_WEIGHT_FIELDS_MAPPING
+from settings import MODEL_INFORMATION
 from utils.data.data_download import pre_check
 
 from utils.data.data_helper import get_term_weights_objects, get_term_weights_from_file
 from utils.general_helper import get_logger
 from utils.enum_config import ModelTaskStatus, DatasetType, ModelType
 from utils.exception_manager import ModelTypeNotFoundError, ParamterMissingError, UploadModelError
-from workers.modeling.preprocess_core import PreprocessWorker
+from workers.preprocessing.preprocess_core import PreprocessWorker
 
 from workers.orm_core.model_operation import ModelingCRUD
 from workers.orm_core.table_creator import EvalDetails

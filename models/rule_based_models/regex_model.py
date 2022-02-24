@@ -7,8 +7,9 @@ from utils.data.input_example import InputExample
 
 from utils.enum_config import ModelType, PredictTarget, Errors
 
+
 class RegexModel(RuleBaseModel):
-    def __init__(self, model_dir_name= None,
+    def __init__(self, model_dir_name=None,
                  patterns: Dict[str, List[str]] = None,
                  name: str = None,
                  model_type: ModelType = ModelType.REGEX_MODEL,
@@ -81,10 +82,12 @@ class RegexModel(RuleBaseModel):
     #     else:
     #         raise ValueError(f"模型尚未被訓練，或模型尚未被讀取。若模型已被訓練與儲存，請嘗試執行 ' load() ' 方法讀取模型。")
 
+
 def parse_predict_target(input_examples: Iterable[InputExample], target: PredictTarget = PredictTarget.CONTENT.value,
                          case_sensitive: bool = False) -> List[str]:
     return [_parse_predict_target(input_example, target=target, case_sensitive=case_sensitive)
             for input_example in input_examples]
+
 
 def _parse_predict_target(input_example: InputExample, target: PredictTarget = PredictTarget.CONTENT.value,
                           case_sensitive: bool = False) -> str:

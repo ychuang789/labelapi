@@ -1,13 +1,10 @@
 from datetime import datetime
 
-from scipy.signal import cascade
-from sqlalchemy import create_engine, DateTime, Column, String, Integer, ForeignKey, inspect, MetaData, Float, TEXT
+from sqlalchemy import  DateTime, Column, String, Integer, ForeignKey, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import declarative_base, relationship, Session, backref
+from sqlalchemy.orm import declarative_base, relationship
 
-from settings import DatabaseConfig, TableName
-from utils.enum_config import ModelTaskStatus
+from settings import TableName
 
 Base: declarative_base = declarative_base()
 
@@ -238,75 +235,23 @@ class UploadModel(Base):
         return f"UploadModel({self.file}, {self.status}, {self.create_time}, {self.task_id})"
 
 
-def create_model_table() -> None:
-    try:
-        engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO, echo=True)
-    except Exception as e:
-        raise f'connection failed, additional error message {e}'
+class FilterRules(Base):
+    __tablename__  = TableName.filter_rules
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(String(200), nullable=False)
+    rule_type = Column(String(20), nullable=False)
+    label = Column(String(100), nullable=False)
+    match_type = Column(String(20), nullable=False)
 
-    inspector = inspect(engine)
-    tables = ['model_status', 'model_report', 'term_weights']
-    show_table = inspector.get_table_names()
-    if set(tables).issubset(show_table):
-        return
-    else:
-        Base.metadata.create_all(engine, checkfirst=True)
-        engine.dispose()
+    def __init__(self, content, rule_type, label, match_type):
+        self.content = content
+        self.rule_type = rule_type
+        self.label = label
+        self.match_type = match_type
 
-
-def table_cls_maker(engine: create_engine, add_new=False):
-    meta = MetaData()
-    if add_new:
-        meta.reflect(engine, only=['model_status'])
-        Base = automap_base(metadata=meta)
-        Base.prepare()
-
-        # build table cls
-        ms = Base.classes.model_status
-        return ms
-    else:
-        meta.reflect(engine, only=['model_status', 'model_report', 'term_weights'])
-        Base = automap_base(metadata=meta)
-        Base.prepare()
-
-        # build table cls
-        ms = Base.classes.model_status
-        mr = Base.classes.model_report
-
-        return ms, mr
+    def __repr__(self):
+        return f"FilterRules({self.content}, {self.rule_type}, " \
+               f"{self.label}, {self.match_type})"
 
 
-def status_changer(model_job_id: int, status: ModelTaskStatus.BREAK = ModelTaskStatus.BREAK):
-    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO)
-    session = Session(engine, autoflush=False)
-    ms = table_cls_maker(engine, add_new=True)
-    err_msg = f'{model_job_id} {status.value} by the external user'
 
-    try:
-        session.query(ms).filter(ms.task_id == model_job_id).update({ms.training_status: status.value,
-                                                                     ms.error_message: err_msg})
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        raise e
-    finally:
-        session.close()
-        engine.dispose()
-
-
-def delete_record(model_job_id: int):
-    engine = create_engine(DatabaseConfig.OUTPUT_ENGINE_INFO)
-    session = Session(engine, autoflush=False)
-    ms = table_cls_maker(engine, add_new=True)
-    err_msg = f'{model_job_id} delete by the external user'
-
-    try:
-        record = session.query(ms).filter(ms.job_id == model_job_id).first()
-        session.delete(record)
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        raise e
-    finally:
-        session.close()
-        engine.dispose()

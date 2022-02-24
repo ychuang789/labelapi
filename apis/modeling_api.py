@@ -12,7 +12,7 @@ from settings import DatabaseConfig
 from apis.input_class.modeling_input import ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, \
     ModelingDelete, TermWeightsAdd, TermWeightsUpdate, TermWeightsDelete
 from utils.data.data_download import find_file, term_weight_to_file
-from utils.exception_manager import ModelTypeError, TWMissingError
+from utils.exception_manager import ModelTypeError, DataMissingError
 from workers.orm_core.model_operation import ModelingCRUD
 
 router = APIRouter(prefix='/models',
@@ -282,7 +282,7 @@ def term_weight_update(body: TermWeightsUpdate):
         err_msg = f"Done, term_weight {body.TERM_WEIGHT_ID} is updated"
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
-    except TWMissingError:
+    except DataMissingError:
         err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
     except Exception as e:
@@ -299,7 +299,7 @@ def term_weight_delete(body: TermWeightsDelete):
         conn.delete_term_weight(tw_id=body.TERM_WEIGHT_ID)
         err_msg = f"Done, Term weight {body.TERM_WEIGHT_ID} is deleted"
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-    except TWMissingError:
+    except DataMissingError:
         err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
     except Exception as e:

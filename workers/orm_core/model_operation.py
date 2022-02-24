@@ -2,7 +2,7 @@ from datetime import datetime
 
 from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus, ModelType
-from utils.exception_manager import UploadModelError, ModelTypeError, TWMissingError
+from utils.exception_manager import UploadModelError, ModelTypeError, DataMissingError
 from workers.orm_core.base_operation import BaseOperation
 from workers.orm_core.table_creator import TermWeights
 
@@ -139,7 +139,7 @@ class ModelingCRUD(BaseOperation):
         try:
             term_weight = self.session.query(self.tw).get(tw_id)
             if not term_weight:
-                raise TWMissingError(f'term_weight {tw_id} is not found')
+                raise DataMissingError(f'term_weight {tw_id} is not found')
             term_weight.term = term
             term_weight.label = label
             term_weight.weight = weight
@@ -153,7 +153,7 @@ class ModelingCRUD(BaseOperation):
         try:
             term_weight = self.session.query(self.tw).get(tw_id)
             if not term_weight:
-                raise TWMissingError(f'term_weight {tw_id} is not found')
+                raise DataMissingError(f'term_weight {tw_id} is not found')
             self.session.delete(term_weight)
             self.session.commit()
         except Exception as e:
