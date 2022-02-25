@@ -51,8 +51,14 @@ class DBConnection(object):
     @classmethod
     def execute_query(cls, query: str, alter=False, single=False, **kwargs):
         connection = cls.get_connection(**kwargs)
-        cursor = connection.cursor()
-        cursor.execute(query)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(query)
+        except Exception:
+            connection.ping()
+            cursor = connection.cursor()
+            cursor.execute(query)
+
         if alter:
             connection.commit()
             cursor.close()

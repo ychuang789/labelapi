@@ -12,7 +12,7 @@ from settings import DatabaseConfig
 from apis.input_class.modeling_input import ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, \
     ModelingDelete, TermWeightsAdd, TermWeightsUpdate, TermWeightsDelete
 from utils.data.data_download import find_file, term_weight_to_file
-from utils.exception_manager import ModelTypeError, TWMissingError
+from utils.exception_manager import ModelTypeError, DataMissingError
 from workers.orm_core.model_operation import ModelingCRUD
 
 router = APIRouter(prefix='/models',
@@ -24,7 +24,6 @@ router = APIRouter(prefix='/models',
 
 @router.post('/prepare/', description='preparing a model')
 def model_preparing(body: ModelingTrainingConfig):
-    # task_id = uuid.uuid1().hex
     try:
         modeling_task.apply_async(
             args=(
@@ -64,7 +63,7 @@ def model_testing(body: ModelingTestingConfig):
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(err_msg))
 
 
-@router.get('/{task_id}')
+@router.get('/{task_id}', description='get the modeling task progress and information')
 def model_status(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -80,7 +79,7 @@ def model_status(task_id: str):
         conn.dispose()
 
 
-@router.get('/{task_id}/report/')
+@router.get('/{task_id}/report/', description='get the specific modeling task report')
 def model_report(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
 
@@ -97,7 +96,7 @@ def model_report(task_id: str):
         conn.dispose()
 
 
-@router.post('/abort/')
+@router.post('/abort/', description='abort a modeling task')
 def model_abort(body: ModelingAbort):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -111,7 +110,7 @@ def model_abort(body: ModelingAbort):
         conn.dispose()
 
 
-@router.delete('/delete/')
+@router.delete('/delete/', description='delete a modeling task')
 def model_delete(body: ModelingDelete):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -125,7 +124,7 @@ def model_delete(body: ModelingDelete):
         conn.dispose()
 
 
-@router.post('/{task_id}/import_model/')
+@router.post('/{task_id}/import_model/', description='external import term weights from local files')
 def model_import(task_id, file: UploadFile = File(...)):
     upload_filepath = os.path.join(MODEL_IMPORT_FOLDER, file.filename)
 
@@ -165,7 +164,7 @@ def model_import(task_id, file: UploadFile = File(...)):
 #         conn.dispose()
 
 
-@router.get('/{task_id}/eval_details/{report_id}/{limit}')
+@router.get('/{task_id}/eval_details/{report_id}/{limit}', description='get the evaluation detail row data by limit')
 def get_eval_details(task_id: str, report_id: int, limit: int):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -182,7 +181,7 @@ def get_eval_details(task_id: str, report_id: int, limit: int):
         conn.dispose()
 
 
-@router.get('/{task_id}/false_predict/{report_id}/{limit}')
+@router.get('/{task_id}/false_predict/{report_id}/{limit}', description='get the false predicting row data by limit')
 def get_eval_details_false_prediction(task_id: str, report_id: int, limit: int):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -199,7 +198,7 @@ def get_eval_details_false_prediction(task_id: str, report_id: int, limit: int):
         conn.dispose()
 
 
-@router.get('/{task_id}/true_predict/{report_id}/{limit}')
+@router.get('/{task_id}/true_predict/{report_id}/{limit}', description='get the true predicting row data by limit')
 def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -216,21 +215,21 @@ def get_eval_details_true_prediction(task_id: str, report_id: int, limit: int):
         conn.dispose()
 
 
-@router.get('/download_details/{task_id}/{file_type}')
-def download_details(task_id: str, file_type: str):
+@router.get('/download_details/{task_id}/{dataset_type}', description='download the row prediction detail file')
+def download_details(task_id: str, dataset_type: str):
     try:
-        filename, filepath = find_file(task_id, file_type)
+        filename, filepath = find_file(task_id, dataset_type)
         if filename and filepath:
             return FileResponse(status_code=status.HTTP_200_OK, path=filepath, filename=filename)
         else:
-            results = f"There are no eval details for {task_id} {file_type} set"
+            results = f"There are no eval details for {task_id} {dataset_type} set"
             return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=jsonable_encoder(results))
     except Exception as e:
         results = f"failed to get eval details since {e}"
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=jsonable_encoder(results))
 
 
-@router.put('/term_weight/add')
+@router.put('/term_weight/add', description='add a new row of term weight')
 def term_weight_add(body: TermWeightsAdd):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -253,7 +252,7 @@ def term_weight_add(body: TermWeightsAdd):
         conn.dispose()
 
 
-@router.get('/{task_id}/term_weight')
+@router.get('/{task_id}/term_weight', description='get all term weights data from a modeling task')
 def get_term_weights(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -272,7 +271,7 @@ def get_term_weights(task_id: str):
         conn.dispose()
 
 
-@router.post('/term_weight/update')
+@router.post('/term_weight/update', description='update a term weight row')
 def term_weight_update(body: TermWeightsUpdate):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
@@ -283,7 +282,7 @@ def term_weight_update(body: TermWeightsUpdate):
         err_msg = f"Done, term_weight {body.TERM_WEIGHT_ID} is updated"
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
 
-    except TWMissingError:
+    except DataMissingError:
         err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
     except Exception as e:
@@ -293,14 +292,14 @@ def term_weight_update(body: TermWeightsUpdate):
         conn.dispose()
 
 
-@router.delete('/term_weight/delete')
+@router.delete('/term_weight/delete', description='delete a term weight row')
 def term_weight_delete(body: TermWeightsDelete):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
         conn.delete_term_weight(tw_id=body.TERM_WEIGHT_ID)
         err_msg = f"Done, Term weight {body.TERM_WEIGHT_ID} is deleted"
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
-    except TWMissingError:
+    except DataMissingError:
         err_msg = f"Term weight {body.TERM_WEIGHT_ID} is not found"
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=jsonable_encoder(err_msg))
     except Exception as e:
@@ -310,7 +309,7 @@ def term_weight_delete(body: TermWeightsDelete):
         conn.dispose()
 
 
-@router.get('/{task_id}/term_weight/download')
+@router.get('/{task_id}/term_weight/download', description='download term weight query set of a modeling task')
 def term_weight_download(task_id: str):
     conn = ModelingCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     filename = f"{task_id}_term_weight"

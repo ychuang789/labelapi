@@ -1,11 +1,9 @@
-import codecs
 import csv
 import random
 
 from collections import defaultdict
 from typing import Dict, List, Any, Union, Iterator, Tuple
 
-import cchardet
 import pandas as pd
 
 from settings import LOCAL_TEST
@@ -16,7 +14,7 @@ from utils.enum_config import DatasetType, RuleType
 from workers.orm_core.table_creator import Rules
 
 
-class PreprocessWorker():
+class PreprocessWorker:
 
     def __init__(self, dataset_number, dataset_schema):
         self.dataset_number = dataset_number
@@ -178,3 +176,7 @@ class PreprocessWorker():
             output_dict[term_weight['label']].append((term_weight['term'], term_weight['weight']))
 
         return output_dict
+
+    # TODO: ADD content preprocessing method
+
+    # TODO: Add content deletion method

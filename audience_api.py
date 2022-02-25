@@ -31,7 +31,19 @@ A backend API which support labeling, modeling and predicting jobs of django sit
 3. model_status : get the model status information with a target job_id.       
 4. model_report : get the model report information with a target job_id.   
 5. model_abort : break a task with a target job_id.   
-6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.    
+6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.  
+7. model_import : input term weight file to a task.
+8. get_import_model_status : track the schedule of model_import.
+9. get_eval_details :  return a limit query set of detail row data from a specific report of a task.
+10. get_eval_false_prediction : return a limit query set of detail false prediction row data from a specific report of a task.
+11. get_eval_true_prediction : return a limit query set of detail true prediction row data from a specific report of a task.
+12. download_details : download details prediction row data as a csv file of a specific dataset type.
+13. term_weight_add : add a single row of term weight to a task.
+14. get term weight : retrieve all term weight data from a task.
+15. term_weight_update : update a specific term weight data from a task.
+16. term_weight_delete : delete a specific term weight data from a task.
+17. term_weight_download: download whole term weight data as csv from a task. 
+
 """
 
 app = FastAPI(title=configuration.API_TITLE,

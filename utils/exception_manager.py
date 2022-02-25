@@ -86,15 +86,15 @@ class TWFeatureModelNotFoundError(Exception):
         return TWFeatureModelNotFoundError, (self.msg,)
 
 
-class TWMissingError(Exception):
-    """term_weight is not exist"""
+class DataMissingError(Exception):
+    """Target data is not exist"""
 
     def __init__(self, msg):
         super().__init__(msg)
         self.msg = msg
 
     def __reduce__(self):
-        return TWMissingError, (self.msg,)
+        return DataMissingError, (self.msg,)
 
 
 class UploadModelError(Exception):

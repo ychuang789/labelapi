@@ -843,6 +843,7 @@ class TableName:
     rules = 'rules'
     upload_model = 'upload_model'
     eval_details = 'eval_details'
+    filter_rules = 'filter_rules'
 
 
 class DatabaseConfig:
