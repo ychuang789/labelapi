@@ -48,6 +48,12 @@ class DataFilterWorker:
 
         return row_data
 
+    def alter(self, row_data, sub_list):
+        for s in sub_list:
+            temp_data = re.sub(s, "", getattr(row_data, self.task.feature))
+            setattr(row_data, self.task.feature, temp_data)
+        return row_data
+
     def check_data_delete(self, row_data: InputExample):
         label, prob = self.model.predict([row_data])
 
@@ -87,7 +93,4 @@ def load_pattern(rule_set, model_type):
     return rules_dict
 
 
-def alter(row_data, sub_list):
-    for s in sub_list:
-        row_data = re.sub(s, "", row_data)
-    return row_data
+
