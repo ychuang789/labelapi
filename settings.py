@@ -844,6 +844,7 @@ class TableName:
     upload_model = 'upload_model'
     eval_details = 'eval_details'
     filter_rules = 'filter_rules'
+    filter_rule_task = 'filter_rule_task'
 
 
 class DatabaseConfig:

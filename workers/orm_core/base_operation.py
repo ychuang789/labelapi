@@ -39,12 +39,12 @@ class BaseOperation():
     def orm_cls_to_dict(self, record) -> Dict[str, Any]:
         result_dict = {}
         for c in record.__table__.columns:
-            if isinstance(getattr(record, c.name), datetime):
-                result_dict[c.name] = getattr(record, c.name).strftime("%Y-%m-%d %H:%M:%S")
-            elif isinstance(getattr(record, c.name), Decimal):
-                result_dict[c.name] = float(getattr(record, c.name))
+            if isinstance(getattr(record, c.label), datetime):
+                result_dict[c.label] = getattr(record, c.label).strftime("%Y-%m-%d %H:%M:%S")
+            elif isinstance(getattr(record, c.label), Decimal):
+                result_dict[c.label] = float(getattr(record, c.label))
             else:
-                result_dict[c.name] = getattr(record, c.name)
+                result_dict[c.label] = getattr(record, c.label)
         return result_dict
         # return {c.name: (getattr(record, c.name) if not isinstance(getattr(record, c.name), datetime)
         #         else getattr(record, c.name).strftime("%Y-%m-%d %H:%M:%S")) for c in record.__table__.columns}

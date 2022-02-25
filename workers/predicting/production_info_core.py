@@ -64,17 +64,17 @@ class TaskInfo(object):
 
     def get_source_distinct_count(self):
 
-        output = {c.name: getattr(self.result, c.name, None)
+        output = {c.label: getattr(self.result, c.label, None)
                   for c in self.result.__table__.columns
-                  if c.name in ['result', 'uniq_source_author']}
+                  if c.label in ['result', 'uniq_source_author']}
         return output
 
 
     def _check_state_result_for_task_info(self):
 
-        output = {c.name: getattr(self.result, c.name, None)
+        output = {c.label: getattr(self.result, c.label, None)
                   for c in self.result.__table__.columns
-                  if c.name in ['result', 'rate_of_label']}
+                  if c.label in ['result', 'rate_of_label']}
 
         if ',' in output.get('result'):
             return output.get('rate_of_label')
@@ -83,9 +83,9 @@ class TaskInfo(object):
 
     def _check_state_prod_length_for_task_info(self):
 
-        output = {c.name: getattr(self.result, c.name, None)
+        output = {c.label: getattr(self.result, c.label, None)
                   for c in self.result.__table__.columns
-                  if c.name in ['result', 'length_prod_table']}
+                  if c.label in ['result', 'length_prod_table']}
 
         if ',' in output.get('result'):
             return output.get('length_prod_table')

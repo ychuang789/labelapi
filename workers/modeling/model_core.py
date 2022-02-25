@@ -54,7 +54,7 @@ class ModelingWorker:
             self.init_model()
 
             if not hasattr(self.model, 'fit'):
-                err_msg = f'{self.model.name} is not trainable'
+                err_msg = f'{self.model.label} is not trainable'
                 self.logger.error(err_msg)
                 self.orm_cls.session.query(ms).filter(ms.task_id == self.task_id).update(
                     {ms.training_status: ModelTaskStatus.UNTRAINABLE.value,
@@ -151,7 +151,7 @@ class ModelingWorker:
                 self.init_model(is_train=False)
 
             if not hasattr(self.model, 'eval'):
-                err_msg = f'{self.model.name} cannot be evaluated'
+                err_msg = f'{self.model.label} cannot be evaluated'
                 self.logger.error(err_msg)
                 self.orm_cls.session.query(ms).filter(ms.task_id == task_id).update(
                     {ms.training_status: ModelTaskStatus.FAILED.value, ms.error_message: err_msg})
