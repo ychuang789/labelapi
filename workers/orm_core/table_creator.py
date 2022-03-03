@@ -251,17 +251,19 @@ class FilterRuleTask(Base):
     create_time = Column(DateTime, nullable=False)
     feature = Column(String(32), nullable=False)
     model_name = Column(String(100), nullable=False)
+    error_message = Column(LONGTEXT, nullable=True)
     rules = relationship(
         "FilterRules",
         backref=TableName.filter_rule_task,
         cascade="all, delete",
         passive_deletes=True)
 
-    def __int__(self, name, create_time, feature, model_name):
-        self.label = name
+    def __int__(self, label, create_time, feature, model_name, error_message):
+        self.label = label
         self.create_time = create_time
         self.feature = feature
         self.model_name = model_name
+        self.error_message = error_message
 
     def __repr__(self):
         return f"FilterRuleTask({self.label}, {self.create_time}, {self.feature}, {self.model_name})"

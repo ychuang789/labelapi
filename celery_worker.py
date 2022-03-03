@@ -5,6 +5,7 @@ from dump.groups.dump_core import DumpWorker
 
 from utils.general_helper import get_logger, get_config
 from workers.modeling.model_core import ModelingWorker
+from workers.orm_core.preprocess_operation import PreprocessCRUD
 from workers.predicting.predict_core import PredictWorker
 
 configuration = get_config()
@@ -77,9 +78,9 @@ def modeling_task(task_id: str, model_name: str, predict_type: str,
     model.run_task()
 
 
-@celery_app.task(name=f'{configuration.CELERY_NAME}.testing', ignore_result=True)
-def testing(task_id: str, model_name: str, predict_type: str,
-            dataset_number: int, dataset_schema: str, **kwargs):
+@celery_app.task(name=f'{configuration.CELERY_NAME}.model_test', ignore_result=True)
+def model_test(task_id: str, model_name: str, predict_type: str,
+               dataset_number: int, dataset_schema: str, **kwargs):
     _logger = get_logger('modeling')
     _logger.info(f'start job {task_id}')
     model = ModelingWorker(
@@ -97,6 +98,13 @@ def import_model(filepath, filename, task_id: str):
     _logger = get_logger('modeling')
     _logger.info(f'start importing model of {task_id}')
     ModelingWorker.import_term_weights(filepath=filepath, filename=filename, task_id=task_id)
+
+
+# @celery_app.task(name=f'{configuration.CELERY_NAME}.preprocess_task', ignore_result=True)
+# def preprocess_task(name, feature, model_name, create_time, filepath):
+#     worker = PreprocessCRUD()
+#     worker.create_task(name, feature, model_name, create_time, filepath)
+
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.testing', track_started=True)
 # def testing(**kwargs):

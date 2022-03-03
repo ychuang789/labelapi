@@ -1,3 +1,4 @@
+import preprocess as preprocess
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
@@ -5,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from apis import modeling_api, predicting_api
+from apis import modeling_api, predicting_api, preprocessing_api
 from utils.general_helper import get_logger, get_config
 
 configuration = get_config()
@@ -74,6 +75,7 @@ app.add_exception_handler(RequestValidationError, request_validation_exception_h
 
 app.include_router(predicting_api.router)
 app.include_router(modeling_api.router)
+app.include_router(preprocessing_api.router)
 
 if __name__ == '__main__':
     uvicorn.run("__main__:app", host=configuration.API_HOST, debug=True)

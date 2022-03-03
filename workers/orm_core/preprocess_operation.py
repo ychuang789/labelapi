@@ -3,6 +3,8 @@ from typing import List
 from settings import DatabaseConfig, TableName
 from utils.exception_manager import DataMissingError
 from workers.orm_core.base_operation import BaseOperation
+from workers.orm_core.table_creator import FilterRules
+from workers.preprocessing.preprocess_core import PreprocessWorker
 
 
 class PreprocessCRUD(BaseOperation):
@@ -11,7 +13,7 @@ class PreprocessCRUD(BaseOperation):
         self.filter_rules = self.table_cls_dict.get(TableName.filter_rules)
         self.filter_rule_task = self.table_cls_dict.get(TableName.filter_rule_task)
 
-    def create_task(self, name, feature, model_name, create_time):
+    def create_task(self, name, feature, model_name, create_time, filepath):
         new_task = self.filter_rule_task(
             name=name,
             feature=feature,
@@ -21,10 +23,11 @@ class PreprocessCRUD(BaseOperation):
         try:
             self.session.add(new_task)
             self.session.commit()
-            return new_task.id
         except Exception as e:
             self.session.rollback()
             raise e
+
+        self.bulk_add_filter_rules(task_pk=new_task.id, bulk_rules=PreprocessWorker.read_csv_file(filepath))
 
     def get_task(self, task_pk: int):
         return self.session.query(self.filter_rule_task).get(task_pk)
@@ -40,7 +43,10 @@ class PreprocessCRUD(BaseOperation):
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            raise ValueError(f"Cannot update the task {task_pk} since {e}")
+            err_msg = f"Cannot update the task {task_pk} since {e}"
+            current_task.error_message = err_msg
+            self.session.commit()
+            raise ValueError(err_msg)
 
     def delete_task(self, task_pk: int):
         current_task = self.get_task(task_pk)
@@ -51,7 +57,10 @@ class PreprocessCRUD(BaseOperation):
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            raise ValueError(f"Cannot delete task {task_pk} since {e}")
+            err_msg = f"Cannot update the task {task_pk} since {e}"
+            current_task.error_message = err_msg
+            self.session.commit()
+            raise ValueError(err_msg)
 
     def create_filter_rule(self, task_pk: int, content: str, rule_type: str, label: str, match_type: str):
         new_rule = self.filter_rules(
@@ -98,12 +107,11 @@ class PreprocessCRUD(BaseOperation):
             raise ValueError(f"Cannot delete filter rule {rule_pk} since {e}")
 
     def bulk_add_filter_rules(self, task_pk: int, bulk_rules: List[dict]):
-
+        current_task = self.get_task(task_pk)
         try:
-            current_task = self.get_task(task_pk)
-            rule_set = current_task.filter_rules_collection
-            rule_set.delete()
-            self.session.commit()
+            if rule_set := current_task.filter_rules_collection:
+                rule_set.delete()
+                self.session.commit()
 
             output_list = []
             for br in bulk_rules:
@@ -118,7 +126,10 @@ class PreprocessCRUD(BaseOperation):
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            raise ValueError(f'Cannot bulk add filter rules since {e}')
+            err_msg = f'Cannot bulk add filter rules since {e}'
+            current_task.error_message = err_msg
+            self.session.commit()
+            raise ValueError(err_msg)
 
     def get_filter_rules_set(self, task_pk: int):
         current_task = self.get_task(task_pk)

@@ -61,7 +61,7 @@ def preprocess_example(examples: Dict, sample_count: int = None, shuffle: bool =
 
 
 def get_term_weights_from_file(task_id: str,
-                             term_weight_list: List[dict]) -> List[TermWeights]:
+                               term_weight_list: List[dict]) -> List[TermWeights]:
     output_list = []
     for term_weight in term_weight_list:
         output_list.append(
@@ -84,7 +84,6 @@ def get_term_weights_objects(task_id: str,
             term_weight_list.append(TermWeights(label=label, term=term, weight=weight, task_id=task_id))
 
     return term_weight_list
-
 
 
 def read_csv_to_dict(file_path: Path) -> Dict:

@@ -12,27 +12,34 @@ from workers.orm_core.preprocess_operation import PreprocessCRUD
 
 
 class DataFilterWorker:
-    def __init__(self, filter_task_id: int, dataset: List[InputExample]):
-        self.dataset = dataset
+    def __init__(self, filter_task_id: int):
         self.orm = PreprocessCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
         self.task = self.orm.get_task(task_pk=filter_task_id)
         self.model = self.get_model()
 
-    def run_task(self):
+    def __str__(self):
+        return f'task: {self.task.id}\nmodel: {self.model.name}'
+
+    def run_task(self, dataset: List[InputExample]):
         output_list = []
 
-        if self.task.name in FilterRuleLabel.DELETE:
-            for data in self.dataset:
-                if self.check_data_delete:
-                    continue
-                output_list.append(data)
-        elif self.task.name in FilterRuleLabel.ALTER:
-            for data in self.dataset:
-                output_list.append(self.check_data_alter(data))
-        else:
-            raise ValueError(f'{self.task.name} is a unknown task')
+        try:
+            if self.task.name in FilterRuleLabel.DELETE:
+                for data in dataset:
+                    if self.check_data_delete:
+                        continue
+                    output_list.append(data)
+            elif self.task.name in FilterRuleLabel.ALTER:
+                for data in dataset:
+                    output_list.append(self.check_data_alter(data))
+            else:
+                raise ValueError(f'{self.task.name} is a unknown task')
 
-        return output_list
+            return output_list
+        except Exception as e:
+            raise e
+        finally:
+            self.orm.dispose()
 
     def check_data_alter(self, row_data: InputExample):
         label, prob = self.model.predict([row_data])
@@ -41,10 +48,10 @@ class DataFilterWorker:
             return row_data
 
         for i in prob[0]:
-            if self.task.model_name == ModelType.REGEX_MODEL.name:
-                row_data = alter(row_data, sub_list=i[1])
-            if self.task.model_name == ModelType.KEYWORD_MODEL.name:
-                row_data = alter(row_data, sub_list=[j[0] for j in itertools.chain(*i[1])])
+            if self.task.model_name.upper() == ModelType.REGEX_MODEL.name:
+                row_data = self.alter(row_data, sub_list=i[1])
+            if self.task.model_name.upper() == ModelType.KEYWORD_MODEL.name:
+                row_data = self.alter(row_data, sub_list=[j[0] for j in itertools.chain(*i[1])])
 
         return row_data
 
@@ -91,6 +98,3 @@ def load_pattern(rule_set, model_type):
         else:
             raise ValueError(f"{rule.rule_type} is not a proper rule type for the task")
     return rules_dict
-
-
-
