@@ -805,6 +805,10 @@ TERM_WEIGHT_FIELDS_MAPPING = {
 
 SAVE_DETAIL_EXTENSION = {'csv'}
 
+MATCH_TYPE_DICT = {'比對開頭': 'start',
+                   '比對結尾': 'end',
+                   '完全一致': 'exactly',
+                   '部分吻合': 'partially'}
 
 # ==============================
 #          Application
@@ -843,7 +847,7 @@ class TableName:
     rules = 'rules'
     upload_model = 'upload_model'
     eval_details = 'eval_details'
-    filter_rules = 'filter_rules'
+    filter_rule = 'filter_rule'
     filter_rule_task = 'filter_rule_task'
 
 

@@ -10,12 +10,12 @@ from workers.preprocessing.preprocess_core import PreprocessWorker
 class PreprocessCRUD(BaseOperation):
     def __init__(self, connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO, auto_flush=False, echo=False, **kwargs):
         super().__init__(connection_info=connection_info, auto_flush=auto_flush, echo=echo, **kwargs)
-        self.filter_rules = self.table_cls_dict.get(TableName.filter_rules)
+        self.filter_rules = self.table_cls_dict.get(TableName.filter_rule)
         self.filter_rule_task = self.table_cls_dict.get(TableName.filter_rule_task)
 
     def create_task(self, name, feature, model_name, create_time, filepath):
         new_task = self.filter_rule_task(
-            name=name,
+            label=name,
             feature=feature,
             model_name=model_name,
             create_time=create_time
@@ -27,7 +27,7 @@ class PreprocessCRUD(BaseOperation):
             self.session.rollback()
             raise e
 
-        self.bulk_add_filter_rules(task_pk=new_task.id, bulk_rules=PreprocessWorker.read_csv_file(filepath))
+        self.bulk_add_filter_rules(task_pk=new_task.task_id, bulk_rules=PreprocessWorker.read_csv_file(filepath))
 
     def get_task(self, task_pk: int):
         return self.session.query(self.filter_rule_task).get(task_pk)
@@ -38,8 +38,8 @@ class PreprocessCRUD(BaseOperation):
             raise DataMissingError(f"There is no data retrieve")
         try:
             for k, v in kwargs.items():
-                if hasattr(current_task, str(k)):
-                    setattr(current_task, str(k), v)
+                if hasattr(current_task, str(k.lower())):
+                    setattr(current_task, str(k.lower()), v)
             self.session.commit()
         except Exception as e:
             self.session.rollback()
@@ -109,13 +109,13 @@ class PreprocessCRUD(BaseOperation):
     def bulk_add_filter_rules(self, task_pk: int, bulk_rules: List[dict]):
         current_task = self.get_task(task_pk)
         try:
-            if rule_set := current_task.filter_rules_collection:
-                rule_set.delete()
-                self.session.commit()
+            # if rule_set := current_task.filter_rules_collection:
+            #     rule_set.delete()
+            #     self.session.commit()
 
             output_list = []
             for br in bulk_rules:
-                output_list.append(self.filter_rules(
+                output_list.append(FilterRules(
                     content=br['content'],
                     rule_type=br['rule_type'],
                     label=br['label'],
@@ -134,3 +134,5 @@ class PreprocessCRUD(BaseOperation):
     def get_filter_rules_set(self, task_pk: int):
         current_task = self.get_task(task_pk)
         return current_task.filter_rules_collection
+
+

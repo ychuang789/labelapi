@@ -87,3 +87,6 @@ class KeywordMatchType:
 class FilterRuleLabel:
     DELETE = {'delete', 'DELETE', '刪除'}
     ALTER = {'alter', 'ALTER', '修改'}
+
+
+

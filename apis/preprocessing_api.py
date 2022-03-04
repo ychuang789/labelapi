@@ -1,12 +1,13 @@
 import os
+from datetime import datetime
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Form
 
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from apis.input_class.preprocessing_input import PreprocessTaskCreate, PreprocessTaskDelete, PreprocessTaskUpdate
+from apis.input_class.preprocessing_input import PreprocessTaskDelete, PreprocessTaskUpdate
 from definition import PREPROCESS_FOLDER
 from workers.orm_core.preprocess_operation import PreprocessCRUD
 from workers.preprocessing.preprocess_core import PreprocessWorker
@@ -19,13 +20,14 @@ router = APIRouter(prefix='/preprocess',
 
 
 @router.post('/create_task/', description='create preprocess task')
-def create_task(body: PreprocessTaskCreate, file: UploadFile = File(...)):
+def create_task(name: str = Form(...), feature: str = Form("CONTENT"),
+                model_name: str = Form("REGEX_MODEL"), file: UploadFile = File(...)):
     upload_filepath = os.path.join(PREPROCESS_FOLDER, file.filename)
     worker = PreprocessCRUD()
     try:
         with open(upload_filepath, 'wb+') as file_object:
             file_object.write(file.file.read())
-        worker.create_task(body.NAME, body.FEATURE, body.MODEL_NAME, body.CREATE_TIME, upload_filepath)
+        worker.create_task(name, feature, model_name, datetime.now(), upload_filepath)
         err_msg = f"successfully create task"
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_msg))
     except Exception as e:

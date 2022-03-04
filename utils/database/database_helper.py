@@ -93,6 +93,7 @@ def drop_table(table_name: str, schema=None):
         cursor = connection.cursor()
         cursor.execute(drop_sql)
         cursor.close()
+        print('OK')
     except Exception as e:
         raise e
     finally:

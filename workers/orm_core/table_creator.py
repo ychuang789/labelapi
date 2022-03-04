@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Column, String, Integer, ForeignKey, Float, TEXT, Table
+from sqlalchemy import DateTime, Column, String, Integer, ForeignKey, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -234,27 +234,18 @@ class UploadModel(Base):
     def __repr__(self):
         return f"UploadModel({self.file}, {self.status}, {self.create_time}, {self.task_id})"
 
-#
-# association_table = Table('association',
-#                           Base.metadata,
-#                           Column(f'{TableName.filter_rule_task}_id', ForeignKey(f'{TableName.filter_rule_task}.id'),
-#                                  primary_key=True),
-#                           Column(f'{TableName.filter_rules}_id', ForeignKey(f'{TableName.filter_rules}.id'),
-#                                  primary_key=True)
-#                           )
-
 
 class FilterRuleTask(Base):
     __tablename__ = TableName.filter_rule_task
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(Integer, primary_key=True, autoincrement=True)
     label = Column(String(32))
     create_time = Column(DateTime, nullable=False)
     feature = Column(String(32), nullable=False)
     model_name = Column(String(100), nullable=False)
     error_message = Column(LONGTEXT, nullable=True)
-    rules = relationship(
+    filter_rule = relationship(
         "FilterRules",
-        backref=TableName.filter_rule_task,
+        backref="filter_rule_task",
         cascade="all, delete",
         passive_deletes=True)
 
@@ -270,13 +261,13 @@ class FilterRuleTask(Base):
 
 
 class FilterRules(Base):
-    __tablename__ = TableName.filter_rules
+    __tablename__ = TableName.filter_rule
     id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(String(200), nullable=False)
     rule_type = Column(String(20), nullable=False)
     label = Column(String(100), nullable=False)
     match_type = Column(String(20), nullable=False)
-    task_id = Column(Integer, ForeignKey(f"{TableName.filter_rule_task}.id", ondelete="CASCADE"))
+    task_id = Column(Integer, ForeignKey('filter_rule_task.task_id', ondelete="CASCADE"))
 
     def __init__(self, content, rule_type, label, match_type, task_id):
         self.content = content

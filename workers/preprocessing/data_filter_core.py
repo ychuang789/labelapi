@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 from typing import List
 
-from settings import DatabaseConfig, MODEL_INFORMATION
+from settings import DatabaseConfig, MODEL_INFORMATION, MATCH_TYPE_DICT
 from utils.data.input_example import InputExample
 from utils.enum_config import ModelType, FilterRuleLabel
 from utils.exception_manager import ModelTypeNotFoundError
@@ -24,16 +24,16 @@ class DataFilterWorker:
         output_list = []
 
         try:
-            if self.task.name in FilterRuleLabel.DELETE:
+            if self.task.label in FilterRuleLabel.DELETE:
                 for data in dataset:
-                    if self.check_data_delete:
+                    if self.check_data_delete(data):
                         continue
                     output_list.append(data)
-            elif self.task.name in FilterRuleLabel.ALTER:
+            elif self.task.label in FilterRuleLabel.ALTER:
                 for data in dataset:
                     output_list.append(self.check_data_alter(data))
             else:
-                raise ValueError(f'{self.task.name} is a unknown task')
+                raise ValueError(f'{self.task.label} is a unknown task')
 
             return output_list
         except Exception as e:
@@ -70,9 +70,9 @@ class DataFilterWorker:
             return False
 
     def get_model(self):
-        temp_rule_set = self.task.filter_rules_collection
+        temp_rule_set = self.task.filter_rule_collection
         model_class, _ = get_model_class(task=self.task)
-        model = model_class(feature=self.task.feature,
+        model = model_class(feature=self.task.feature.lower(),
                             patterns=load_pattern(rule_set=temp_rule_set,
                                                   model_type=self.task.model_name))
         return model
@@ -94,7 +94,14 @@ def load_pattern(rule_set, model_type):
         if model_type == ModelType.REGEX_MODEL.name:
             rules_dict[rule.label].append(str(rule.content))
         elif model_type == ModelType.KEYWORD_MODEL.name:
-            rules_dict[rule.label].append((rule.content, rule.match_type))
+            rules_dict[rule.label].append((rule.content, match_type_convert(rule.match_type)))
         else:
             raise ValueError(f"{rule.rule_type} is not a proper rule type for the task")
     return rules_dict
+
+
+def match_type_convert(input_match_type):
+    if match_type := MATCH_TYPE_DICT.get(input_match_type):
+        return match_type
+    else:
+        raise ValueError(f"{input_match_type} is not a proper match type")
