@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest import TestCase
 
 from utils.data.input_example import InputExample
-from workers.preprocessing.data_filter_core import DataFilterWorker
+from workers.preprocessing.data_filter_builder import DataFilterBuilder
 
 fake_data_list = [
     '我老婆的pixel 6 pro 跟我自己的lg v60 也是一樣，<BR>都是配對三星手錶active2 , line 通話時螢幕不會自動變暗。<BR>直到看了樓上的回文，<BR>把手錶語音通話功能關閉後就恢復正常了。<BR>(拿到耳邊通話時螢幕自動變暗)感謝大家幫我解決了一個困擾的問題。',
@@ -14,9 +14,8 @@ fake_data_list = [
     '各位學長姐真的是滿足了我對大學生活的想像...']
 
 
-class TestDataFilter(TestCase):
-
-    task_id = 1
+class TestDataFilterBuilder(TestCase):
+    """Test the data filter func"""
     fake_data_input = [InputExample(id_="",
                                     s_area_id="",
                                     author="",
@@ -26,10 +25,18 @@ class TestDataFilter(TestCase):
                        for i in fake_data_list]
 
     def setUp(self):
-        self.worker = DataFilterWorker(filter_task_id=self.task_id)
+        self.builder = DataFilterBuilder()
+        self.id_list = [1]
         self.dataset = self.fake_data_input
 
-    def test_run_task(self):
-        output_list = self.worker.run_task(self.fake_data_input)
-        self.assertNotEqual(len(output_list), len(self.fake_data_input))
+    def test_get_task_instance(self):
+        task_list = self.builder.get_task_instance(self.id_list)
+        self.assertIsNotNone(task_list)
+
+    def test_method_chain(self):
+        output_list = self.builder.method_chain(self.dataset, self.builder.get_task_instance(self.id_list))
+        self.assertNotEqual(len(output_list), len(fake_data_list))
         self.assertNotEqual(len(output_list), 0)
+
+
+

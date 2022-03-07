@@ -1,6 +1,6 @@
 from typing import List
 
-from settings import DatabaseConfig, TableName
+from settings import DatabaseConfig, TableName, MATCH_TYPE_DICT
 from utils.exception_manager import DataMissingError
 from workers.orm_core.base_operation import BaseOperation
 from workers.orm_core.table_creator import FilterRules
@@ -109,9 +109,9 @@ class PreprocessCRUD(BaseOperation):
     def bulk_add_filter_rules(self, task_pk: int, bulk_rules: List[dict]):
         current_task = self.get_task(task_pk)
         try:
-            # if rule_set := current_task.filter_rules_collection:
-            #     rule_set.delete()
-            #     self.session.commit()
+            if current_task.filter_rule_collection:
+                self.session.query(self.filter_rules).filter(self.filter_rules.task_id == task_pk).delete()
+                self.session.commit()
 
             output_list = []
             for br in bulk_rules:
@@ -119,7 +119,7 @@ class PreprocessCRUD(BaseOperation):
                     content=br['content'],
                     rule_type=br['rule_type'],
                     label=br['label'],
-                    match_type=br['match_type'],
+                    match_type=MATCH_TYPE_DICT.get(br['match_type'], br['match_type']),
                     task_id=task_pk
                 ))
             self.session.bulk_save_objects(output_list)
@@ -133,6 +133,6 @@ class PreprocessCRUD(BaseOperation):
 
     def get_filter_rules_set(self, task_pk: int):
         current_task = self.get_task(task_pk)
-        return current_task.filter_rules_collection
+        return current_task.filter_rule_collection
 
 

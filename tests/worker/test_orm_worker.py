@@ -2,9 +2,10 @@ from unittest import TestCase
 
 from settings import DatabaseConfig
 from workers.orm_core.model_operation import ModelingCRUD
+from workers.orm_core.preprocess_operation import PreprocessCRUD
 
 
-class TestModelORMWorker(TestCase):
+class TestModelingCRUD(TestCase):
     conn = DatabaseConfig.OUTPUT_ENGINE_INFO
     task_id = 'e9c9c8898d6711eca20004ea56825bad'
 
@@ -26,3 +27,18 @@ class TestModelORMWorker(TestCase):
     def test_dispose(self):
         self.orm_cls.dispose()
 
+
+class TestPreprocessCRUD(TestCase):
+    conn = DatabaseConfig.OUTPUT_ENGINE_INFO
+    task_id = 1
+
+    def setUp(self) -> None:
+        self.orm_cls = PreprocessCRUD(connection_info=self.conn)
+
+    def test_get_task(self):
+        result = self.orm_cls.get_task(self.task_id)
+        self.assertIsNotNone(result)
+
+    def test_get_filter_rules_set(self):
+        result = self.orm_cls.get_filter_rules_set(self.task_id)
+        self.assertIsNotNone(result)
