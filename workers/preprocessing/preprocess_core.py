@@ -6,12 +6,13 @@ from typing import Dict, List, Any, Union, Iterator, Tuple
 
 import pandas as pd
 
-from settings import LOCAL_TEST
+from settings import LOCAL_TEST, DATA_FILTER_TASK_ID_LIST
 from utils.data.input_example import InputExample
 from utils.database.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
 from utils.exception_manager import DataNotFoundError
 from utils.enum_config import DatasetType, RuleType
 from workers.orm_core.table_creator import Rules
+from workers.preprocessing.data_filter_builder import DataFilterBuilder, model_dataset_cleaning
 
 
 class PreprocessWorker:
@@ -106,10 +107,10 @@ class PreprocessWorker:
             raise TypeError(f"Expect input data type as str or list, "
                             f"got {type(data)} instead")
 
-        return self.preprocess_example(examples=examples, sample_count=sample_count, shuffle=shuffle)
+        # return self.preprocess_example(examples=examples, sample_count=sample_count, shuffle=shuffle)
+        return self.preprocess_example(examples=model_dataset_cleaning(examples), sample_count=sample_count, shuffle=shuffle)
 
-    def preprocess_example(self, examples: dict, sample_count: int = None, shuffle: bool = True) -> Iterator[
-        InputExample]:
+    def preprocess_example(self, examples: dict, sample_count: int = None, shuffle: bool = True) -> Iterator[InputExample]:
         dataset = []
         for label, rows in examples.items():
             if sample_count and len(rows) >= sample_count:
@@ -132,36 +133,6 @@ class PreprocessWorker:
             return DBConnection.execute_query(query=QueryManager.get_rule_query(labeling_job_id=self.dataset_number),
                                               **ConnectionConfigGenerator.rd2_database(schema=self.dataset_schema))
 
-    # @staticmethod
-    # def read_csv_file(file, required_fields):
-    # f = open(file, "r")
-    # delimiters = [',', '\t']
-    # # encoding = cchardet.detect(file.read())['encoding']
-    # encoding = cchardet.detect(f.read())['encoding']
-    # file.seek(0)
-    # csv_file = header = exist_field = None
-    # for delimiter in delimiters:
-    #     csv_file = csv.DictReader(codecs.iterdecode(file, encoding), skipinitialspace=True,
-    #                               delimiter=delimiter,
-    #                               quoting=csv.QUOTE_ALL)
-    #     header = csv_file.fieldnames
-    #     print(header)
-    #     if isinstance(required_fields, dict):
-    #         if len(set(required_fields.keys()).intersection(header)) > 0:
-    #             exist_field = set(required_fields.keys()).intersection(header)
-    #             break
-    #         elif len(set(required_fields.values()).intersection(header)) > 0:
-    #             exist_field = set(required_fields.values()).intersection(header)
-    #             break
-    #     else:
-    #         if len(set(required_fields).intersection(header)) > 0:
-    #             exist_field = set(required_fields).intersection(header)
-    #             break
-    # if csv_file is None or exist_field is None:
-    #     raise ValueError(f"csv欄位讀取錯誤，請確認所使用的欄位分隔符號是否屬於於「{' or '.join(delimiters)}」其中一種。")
-
-    # return csv_file
-
     @staticmethod
     def read_csv_file(filepath):
         with open(filepath, 'r') as f:
@@ -177,6 +148,5 @@ class PreprocessWorker:
 
         return output_dict
 
-    # TODO: ADD content preprocessing method
 
-    # TODO: Add content deletion method
+

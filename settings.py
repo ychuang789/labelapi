@@ -785,6 +785,12 @@ DUMP_COLUMNS = ('source_author', 'panel', 'create_time')
 SITE_SCHEMA = 'audience-toolkit-django'
 
 # ==============================
+#          Preprocess
+# ==============================
+
+DATA_FILTER_TASK_ID_LIST = [1] if os.getenv("DATAFILTER") else None
+
+# ==============================
 #            Model
 # ==============================
 

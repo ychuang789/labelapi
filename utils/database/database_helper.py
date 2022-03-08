@@ -1,14 +1,16 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import pymysql
 import pandas as pd
 from retry import retry
 
+from utils.data.input_example import InputExample
 from utils.enum_config import PredictTarget
 from utils.general_helper import get_logger
 from settings import DatabaseConfig
+from workers.preprocessing.data_filter_builder import execute_data_filter
 
 
 @retry(tries=5, delay=3)
@@ -145,7 +147,7 @@ def get_batch_by_timedelta(schema, predict_type, table,
                 query = get_timedelta_query(predict_type, table, begin_date, start_date_interval)
                 cursor.execute(query)
                 # TODO: Add preprocessing module here to filter the input data set
-                result = to_dataframe(cursor.fetchall())
+                result = to_dataframe(execute_data_filter(cursor.fetchall()))
                 yield result, begin_date
                 begin_date += interval
                 cursor.close()
@@ -153,6 +155,9 @@ def get_batch_by_timedelta(schema, predict_type, table,
                 # yield e, begin_date
                 connection.close()
                 raise e
+
+
+
 
 
 # some tools

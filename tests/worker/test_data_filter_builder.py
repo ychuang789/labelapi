@@ -34,7 +34,7 @@ class TestDataFilterBuilder(TestCase):
         self.assertIsNotNone(task_list)
 
     def test_method_chain(self):
-        output_list = self.builder.method_chain(self.dataset, self.builder.get_task_instance(self.id_list))
+        output_list = self.builder.data_filter_method_chain(self.dataset, self.builder.get_task_instance(self.id_list))
         self.assertNotEqual(len(output_list), len(fake_data_list))
         self.assertNotEqual(len(output_list), 0)
 
