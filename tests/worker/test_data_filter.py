@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest import TestCase
 
 from utils.data.input_example import InputExample
-from workers.preprocessing.data_filter_core import DataFilterWorker
+from workers.data_filter.data_filter_core import DataFilterWorker
 
 fake_data_list = [
     '我老婆的pixel 6 pro 跟我自己的lg v60 也是一樣，<BR>都是配對三星手錶active2 , line 通話時螢幕不會自動變暗。<BR>直到看了樓上的回文，<BR>把手錶語音通話功能關閉後就恢復正常了。<BR>(拿到耳邊通話時螢幕自動變暗)感謝大家幫我解決了一個困擾的問題。',

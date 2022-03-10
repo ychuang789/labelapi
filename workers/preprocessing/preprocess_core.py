@@ -6,13 +6,13 @@ from typing import Dict, List, Any, Union, Iterator, Tuple
 
 import pandas as pd
 
-from settings import LOCAL_TEST, DATA_FILTER_TASK_ID_LIST
+from settings import LOCAL_TEST
 from utils.data.input_example import InputExample
 from utils.database.connection_helper import DBConnection, ConnectionConfigGenerator, QueryManager
 from utils.exception_manager import DataNotFoundError
 from utils.enum_config import DatasetType, RuleType
 from workers.orm_core.table_creator import Rules
-from workers.preprocessing.data_filter_builder import DataFilterBuilder, model_dataset_cleaning
+from workers import data_filter_builder
 
 
 class PreprocessWorker:
@@ -108,9 +108,11 @@ class PreprocessWorker:
                             f"got {type(data)} instead")
 
         # return self.preprocess_example(examples=examples, sample_count=sample_count, shuffle=shuffle)
-        return self.preprocess_example(examples=model_dataset_cleaning(examples), sample_count=sample_count, shuffle=shuffle)
+        return self.preprocess_example(examples=data_filter_builder.model_dataset_cleaning(examples),
+                                       sample_count=sample_count, shuffle=shuffle)
 
-    def preprocess_example(self, examples: dict, sample_count: int = None, shuffle: bool = True) -> Iterator[InputExample]:
+    def preprocess_example(self, examples: dict, sample_count: int = None, shuffle: bool = True) -> Iterator[
+        InputExample]:
         dataset = []
         for label, rows in examples.items():
             if sample_count and len(rows) >= sample_count:
@@ -147,6 +149,3 @@ class PreprocessWorker:
             output_dict[term_weight['label']].append((term_weight['term'], term_weight['weight']))
 
         return output_dict
-
-
-

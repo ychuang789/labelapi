@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from settings import DATA_FILTER_TASK_ID_LIST
 from utils.data.input_example import InputExample
-from workers.preprocessing.data_filter_core import DataFilterWorker
+from workers.data_filter.data_filter_core import DataFilterWorker
 
 
 class DataFilterBuilder:

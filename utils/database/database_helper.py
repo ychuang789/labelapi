@@ -1,16 +1,14 @@
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 import pymysql
 import pandas as pd
 from retry import retry
 
-from utils.data.input_example import InputExample
-from utils.enum_config import PredictTarget
 from utils.general_helper import get_logger
 from settings import DatabaseConfig
-from workers.preprocessing.data_filter_builder import execute_data_filter
+from workers.data_filter_builder import execute_data_filter
 
 
 @retry(tries=5, delay=3)

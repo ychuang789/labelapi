@@ -71,7 +71,7 @@ def delete_task(body: PreprocessTaskDelete):
         worker.dispose()
 
 
-@router.post('/{task_id}/update_task/', description='update the task information')
+@router.post('/{task_id}/update_task', description='update the task information')
 def update_task(task_id, body: PreprocessTaskUpdate):
     worker = PreprocessCRUD()
     try:
