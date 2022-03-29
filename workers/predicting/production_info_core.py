@@ -3,7 +3,7 @@ from typing import Dict
 from settings import TableName
 from utils.general_helper import get_logger
 from utils.enum_config import PredictTaskStatus
-from workers.orm_core.model_operation import ModelingCRUD
+from workers.orm_core.predict_operation import PredictingCRUD
 
 
 class TaskInfo(object):
@@ -13,9 +13,9 @@ class TaskInfo(object):
         self.table = table
         self.row_count = row_count
         self.logger = logger
-        self.orm_cls = orm_cls if orm_cls else ModelingCRUD()
+        self.orm_cls = orm_cls if orm_cls else PredictingCRUD()
         self.state = self.orm_cls.table_cls_dict.get(TableName.state)
-        self.result = self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).first()
+        self.result = self.orm_cls.session.query(self.state).get(self.task_id)
 
     def generate_output(self):
 
@@ -47,7 +47,6 @@ class TaskInfo(object):
         else:
             new_length_prod_table = str(self.row_count)
 
-
         _task_info_statement = {
             self.state.prod_stat : PredictTaskStatus.PROD_SUCCESS.value,
             self.state.length_prod_table: new_length_prod_table,
@@ -61,20 +60,17 @@ class TaskInfo(object):
         self.orm_cls.session.query(self.state).filter(self.state.task_id == self.task_id).update(kwargs)
         self.orm_cls.session.commit()
 
-
     def get_source_distinct_count(self):
-
-        output = {c.label: getattr(self.result, c.label, None)
+        output = {c.name: getattr(self.result, c.name, None)
                   for c in self.result.__table__.columns
-                  if c.label in ['result', 'uniq_source_author']}
+                  if c.name in ['result', 'uniq_source_author']}
         return output
-
 
     def _check_state_result_for_task_info(self):
 
-        output = {c.label: getattr(self.result, c.label, None)
+        output = {c.name: getattr(self.result, c.name, None)
                   for c in self.result.__table__.columns
-                  if c.label in ['result', 'rate_of_label']}
+                  if c.name in ['result', 'rate_of_label']}
 
         if ',' in output.get('result'):
             return output.get('rate_of_label')
@@ -83,9 +79,9 @@ class TaskInfo(object):
 
     def _check_state_prod_length_for_task_info(self):
 
-        output = {c.label: getattr(self.result, c.label, None)
+        output = {c.name: getattr(self.result, c.name, None)
                   for c in self.result.__table__.columns
-                  if c.label in ['result', 'length_prod_table']}
+                  if c.name in ['result', 'length_prod_table']}
 
         if ',' in output.get('result'):
             return output.get('length_prod_table')

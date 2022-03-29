@@ -23,7 +23,9 @@ class DataFilterBuilder:
 
 
 def model_dataset_cleaning(dataset_dict, data_filter_id: List[int] = None) -> Dict[str, List[InputExample]]:
-    data_filter_id = data_filter_id if data_filter_id else DATA_FILTER_TASK_ID_LIST
+
+    data_filter_id = data_filter_id if data_filter_id else DATA_FILTER_TASK_ID_LIST.get("ALL", None)
+
     if not data_filter_id:
         return dataset_dict
 
@@ -53,7 +55,8 @@ def input_examples_convert(fetch_dict_list: List[dict]) -> List[InputExample]:
 
 
 def execute_data_filter(dataset: List[dict], data_filter_id: List[int] = None):
-    data_filter_id = data_filter_id if data_filter_id else DATA_FILTER_TASK_ID_LIST
+    data_filter_id = data_filter_id if data_filter_id else DATA_FILTER_TASK_ID_LIST.get("ALL", None)
+
     if not data_filter_id:
         return dataset
 

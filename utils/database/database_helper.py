@@ -6,6 +6,7 @@ import pymysql
 import pandas as pd
 from retry import retry
 
+from utils.enum_config import ModelType
 from utils.general_helper import get_logger
 from settings import DatabaseConfig
 from workers.data_filter_builder import execute_data_filter
@@ -145,7 +146,10 @@ def get_batch_by_timedelta(schema, predict_type, table,
                 query = get_timedelta_query(predict_type, table, begin_date, start_date_interval)
                 cursor.execute(query)
                 # TODO: Add preprocessing module here to filter the input data set
-                result = to_dataframe(execute_data_filter(cursor.fetchall()))
+                # result = to_dataframe(cursor.fetchall())
+                data = cursor.fetchall()
+                # result = to_dataframe(data)
+                result = to_dataframe(execute_data_filter(dataset=data))
                 yield result, begin_date
                 begin_date += interval
                 cursor.close()

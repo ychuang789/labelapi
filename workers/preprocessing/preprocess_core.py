@@ -17,9 +17,10 @@ from workers import data_filter_builder
 
 class PreprocessWorker:
 
-    def __init__(self, dataset_number, dataset_schema):
+    def __init__(self, dataset_number, dataset_schema, model_type = None):
         self.dataset_number = dataset_number
         self.dataset_schema = dataset_schema
+        self.model_type = model_type
 
     def __str__(self):
         return f"the class for data preprocessing"

@@ -57,7 +57,7 @@ class DataFilterWorker:
 
     def alter(self, row_data, sub_list):
         for s in sub_list:
-            temp_data = re.sub(s, "", getattr(row_data, self.task.feature))
+            temp_data = re.sub(s, "", getattr(row_data, self.task.feature.lower()))
             setattr(row_data, self.task.feature, temp_data)
         return row_data
 
@@ -94,14 +94,15 @@ def load_pattern(rule_set, model_type):
         if model_type == ModelType.REGEX_MODEL.name:
             rules_dict[rule.label].append(str(rule.content))
         elif model_type == ModelType.KEYWORD_MODEL.name:
-            rules_dict[rule.label].append((rule.content, match_type_convert(rule.match_type)))
+            rules_dict[rule.label].append((rule.content, rule.match_type))
+            # rules_dict[rule.label].append((rule.content, match_type_convert(rule.match_type)))
         else:
             raise ValueError(f"{rule.rule_type} is not a proper rule type for the task")
     return rules_dict
 
 
-def match_type_convert(input_match_type):
-    if match_type := MATCH_TYPE_DICT.get(input_match_type):
-        return match_type
-    else:
-        raise ValueError(f"{input_match_type} is not a proper match type")
+# def match_type_convert(input_match_type):
+#     if match_type := MATCH_TYPE_DICT.get(input_match_type):
+#         return match_type
+#     else:
+#         raise ValueError(f"{input_match_type} is not a proper match type")

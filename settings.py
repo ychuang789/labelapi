@@ -788,7 +788,11 @@ SITE_SCHEMA = 'audience-toolkit-django'
 #          Preprocess
 # ==============================
 
-DATA_FILTER_TASK_ID_LIST = [1] if os.getenv("DATAFILTER") else None
+DATA_FILTER_TASK_ID_LIST = {
+    "REGEX_MODEL": [2,3],
+    "KEYWORD_MODEL": [4,5],
+    "ALL": [2,3,4,5]
+}
 
 # ==============================
 #            Model
