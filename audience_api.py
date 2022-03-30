@@ -1,4 +1,3 @@
-import preprocess as preprocess
 import uvicorn
 from fastapi import FastAPI, status
 from fastapi.encoders import jsonable_encoder
