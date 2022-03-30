@@ -154,7 +154,7 @@ def get_batch_by_timedelta(schema, predict_type, table,
                 begin_date += interval
                 cursor.close()
             except Exception as e:
-                # yield e, begin_date
+                yield e, begin_date
                 connection.close()
                 raise e
 
