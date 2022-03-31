@@ -92,7 +92,7 @@ class PredictWorker:
                     self.state.error_message: element
                 }
                 self._update_state(change_status)
-                raise
+                raise ValueError(element)
 
             if not self.break_checker():
                 return
