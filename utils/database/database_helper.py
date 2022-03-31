@@ -159,9 +159,6 @@ def get_batch_by_timedelta(schema, predict_type, table,
                 raise e
 
 
-
-
-
 # some tools
 def add_column(schema, table, col_name, col_type, **kwargs):
     if kwargs:

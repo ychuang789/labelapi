@@ -8,19 +8,22 @@ from settings import DatabaseConfig, MODEL_INFORMATION, MATCH_TYPE_DICT
 from utils.data.input_example import InputExample
 from utils.enum_config import ModelType, FilterRuleLabel
 from utils.exception_manager import ModelTypeNotFoundError
-from workers.orm_core.preprocess_operation import PreprocessCRUD
+from utils.general_helper import get_logger
+from workers.orm_core import preprocess_operation
 
 
 class DataFilterWorker:
     def __init__(self, filter_task_id: int):
-        self.orm = PreprocessCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
+        self.orm = preprocess_operation.PreprocessCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
         self.task = self.orm.get_task(task_pk=filter_task_id)
         self.model = self.get_model()
+        # self.logger = get_logger("debug")
 
     def __str__(self):
         return f'task: {self.task.id}\nmodel: {self.model.name}'
 
     def run_task(self, dataset: List[InputExample]):
+
         output_list = []
 
         try:
@@ -43,7 +46,7 @@ class DataFilterWorker:
 
     def check_data_alter(self, row_data: InputExample):
         label, prob = self.model.predict([row_data])
-
+        # self.logger.info(f"{label}-{prob}")
         if not label:
             return row_data
 
@@ -57,8 +60,10 @@ class DataFilterWorker:
 
     def alter(self, row_data, sub_list):
         for s in sub_list:
-            temp_data = re.sub(s, "", getattr(row_data, self.task.feature.lower()))
-            setattr(row_data, self.task.feature, temp_data)
+            # temp_data = re.sub(s, "", getattr(row_data, self.task.feature.lower())) # plz use re.escape(s) in replace of s or maybe it will fail
+            temp_data = getattr(row_data, self.task.feature.lower())
+            temp_data = temp_data.replace(s, "")
+            setattr(row_data, self.task.feature.lower(), temp_data)
         return row_data
 
     def check_data_delete(self, row_data: InputExample):
