@@ -133,18 +133,20 @@ def get_batch_by_timedelta(schema, predict_type, table,
                            begin_date: datetime, last_date: datetime,
                            interval: timedelta = timedelta(hours=6),
                            site_input: Optional[Dict] = None):
-    try:
-        connection = connect_database(schema=schema, site_input=site_input, connect_timeout=100)
-    except Exception as e:
-        return str(e), begin_date
 
     while begin_date <= last_date:
         if begin_date + interval > last_date:
-            connection.close()
+            # connection.close()
             break
         else:
+            try:
+                connection = connect_database(schema=schema, site_input=site_input, connect_timeout=30)
+            except Exception as e:
+                return str(e), begin_date
+
             start_date_interval = begin_date + interval
             try:
+                # connection = connect_database(schema=schema, site_input=site_input, connect_timeout=30)
                 cursor = connection.cursor()
                 query = get_timedelta_query(predict_type, table, begin_date, start_date_interval)
                 cursor.execute(query)
@@ -156,6 +158,7 @@ def get_batch_by_timedelta(schema, predict_type, table,
                 yield result, begin_date
                 begin_date += interval
                 cursor.close()
+                connection.close()
             except Exception as e:
                 yield str(e), begin_date
                 connection.close()
