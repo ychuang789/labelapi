@@ -12,7 +12,7 @@ from settings import DatabaseConfig
 from workers.data_filter_builder import execute_data_filter
 
 
-@retry(tries=5, delay=3)
+@retry(tries=5, delay=20)
 def connect_database(schema=None, output=False, site_input: Optional[Dict] = None, **kwargs):
     if site_input:
         _config = site_input
@@ -134,7 +134,7 @@ def get_batch_by_timedelta(schema, predict_type, table,
                            interval: timedelta = timedelta(hours=6),
                            site_input: Optional[Dict] = None):
     try:
-        connection = connect_database(schema=schema, site_input=site_input, connect_timeout=1000)
+        connection = connect_database(schema=schema, site_input=site_input, connect_timeout=100)
     except Exception as e:
         return str(e), begin_date
 
