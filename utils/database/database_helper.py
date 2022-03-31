@@ -12,7 +12,7 @@ from settings import DatabaseConfig
 from workers.data_filter_builder import execute_data_filter
 
 
-@retry(tries=5, delay=20)
+@retry(tries=5, delay=10)
 def connect_database(schema=None, output=False, site_input: Optional[Dict] = None, **kwargs):
     if site_input:
         _config = site_input
