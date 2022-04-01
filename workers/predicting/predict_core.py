@@ -43,7 +43,10 @@ class PredictWorker:
         if not self.break_checker():
             return
 
-        self.batch_process()
+        output = self.batch_process()
+
+        if output == "break":
+            return
 
         change_status = {
             self.state.stat: PredictTaskStatus.SUCCESS.value,
@@ -95,7 +98,7 @@ class PredictWorker:
                 raise element
 
             if not self.break_checker():
-                return
+                return "break"
 
             if element.empty:
                 continue
