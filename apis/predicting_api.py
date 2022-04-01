@@ -31,21 +31,20 @@ def create_task(body: TaskConfig):
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
 
     try:
-        task_id = uuid.uuid1().hex
+        # task_id = uuid.uuid1().hex
         label_data.apply_async(
             args=(
-                task_id, body.MODEL_ID_LIST, body.INPUT_SCHEMA,
+                body.TASK_ID, body.MODEL_ID_LIST, body.INPUT_SCHEMA,
                 body.INPUT_TABLE, body.START_TIME, body.END_TIME,
                 body.SITE_CONFIG,
             ),
             kwargs=kwargs,
-            task_id=task_id,
             queue=body.QUEUE
         )
 
         err_info = {
             "error_code": 200,
-            "error_message": task_id
+            "error_message": body.TASK_ID
         }
         return JSONResponse(status_code=status.HTTP_200_OK, content=jsonable_encoder(err_info))
     except Exception as e:

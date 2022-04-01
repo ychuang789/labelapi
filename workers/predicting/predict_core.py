@@ -85,14 +85,14 @@ class PredictWorker:
 
             element, date_checkpoint = elements
 
-            if isinstance(element, str):
+            if not isinstance(element, pd.DataFrame):
                 change_status = {
                     self.state.stat: PredictTaskStatus.FAILURE.value,
                     self.state.check_point: date_checkpoint,
                     self.state.error_message: element
                 }
                 self._update_state(change_status)
-                raise ValueError(element)
+                raise element
 
             if not self.break_checker():
                 return

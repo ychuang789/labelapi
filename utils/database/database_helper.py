@@ -8,11 +8,11 @@ from retry import retry
 
 from utils.enum_config import ModelType
 from utils.general_helper import get_logger
-from settings import DatabaseConfig
+from settings import DatabaseConfig, TIME_INTERVAL
 from workers.data_filter_builder import execute_data_filter
 
 
-@retry(tries=5, delay=10)
+@retry(tries=5, delay=3)
 def connect_database(schema=None, output=False, site_input: Optional[Dict] = None, **kwargs):
     if site_input:
         _config = site_input
@@ -131,38 +131,32 @@ def get_timedelta_query(predict_type, table, start_time, end_time):
 
 def get_batch_by_timedelta(schema, predict_type, table,
                            begin_date: datetime, last_date: datetime,
-                           interval: timedelta = timedelta(hours=6),
+                           interval: timedelta = timedelta(hours=TIME_INTERVAL),
                            site_input: Optional[Dict] = None):
 
-    while begin_date <= last_date:
-        if begin_date + interval > last_date:
-            # connection.close()
-            break
-        else:
-            try:
-                connection = connect_database(schema=schema, site_input=site_input, connect_timeout=30)
-            except Exception as e:
-                return str(e), begin_date
+    while begin_date + interval <= last_date:
+        try:
+            connection = connect_database(schema=schema, site_input=site_input)
+        except Exception as e:
+            return e, begin_date
 
+        try:
             start_date_interval = begin_date + interval
-            try:
-                # connection = connect_database(schema=schema, site_input=site_input, connect_timeout=30)
-                cursor = connection.cursor()
-                query = get_timedelta_query(predict_type, table, begin_date, start_date_interval)
-                cursor.execute(query)
-                # TODO: Add preprocessing module here to filter the input data set
-                # result = to_dataframe(cursor.fetchall())
-                data = cursor.fetchall()
-                # result = to_dataframe(data)
-                result = to_dataframe(execute_data_filter(dataset=data))
-                yield result, begin_date
-                begin_date += interval
-                cursor.close()
-                connection.close()
-            except Exception as e:
-                yield str(e), begin_date
-                connection.close()
-                raise e
+            cursor = connection.cursor()
+            query = get_timedelta_query(predict_type, table, begin_date, start_date_interval)
+            cursor.execute(query)
+            # result = to_dataframe(cursor.fetchall())
+            # result = to_dataframe(data)
+            data = cursor.fetchall()
+            result = to_dataframe(execute_data_filter(dataset=data))
+            yield result, begin_date
+            begin_date += interval
+            cursor.close()
+            connection.close()
+        except Exception as e:
+            yield e, begin_date
+            connection.close()
+            raise e
 
 
 # some tools
