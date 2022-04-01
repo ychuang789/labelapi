@@ -11,11 +11,11 @@ python_path:
 	@eval "which $(PYTHON_NAME)"
 	@eval "which $(PIP_NAME)"
 
-#run_predicting_1:
-#	@eval "celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P gevent --concurrency=$(CONCURRENCY_P) --without-gossip --logfile=logs/predicting_1.log"
-
 run_predicting_1:
-	@eval "celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P solo  --without-gossip --logfile=logs/predicting_1.log"
+	@eval "celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P gevent --concurrency=$(CONCURRENCY_P) --without-gossip --logfile=logs/predicting_1.log"
+
+#run_predicting_1:
+#	@eval "celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO -P solo  --without-gossip --logfile=logs/predicting_1.log"
 
 #run_predicting_1:
 #	@eval "celery -A celery_worker worker -n worker1@%n -Q queue1 -l INFO  --without-gossip --logfile=logs/predicting_1.log"
