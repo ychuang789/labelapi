@@ -824,6 +824,9 @@ MATCH_TYPE_DICT = {'比對開頭': 'start',
 #          Application
 # ==============================
 
+# the size of timedelta batch (hour) querying source database
+TIME_INTERVAL = 1
+
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
     API_TITLE: str = 'Audience API'

@@ -7,6 +7,7 @@ from settings import DatabaseConfig
 
 
 class TaskConfig(BaseModel):
+    TASK_ID: str
     START_TIME: date = "2020-01-01"
     END_TIME: date = "2021-01-01"
     INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
