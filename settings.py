@@ -785,6 +785,16 @@ DUMP_COLUMNS = ('source_author', 'panel', 'create_time')
 SITE_SCHEMA = 'audience-toolkit-django'
 
 # ==============================
+#          Preprocess
+# ==============================
+
+DATA_FILTER_TASK_ID_LIST = {
+    "REGEX_MODEL": [2,3],
+    "KEYWORD_MODEL": [4,5],
+    "ALL": [2,3,4,5]
+}
+
+# ==============================
 #            Model
 # ==============================
 
@@ -805,6 +815,10 @@ TERM_WEIGHT_FIELDS_MAPPING = {
 
 SAVE_DETAIL_EXTENSION = {'csv'}
 
+MATCH_TYPE_DICT = {'比對開頭': 'start',
+                   '比對結尾': 'end',
+                   '完全一致': 'exactly',
+                   '部分吻合': 'partially'}
 
 # ==============================
 #          Application
@@ -843,7 +857,8 @@ class TableName:
     rules = 'rules'
     upload_model = 'upload_model'
     eval_details = 'eval_details'
-    filter_rules = 'filter_rules'
+    filter_rule = 'filter_rule'
+    filter_rule_task = 'filter_rule_task'
 
 
 class DatabaseConfig:

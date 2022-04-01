@@ -77,7 +77,8 @@ class PredictWorker:
                                                               table=self.input_table,
                                                               begin_date=self.start_date,
                                                               last_date=self.end_date,
-                                                              site_input=self.site_connection_info)):
+                                                              site_input=self.site_connection_info
+                                                              )):
 
             self.logger.info(
                 f'Start {self.task_id} {self.input_schema}.{self.input_table}_batch_{idx} ...')
@@ -91,7 +92,7 @@ class PredictWorker:
                     self.state.error_message: element
                 }
                 self._update_state(change_status)
-                raise
+                raise ValueError(element)
 
             if not self.break_checker():
                 return
@@ -231,6 +232,10 @@ class PredictWorker:
                     df['match_content'] = df[_model_information.feature.lower()]
 
                     df.rename(columns={'post_time': 'create_time'}, inplace=True)
+
+                    # 因應前處理模組, 批次抓資料無法回傳 s_id，所以多以下程式
+                    df = df.join(df['s_area_id'].str.rsplit('_', 1, expand=True).rename(columns={0:'s_id', 1:'area_suffix'}))
+
                     df['source_author'] = df['s_id'] + '_' + df['author']
                     df['field_content'] = df['s_id']
 
@@ -239,6 +244,9 @@ class PredictWorker:
                     raise e
                 finally:
                     model_worker.orm_cls.dispose()
+
+            # 因應前處理模組批次抓資料 id 名稱為 id_ , 寫入資料表改回 id
+            output_df = output_df.rename(columns={'id_': 'id'})
 
             return output_df
 
@@ -250,7 +258,8 @@ class PredictWorker:
         temp_list_meta = []
         for i in range(len(df)):
             _input_data = InputExample(
-                id_=df['id'].iloc[i],
+                id_=df['id_'].iloc[i],
+                # id_=df['id'].iloc[i],
                 s_area_id=df['s_area_id'].iloc[i],
                 author=df['author'].iloc[i],
                 title=df['title'].iloc[i],

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import  DateTime, Column, String, Integer, ForeignKey, Float, TEXT
+from sqlalchemy import DateTime, Column, String, Integer, ForeignKey, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -235,23 +235,47 @@ class UploadModel(Base):
         return f"UploadModel({self.file}, {self.status}, {self.create_time}, {self.task_id})"
 
 
+class FilterRuleTask(Base):
+    __tablename__ = TableName.filter_rule_task
+    task_id = Column(Integer, primary_key=True, autoincrement=True)
+    label = Column(String(32))
+    create_time = Column(DateTime, nullable=False)
+    feature = Column(String(32), nullable=False)
+    model_name = Column(String(100), nullable=False)
+    error_message = Column(LONGTEXT, nullable=True)
+    filter_rule = relationship(
+        "FilterRules",
+        backref="filter_rule_task",
+        cascade="all, delete",
+        passive_deletes=True)
+
+    def __int__(self, label, create_time, feature, model_name, error_message):
+        self.label = label
+        self.create_time = create_time
+        self.feature = feature
+        self.model_name = model_name
+        self.error_message = error_message
+
+    def __repr__(self):
+        return f"FilterRuleTask({self.label}, {self.create_time}, {self.feature}, {self.model_name})"
+
+
 class FilterRules(Base):
-    __tablename__  = TableName.filter_rules
+    __tablename__ = TableName.filter_rule
     id = Column(Integer, primary_key=True, autoincrement=True)
     content = Column(String(200), nullable=False)
     rule_type = Column(String(20), nullable=False)
     label = Column(String(100), nullable=False)
     match_type = Column(String(20), nullable=False)
+    task_id = Column(Integer, ForeignKey('filter_rule_task.task_id', ondelete="CASCADE"))
 
-    def __init__(self, content, rule_type, label, match_type):
+    def __init__(self, content, rule_type, label, match_type, task_id):
         self.content = content
         self.rule_type = rule_type
         self.label = label
         self.match_type = match_type
+        self.task_id = task_id
 
     def __repr__(self):
         return f"FilterRules({self.content}, {self.rule_type}, " \
-               f"{self.label}, {self.match_type})"
-
-
-
+               f"{self.label}, {self.match_type}, {self.task_id})"

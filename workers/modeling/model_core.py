@@ -35,7 +35,8 @@ class ModelingWorker:
         self.model_information = model_information
         self.orm_cls = orm_cls if orm_cls else ModelingCRUD(echo=verbose)
         self.preprocess = preprocess if preprocess \
-            else PreprocessWorker(dataset_number=self.dataset_number, dataset_schema=self.dataset_schema)
+            else PreprocessWorker(dataset_number=self.dataset_number,
+                                  dataset_schema=self.dataset_schema, model_type=model_name)
         self.target_name = self.predict_type.lower()
         self.model_path = self.model_information.get('model_path', None)
 

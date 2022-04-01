@@ -46,6 +46,7 @@ class BaseOperation():
             else:
                 result_dict[c.name] = getattr(record, c.name)
         return result_dict
+
         # return {c.name: (getattr(record, c.name) if not isinstance(getattr(record, c.name), datetime)
         #         else getattr(record, c.name).strftime("%Y-%m-%d %H:%M:%S")) for c in record.__table__.columns}
 

@@ -1,6 +1,8 @@
 import random
 
 from collections import defaultdict
+from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Dict, Iterator, Union, List, Any, Tuple
 
@@ -61,7 +63,7 @@ def preprocess_example(examples: Dict, sample_count: int = None, shuffle: bool =
 
 
 def get_term_weights_from_file(task_id: str,
-                             term_weight_list: List[dict]) -> List[TermWeights]:
+                               term_weight_list: List[dict]) -> List[TermWeights]:
     output_list = []
     for term_weight in term_weight_list:
         output_list.append(
@@ -86,7 +88,6 @@ def get_term_weights_objects(task_id: str,
     return term_weight_list
 
 
-
 def read_csv_to_dict(file_path: Path) -> Dict:
     df = pd.read_csv(file_path, encoding='utf-8')
 
@@ -98,3 +99,26 @@ def read_csv_to_dict(file_path: Path) -> Dict:
         _dict.update(temp_dict)
 
     return _dict
+
+
+def orm_queryset_to_dict(record):
+    result_dict = {}
+    for c in record.__table__.columns:
+        if isinstance(getattr(record, c.name), datetime):
+            result_dict[c.name] = getattr(record, c.name).strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(getattr(record, c.name), Decimal):
+            result_dict[c.name] = float(getattr(record, c.name))
+        else:
+            result_dict[c.name] = getattr(record, c.name)
+    return result_dict
+
+
+def list_dict_to_csv(dataset: List[dict], filename: str):
+    if not filename.endswith('.csv'):
+        filename += '.csv'
+    df = pd.DataFrame(dataset)
+    df.to_csv(filename, encoding='utf-8', index=False)
+
+
+def queryset_to_csv(records: list, filename: str):
+    list_dict_to_csv([orm_queryset_to_dict(record) for record in records], filename)

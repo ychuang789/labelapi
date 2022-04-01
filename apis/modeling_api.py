@@ -6,7 +6,7 @@ from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, FileResponse
 
-from celery_worker import modeling_task, testing, import_model
+from celery_worker import modeling_task, model_test, import_model
 from definition import MODEL_IMPORT_FOLDER
 from settings import DatabaseConfig
 from apis.input_class.modeling_input import ModelingAbort, ModelingTrainingConfig, ModelingTestingConfig, \
@@ -46,7 +46,7 @@ def model_preparing(body: ModelingTrainingConfig):
 @router.post('/test/', description='testing a model')
 def model_testing(body: ModelingTestingConfig):
     try:
-        testing.apply_async(
+        model_test.apply_async(
             args=(
                 body.TASK_ID,
                 body.MODEL_TYPE,
