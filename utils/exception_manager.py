@@ -108,3 +108,8 @@ class UploadModelError(Exception):
         return UploadModelError, (self.msg,)
 
 
+class RequestValidationError(Exception):
+    """use in verify the request body"""
+
+    def __init__(self, msg):
+        self.msg = msg

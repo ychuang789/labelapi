@@ -1,11 +1,11 @@
 import uvicorn
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from apis import modeling_api, predicting_api, preprocessing_api
+from apis import modeling_api, predicting_api, preprocessing_api, documenting_api
 from utils.general_helper import get_logger, get_config
 
 configuration = get_config()
@@ -53,12 +53,11 @@ app = FastAPI(title=configuration.API_TITLE,
               )
 
 
-def request_validation_exception_handler(request, exc: RequestValidationError) -> JSONResponse:
-    """ref: https://blog.csdn.net/weixin_36179862/article/details/110507491"""
-
+@app.exception_handler(RequestValidationError)
+def request_validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": jsonable_encoder(exc.errors())},
+        content=jsonable_encoder(f"{[err['msg'] for err in exc.errors()]}")
     )
 
 
@@ -72,6 +71,7 @@ app.add_middleware(
 
 app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
 
+app.include_router(documenting_api.router)
 app.include_router(predicting_api.router)
 app.include_router(modeling_api.router)
 app.include_router(preprocessing_api.router)

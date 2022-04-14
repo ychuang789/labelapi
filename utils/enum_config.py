@@ -7,6 +7,13 @@ INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
 
+class DocumentType(Enum):
+    TRAIN = 'train'
+    DEV = 'dev'
+    TEST = 'test'
+    EXT_TEST = 'ext_test'
+
+
 class NATag(Enum):
     na_tag = '一般'
 
