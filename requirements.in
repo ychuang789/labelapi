@@ -11,6 +11,7 @@ python-multipart==0.0.5
 redis
 retry==0.9.2
 sklearn
+sqlalchemy-utils
 sqlmodel
 tqdm
 uvicorn[standard]

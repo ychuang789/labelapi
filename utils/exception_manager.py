@@ -113,3 +113,14 @@ class RequestValidationError(Exception):
 
     def __init__(self, msg):
         self.msg = msg
+
+
+class SessionError(Exception):
+    """session CRUD add error"""
+
+    def __init__(self, msg):
+        super().__init__(msg)
+        self.msg = msg
+
+    def __reduce__(self):
+        return SessionError, (self.msg,)

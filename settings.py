@@ -862,6 +862,9 @@ class TableName:
     eval_details = 'eval_details'
     filter_rule = 'filter_rule'
     filter_rule_task = 'filter_rule_task'
+    document_task = 'document_task'
+    document_dataset = 'document_dataset'
+    document_rules = 'document_rules'
 
 
 class DatabaseConfig:

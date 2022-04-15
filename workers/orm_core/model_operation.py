@@ -4,7 +4,6 @@ from settings import DatabaseConfig, TableName
 from utils.enum_config import ModelTaskStatus, ModelType
 from utils.exception_manager import UploadModelError, ModelTypeError, DataMissingError
 from workers.orm_core.base_operation import BaseOperation
-from workers.orm_core.table_creator import TermWeights
 
 
 class ModelingCRUD(BaseOperation):

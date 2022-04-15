@@ -1,10 +1,12 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Column, String, Integer, ForeignKey, Float, TEXT
+from sqlalchemy import Boolean, DateTime, Column, String, Integer, ForeignKey, Float, TEXT
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy_utils import ChoiceType
 
 from settings import TableName
+from utils.enum_config import DocumentType, RuleType, MatchType, DocumentTaskType
 
 Base: declarative_base = declarative_base()
 
@@ -279,3 +281,93 @@ class FilterRules(Base):
     def __repr__(self):
         return f"FilterRules({self.content}, {self.rule_type}, " \
                f"{self.label}, {self.match_type}, {self.task_id})"
+
+
+class DocumentTask(Base):
+    __tablename__ = TableName.document_task
+    task_id = Column(String(32), primary_key=True)
+    description = Column(LONGTEXT, nullable=True)
+    task_type = Column(ChoiceType(DocumentTaskType, impl=String(100)), nullable=False)
+    is_multi_label = Column(Boolean, unique=False, default=False, nullable=False)
+    create_time = Column(DateTime, default=datetime.now(), nullable=False)
+    update_time = Column(DateTime, nullable=True)
+    document_dataset = relationship(
+        "DocumentDataset",
+        backref="document_task",
+        cascade="all, delete",
+        passive_deletes=True
+    )
+    document_rules = relationship(
+        "DocumentRules",
+        backref="document_task",
+        cascade="all, delete",
+        passive_deletes=True
+    )
+
+    def __init__(self, task_id, description, is_multi_label, create_time, update_time):
+        self.task_id = task_id
+        self.description = description
+        self.is_multi_label = is_multi_label
+        self.create_time = create_time
+        self.update_time = update_time
+
+    def __repr__(self):
+        return f"DocumentTask({self.task_id}, {self.description}, " \
+               f"{self.is_multi_label}, {self.create_time}, {self.update_time})"
+
+
+class DocumentDataset(Base):
+    __tablename__ = TableName.document_dataset
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(512), nullable=False, default='')
+    author = Column(String(200), nullable=False, default='')
+    s_id = Column(String(100), nullable=False, default='')
+    s_area_id = Column(String(100), nullable=False, default='')
+    content = Column(LONGTEXT, nullable=False, default='')
+    dataset_type = Column(ChoiceType(DocumentType, impl=String(100)))
+    label = Column(String(100), nullable=False)
+    post_time = Column(DateTime, nullable=True)
+    task_id = Column(String(32), ForeignKey('document_task.task_id', ondelete="CASCADE"))
+
+    def __init__(self, title, author, s_id, s_area_id, content, dataset_type, label, post_time, task_id):
+        self.title = title
+        self.author = author
+        self.s_id = s_id
+        self.s_area_id = s_area_id
+        self.content = content
+        self.dataset_type = dataset_type
+        self.label = label
+        self.post_time = post_time
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"DocumentDataset({self.title}, {self.author}, {self.s_id}, {self.s_area_id}, " \
+               f"{self.content}, {self.dataset_type}, {self.label}, {self.post_time}, {self.task_id})"
+
+
+class DocumentRules(Base):
+    __tablename__ = TableName.document_rules
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    content = Column(String(200), nullable=False)
+    label = Column(String(100), nullable=False)
+    rule_type = Column(ChoiceType(RuleType, impl=String(100)))
+    match_type = Column(ChoiceType(MatchType, impl=String(100)))
+    task_id = Column(String(32), ForeignKey('document_task.task_id', ondelete="CASCADE"))
+
+    def __init__(self, content, label, rule_type, match_type, task_id):
+        self.content = content
+        self.label = label
+        self.rule_type = rule_type
+        self.match_type = match_type
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"DocumentRules({self.content}, {self.label}, {self.rule_type}, {self.match_type}, " \
+               f"{self.task_id})"
+
+
+
+
+
+
+

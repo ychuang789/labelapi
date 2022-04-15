@@ -7,11 +7,17 @@ INPUT_TABLE = "predicting_jobs_predictingresult"
 INPUT_COLUMNS = "source_author, applied_content, created_at"
 
 
+class DocumentTaskType(Enum):
+    MACHINE_LEARNING = 'machine_learning_task'
+    RULE = 'rule_task'
+
+
 class DocumentType(Enum):
     TRAIN = 'train'
     DEV = 'dev'
     TEST = 'test'
     EXT_TEST = 'ext_test'
+    RULE = 'rule'
 
 
 class NATag(Enum):

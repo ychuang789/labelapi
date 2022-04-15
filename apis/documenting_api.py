@@ -1,12 +1,12 @@
-from fastapi import APIRouter, UploadFile, File, Request
+from fastapi import APIRouter
 
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, FileResponse
-from pydantic import ValidationError
 
-from apis.input_class.documenting_input import DocumentAddRequest
+from fastapi.responses import JSONResponse
+
+
+from apis.input_class.documenting_input import DocumentRequest
 
 router = APIRouter(prefix='/documents',
                    tags=['documents'],
@@ -15,13 +15,8 @@ router = APIRouter(prefix='/documents',
                    )
 
 
-# @router.exception_handler(RequestValidationError)
-# def request_validation_exception_handler(request: Request, exc: RequestValidationError):
-#     pass
-
-
 @router.post('/add', description='add a document task')
-def document_add(body: DocumentAddRequest):
+def document_add(body: DocumentRequest):
     try:
         # todo: write data into database
         return JSONResponse(status_code=status.HTTP_200_OK, content='OK')
@@ -35,8 +30,15 @@ def document_retrieve(task_id: str):
     pass
 
 
-@router.put('/{task_id}/update', description='update a task')
-def document_update(task_id: str):
+@router.patch('/{task_id}/update', description='update a task')
+def document_update(task_id: str, body: DocumentRequest):
+    """https://fastapi.tiangolo.com/tutorial/body-updates/#using-pydantics-exclude_unset-parameter"""
+
+    stored_data = body.dict()
+    stored_model = DocumentRequest(**stored_data)
+    update_data = body.dict(exclude_unset=True)
+    updated_data = stored_model.copy(update=update_data)
+    # Todo: partial update the data through CRUD class
     pass
 
 
