@@ -6,7 +6,7 @@ from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import ChoiceType
 
 from settings import TableName
-from utils.enum_config import DocumentType, RuleType, MatchType, DocumentTaskType
+from utils.enum_config import DocumentDatasetType, RuleType, MatchType, DocumentTaskType, DocumentUploadStatus
 
 Base: declarative_base = declarative_base()
 
@@ -303,6 +303,11 @@ class DocumentTask(Base):
         cascade="all, delete",
         passive_deletes=True
     )
+    document_upload = relationship(
+        "DocumentUpload",
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
     def __init__(self, task_id, description, is_multi_label, create_time, update_time):
         self.task_id = task_id
@@ -324,7 +329,7 @@ class DocumentDataset(Base):
     s_id = Column(String(100), nullable=False, default='')
     s_area_id = Column(String(100), nullable=False, default='')
     content = Column(LONGTEXT, nullable=False, default='')
-    dataset_type = Column(ChoiceType(DocumentType, impl=String(100)))
+    dataset_type = Column(ChoiceType(DocumentDatasetType, impl=String(100)))
     label = Column(String(100), nullable=False)
     post_time = Column(DateTime, nullable=True)
     task_id = Column(String(32), ForeignKey('document_task.task_id', ondelete="CASCADE"))
@@ -366,7 +371,13 @@ class DocumentRules(Base):
                f"{self.task_id})"
 
 
-
+class DocumentUpload(Base):
+    __tablename__ = TableName.document_upload
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(ChoiceType(DocumentUploadStatus, impl=String(100)), nullable=False)
+    create_time = Column(DateTime, default=datetime.now(), nullable=False)
+    finish_time = Column(DateTime, nullable=True)
+    task_id = Column(String(32), ForeignKey("document_task.task_id", ondelete="CASCADE"))
 
 
 

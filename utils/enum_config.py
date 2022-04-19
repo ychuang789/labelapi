@@ -12,12 +12,30 @@ class DocumentTaskType(Enum):
     RULE = 'rule_task'
 
 
-class DocumentType(Enum):
+class DocumentDatasetType(Enum):
     TRAIN = 'train'
     DEV = 'dev'
     TEST = 'test'
     EXT_TEST = 'ext_test'
     RULE = 'rule'
+
+
+class DocumentRulesType(Enum):
+    KEYWORD = "keyword"
+    REGEX = "regex"
+
+
+class DocumentMatchType(Enum):
+    START = 'start'
+    END = 'end'
+    EXACTLY = 'exactly'
+    PARTIALLY = 'partially'
+
+
+class DocumentUploadStatus(Enum):
+    PENDING = 'pending'
+    DONE = 'done'
+    FAILURE = 'failure'
 
 
 class NATag(Enum):

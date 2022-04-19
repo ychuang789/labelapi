@@ -865,6 +865,7 @@ class TableName:
     document_task = 'document_task'
     document_dataset = 'document_dataset'
     document_rules = 'document_rules'
+    document_upload = 'document_upload'
 
 
 class DatabaseConfig:
