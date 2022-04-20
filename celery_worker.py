@@ -2,9 +2,11 @@ from typing import List
 
 from celery import Celery
 from dump.groups.dump_core import DumpWorker
+from settings import DatabaseConfig
 
 from utils.general_helper import get_logger, get_config
 from workers.modeling.model_core import ModelingWorker
+from workers.orm_core.document_operation import DocumentCRUD
 from workers.orm_core.preprocess_operation import PreprocessCRUD
 from workers.predicting.predict_core import PredictWorker
 
@@ -99,6 +101,26 @@ def import_model(filepath, filename, task_id: str):
     _logger.info(f'start importing model of {task_id}')
     ModelingWorker.import_term_weights(filepath=filepath, filename=filename, task_id=task_id)
 
+
+@celery_app.task(name=f'{configuration.CELERY_NAME}.export_document_file', ignore_result=True)
+def export_document_file(task_id: str):
+    _logger = get_logger('documenting')
+    _logger.info(f'start downloading docs of {task_id}')
+    doc_worker = DocumentCRUD()
+    doc_worker.write_csv(task_id=task_id)
+    _logger.info(f'finish downloading docs of {task_id}')
+
+
+@celery_app.task(name=f'{configuration.CELERY_NAME}.import_document_file', ignore_result=True)
+def import_document_file(task_id: str, overwrite: bool, file):
+    _logger = get_logger('documenting')
+    _logger.info(f'start uploading docs of {task_id}')
+    doc_worker = DocumentCRUD()
+    doc_worker.upload_file(
+        task_id=task_id,
+        overwrite=overwrite,
+        file=file)
+    _logger.info(f'finish uploading docs of {task_id}')
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.preprocess_task', ignore_result=True)
 # def preprocess_task(name, feature, model_name, create_time, filepath):

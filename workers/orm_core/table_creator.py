@@ -374,10 +374,24 @@ class DocumentRules(Base):
 class DocumentUpload(Base):
     __tablename__ = TableName.document_upload
     id = Column(Integer, primary_key=True, autoincrement=True)
+    filepath = Column(String(100), nullable=False)
     status = Column(ChoiceType(DocumentUploadStatus, impl=String(100)), nullable=False)
     create_time = Column(DateTime, default=datetime.now(), nullable=False)
     finish_time = Column(DateTime, nullable=True)
+    error_message = Column(LONGTEXT, nullable=True)
     task_id = Column(String(32), ForeignKey("document_task.task_id", ondelete="CASCADE"))
+
+    def __init__(self, filepath, status, create_time, finish_time, error_message, task_id):
+        self.filepath = filepath
+        self.status = status
+        self.create_time = create_time
+        self.finish_time = finish_time
+        self.error_message = error_message
+        self.task_id = task_id
+
+    def __repr__(self):
+        return f"DocumentUpload({self.filepath}, {self.status}, {self.create_time}, " \
+               f"{self.finish_time}, {self.error_message}, {self.task_id})"
 
 
 

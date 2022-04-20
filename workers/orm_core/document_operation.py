@@ -1,9 +1,15 @@
+import csv
+import os
 from datetime import datetime
 from typing import Dict, Any, List
 
+from definition import SAVE_DOCUMENT_FOLDER
 from settings import DatabaseConfig, TableName
+from utils.data.data_download import pre_check
+from utils.enum_config import DocumentTaskType, DocumentUploadStatus
 from utils.exception_manager import SessionError
 from workers.orm_core.base_operation import BaseOperation
+from workers.preprocessing.preprocess_core import PreprocessWorker
 
 
 class DocumentCRUD(BaseOperation):
@@ -14,6 +20,7 @@ class DocumentCRUD(BaseOperation):
         self.dt = self.table_cls_dict.get(TableName.document_task)
         self.dd = self.table_cls_dict.get(TableName.document_dataset)
         self.dr = self.table_cls_dict.get(TableName.document_rules)
+        self.du = self.table_cls_dict.get(TableName.document_upload)
 
     def task_create(self, task_id: str, **kwargs):
         temp_task = self.dt(
@@ -64,8 +71,8 @@ class DocumentCRUD(BaseOperation):
 
     def dataset_create(self, task_id: str, **dataset):
         temp_dataset = self.dd(
-            title= dataset.get('TITLE', ''),
-            author= dataset.get('AUTHOR', ''),
+            title=dataset.get('TITLE', ''),
+            author=dataset.get('AUTHOR', ''),
             s_id=dataset.get('S_ID', ''),
             s_area_id=dataset.get('S_AREA_ID', ''),
             content=dataset.get('CONTENT', None),
@@ -126,7 +133,6 @@ class DocumentCRUD(BaseOperation):
                 self.get_bulk_list_with_task_id(task_id, dataset, is_rule=False)
             )
             self.session.commit()
-            return task_id
         except Exception as e:
             error_message = f"task {task_id} failed to bulk create dataset since {e}"
             self.session.rollback()
@@ -192,7 +198,6 @@ class DocumentCRUD(BaseOperation):
                 self.get_bulk_list_with_task_id(task_id, rules, is_rule=True)
             )
             self.session.commit()
-            return task_id
         except Exception as e:
             error_message = f"task {task_id} failed to bulk create rules since {e}"
             self.session.rollback()
@@ -205,10 +210,10 @@ class DocumentCRUD(BaseOperation):
             for item in bulk_list:
                 output_list.append(
                     self.dr(
-                        content=item.get('CONTENT', None),
-                        label=item.get('LABEL', None),
-                        rule_type=item.get('RULE_TYPE', None),
-                        match_type=item.get('MATCH_TYPE', None),
+                        content=item.get('data', None),
+                        label=item.get('label', None),
+                        rule_type=item.get('rule_type', None),
+                        match_type=item.get('match_type', None),
                         task_id=task_id
                     )
                 )
@@ -217,17 +222,150 @@ class DocumentCRUD(BaseOperation):
             for item in bulk_list:
                 output_list.append(
                     self.dd(
-                        title=item.get('TITLE', ''),
-                        author=item.get('AUTHOR', ''),
-                        s_id=item.get('S_ID', ''),
-                        s_area_id=item.get('S_AREA_ID', ''),
-                        content=item.get('CONTENT', None),
-                        dataset_type=item.get('DATASET_TYPE', None),
-                        label=item.get('LABEL', None),
-                        post_time=item.get('POST_TIME', None),
+                        title=item.get('title', ''),
+                        author=item.get('author', ''),
+                        s_id=item.get('s_id', ''),
+                        s_area_id=item.get('s_area_id', ''),
+                        content=item.get('data', None),
+                        dataset_type=item.get('dataset_type', None),
+                        label=item.get('label', None),
+                        post_time=item.get('post_time', None),
                         task_id=task_id
                     )
                 )
             return output_list
 
+    def bulk_create(self, task_id: str, task_type: str, bulk_list: List[dict]):
+        if task_type.lower() == DocumentTaskType.MACHINE_LEARNING.value:
+            self.rule_bulk_create(task_id=task_id, rules=bulk_list)
+        elif task_type.lower() == DocumentTaskType.RULE.value:
+            self.dataset_bulk_create(task_id=task_id, dataset=bulk_list)
+        else:
+            raise ValueError(f"Unknown task type {task_type}")
 
+    def upload_file(self, task_id: str, overwrite: bool, file):
+        filepath = os.path.join(SAVE_DOCUMENT_FOLDER, file.filename)
+        try:
+            with open(filepath, 'wb+') as file_object:
+                file_object.write(file.file.read())
+            self.import_file(
+                filepath=filepath,
+                task_id=task_id,
+                overwrite=overwrite
+            )
+        except Exception as e:
+            raise SessionError(e)
+        finally:
+            self.dispose()
+
+    def write_csv(self, task_id: str):
+        task = self.session.query(self.dt).get(task_id)
+        filename = f'{task.name}.csv'
+        filepath = pre_check(filename, parent_dir=SAVE_DOCUMENT_FOLDER)
+        try:
+            if task.task_type.lower() == DocumentTaskType.MACHINE_LEARNING.value:
+                bulk_list = task.document_dataset_collection
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    fieldnames = ['id', 'title', 'author', 's_id', 's_area_id', 'content',
+                                  'post_time', 'label', 'document_type', 'task_id']
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for data in bulk_list:
+                        writer.writerow({
+                            'id': data.id,
+                            'title': data.title,
+                            'author': data.author,
+                            's_id': data.s_id,
+                            's_area_id': data.s_area_id,
+                            'content': data.content,
+                            'post_time': data.post_time,
+                            'label': data.label,
+                            'document_type': data.document_type,
+                            'task_id': data.task_id
+                        })
+            elif task.task_type.lower() == DocumentTaskType.RULE.value:
+                bulk_list = task.document_rules_collection
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    fieldnames = ['id', 'content', 'label', 'rule_type',
+                                  'match_type', 'task_id']
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()
+                    for data in bulk_list:
+                        writer.writerow({
+                            'id': data.id,
+                            'content': data.content,
+                            'label': data.label,
+                            'rule_type': data.rule_type,
+                            'match_type': data.match_type,
+                            'task_id': data.task_id
+                        })
+            else:
+                raise ValueError(f"Unknown task type {task.task_type}")
+        except Exception as e:
+            error_message = f"task {task_id} failed to write file since {e}"
+            raise SessionError(error_message)
+        finally:
+            self.dispose()
+
+    def import_file(self, filepath: str, task_id: str, overwrite: bool):
+        id_ = self.upload_task_create(
+            filepath=filepath,
+            task_id=task_id
+        )
+        try:
+            task = self.task_retrieve(task_id=task_id)
+
+            if overwrite:
+                prev_set = self.get_collection(task_id=task_id,
+                                               task_type=task.task_type)
+                prev_set.delete()
+                self.session.commit()
+
+            csv_rows = PreprocessWorker.read_csv_file(filepath)
+            self.bulk_create(
+                task_id=task_id,
+                task_type=task.task_type,
+                bulk_list=csv_rows
+            )
+            update_status = self.session.query(self.du).get(id_)
+            update_status.finish_time = datetime.now()
+            update_status.status = DocumentUploadStatus.DONE.value
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            error_message = f'failed to import file since {e}'
+            update_status = self.session.query(self.du).get(id_)
+            update_status.error_message = error_message
+            update_status.status = DocumentUploadStatus.FAILURE.value
+            self.session.commit()
+            raise SessionError(error_message)
+
+    def get_collection(self, task_id: str, task_type: str):
+        if task_type.lower() == DocumentTaskType.MACHINE_LEARNING.value:
+            task_collection = self.session.query(self.dd).filter(
+                self.dd.task_id == task_id
+            )
+        elif task_type.lower() == DocumentTaskType.RULE.value:
+            task_collection = self.session.query(self.dr).filter(
+                self.dr.task_id == task_id
+            )
+        else:
+            raise ValueError(f"Unknown task type {task_type}")
+
+        return task_collection
+
+    def upload_task_create(self, filepath: str, task_id: str):
+        try:
+            temp_status = self.du(
+                filepath=filepath,
+                status=DocumentUploadStatus.PENDING.value,
+                create_time=datetime.now(),
+                task_id=task_id
+            )
+            self.session.add(temp_status)
+            self.session.commit()
+            return temp_status.id
+        except Exception as e:
+            self.session.rollback()
+            error_message = f'failed to create upload task since {e}'
+            raise SessionError(error_message)

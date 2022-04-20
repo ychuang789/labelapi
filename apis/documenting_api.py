@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
 from apis.input_class.documenting_input import DocumentRequest
+from celery_worker import export_document_file, import_document_file
 from settings import DatabaseConfig
 from utils.enum_config import DocumentDatasetType, DocumentRulesType
 from workers.orm_core.document_operation import DocumentCRUD
@@ -182,21 +183,35 @@ def dataset_delete(task_id: str, rule_id: int):
         conn.dispose()
 
 
-@router.post('/{task_id}/dataset/upload/{overwrite}', description='upload and overwrite dataset')
+@router.post('/{task_id}/upload/{overwrite}', description='upload and overwrite dataset')
 def dataset_upload(task_id: str, overwrite: bool, file: UploadFile = File(...)):
-    pass
+    try:
+        import_document_file.apply_async(
+            args=(
+                task_id,
+                overwrite,
+                file
+            ),
+            queue='queue3'
+        )
+        return JSONResponse(status_code=status.HTTP_200_OK, content='OK')
+    except Exception as e:
+        err_msg = f'failed to upload file since {type(e).__name__}:{e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            content=jsonable_encoder(err_msg))
 
 
-@router.get('/{task_id}/dataset/download', description='download dataset')
+@router.get('/{task_id}/download', description='download dataset')
 def dataset_download(task_id: str):
-    pass
-
-
-@router.post('/{task_id}/rules/upload/{overwrite}', description='upload and overwrite rules')
-def dataset_upload(task_id: str, overwrite: bool, file: UploadFile = File(...)):
-    pass
-
-
-@router.get('/{task_id}/rules/download', description='download rules')
-def dataset_download(task_id: str):
-    pass
+    try:
+        export_document_file.apply_async(
+            args=(
+                task_id,
+            ),
+            queue='queue3'
+        )
+        return JSONResponse(status_code=status.HTTP_200_OK, content='OK')
+    except Exception as e:
+        err_msg = f'failed to download file since {type(e).__name__}:{e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            content=jsonable_encoder(err_msg))

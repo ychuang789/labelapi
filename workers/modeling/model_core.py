@@ -356,7 +356,7 @@ class ModelingWorker:
                 })
 
     @staticmethod
-    def import_term_weights(filepath: str, filename:str, task_id: str):
+    def import_term_weights(filepath: str, filename: str, task_id: str):
         orm_worker = ModelingCRUD()
 
         upload_model = orm_worker.upload_model
