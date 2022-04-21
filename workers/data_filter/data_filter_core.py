@@ -1,14 +1,12 @@
 import importlib
 import itertools
-import re
 from collections import defaultdict
 from typing import List
 
-from settings import DatabaseConfig, MODEL_INFORMATION, MATCH_TYPE_DICT
+from settings import DatabaseConfig, MODEL_INFORMATION
 from utils.data.input_example import InputExample
 from utils.enum_config import ModelType, FilterRuleLabel
 from utils.exception_manager import ModelTypeNotFoundError
-from utils.general_helper import get_logger
 from workers.orm_core import preprocess_operation
 
 

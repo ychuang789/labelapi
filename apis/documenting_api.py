@@ -1,14 +1,17 @@
+import os.path
+
+from celery.result import AsyncResult
 from fastapi import APIRouter, UploadFile, File
 
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
 
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
-from apis.input_class.documenting_input import DocumentRequest
+from apis.input_class.documenting_input import DocumentRequest, DatasetRequest, RulesRequest
 from celery_worker import export_document_file, import_document_file
+from definition import SAVE_DOCUMENT_FOLDER
 from settings import DatabaseConfig
-from utils.enum_config import DocumentDatasetType, DocumentRulesType
 from workers.orm_core.document_operation import DocumentCRUD
 
 router = APIRouter(prefix='/documents',
@@ -36,8 +39,9 @@ def document_render():
 def document_add(task_id: str, body: DocumentRequest):
     conn = DocumentCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        conn.task_create(task_id=task_id, **body.__dict__)
-        return JSONResponse(status_code=status.HTTP_200_OK, content='OK')
+        task = conn.task_create(task_id=task_id, **body.__dict__)
+        return JSONResponse(status_code=status.HTTP_200_OK,
+                            content=f'OK, task {task.task_id} created')
     except Exception as e:
         err_msg = f'failed to add task since {type(e).__name__}:{e}'
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -69,8 +73,9 @@ def document_update(task_id: str, body: DocumentRequest):
         # stored_model = DocumentRequest(**stored_data)
         # update_data = body.dict(exclude_unset=True)
         # updated_data = stored_model.copy(update=update_data)
-        conn.task_update(task_id=task_id, **stored_data)
-        return JSONResponse(status_code=status.HTTP_200_OK, content='OK')
+        task = conn.task_update(task_id=task_id, **stored_data)
+        return JSONResponse(status_code=status.HTTP_200_OK,
+                            content=f'OK, task {task.task_id} patched')
     except Exception as e:
         err_msg = f'failed to update a task since {type(e).__name__}:{e}'
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -94,11 +99,11 @@ def document_delete(task_id: str):
 
 
 @router.post('/{task_id}/dataset/add', description='add single data')
-def dataset_add(task_id: str, body: DocumentDatasetType):
+def dataset_add(task_id: str, body: DatasetRequest):
     conn = DocumentCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        dataset_id = conn.dataset_create(task_id=task_id, **body.__dict__)
-        return JSONResponse(status_code=status.HTTP_200_OK, content=f'OK, data {dataset_id} is created')
+        dataset = conn.dataset_create(task_id=task_id, **body.__dict__)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=f'OK, data {dataset.id} is created')
     except Exception as e:
         err_msg = f'failed to create a data since {type(e).__name__}:{e}'
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -108,12 +113,12 @@ def dataset_add(task_id: str, body: DocumentDatasetType):
 
 
 @router.patch('/{task_id}/dataset/{dataset_id}/update', description='update single data')
-def dataset_update(task_id: str, dataset_id: int, body: DocumentDatasetType):
+def dataset_update(task_id: str, dataset_id: int, body: DatasetRequest):
     conn = DocumentCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        dataset_id = conn.dataset_update(task_id=task_id, dataset_id=dataset_id, **body.__dict__)
+        dataset = conn.dataset_update(task_id=task_id, dataset_id=dataset_id, **body.__dict__)
         return JSONResponse(status_code=status.HTTP_200_OK,
-                            content=f'OK, data {dataset_id} is updated')
+                            content=f'OK, data {dataset.id} is updated')
     except Exception as e:
         err_msg = f'failed to update a data since {type(e).__name__}:{e}'
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -139,12 +144,12 @@ def dataset_delete(task_id: str, dataset_id: int):
 
 
 @router.post('/{task_id}/rules/add', description='add single rule')
-def rule_add(task_id: str, body: DocumentRulesType):
+def rule_add(task_id: str, body: RulesRequest):
     conn = DocumentCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        rule_id = conn.rule_create(task_id=task_id, **body.__dict__)
+        rule = conn.rule_create(task_id=task_id, **body.__dict__)
         return JSONResponse(status_code=status.HTTP_200_OK,
-                            content=f'OK, rule {rule_id} is created')
+                            content=f'OK, rule {rule.id} is created')
     except Exception as e:
         err_msg = f'failed to create a rule since {type(e).__name__}:{e}'
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -154,12 +159,12 @@ def rule_add(task_id: str, body: DocumentRulesType):
 
 
 @router.patch('/{task_id}/rules/{rule_id}/update', description='update single data')
-def dataset_update(task_id: str, rule_id: int, body: DocumentRulesType):
+def dataset_update(task_id: str, rule_id: int, body: RulesRequest):
     conn = DocumentCRUD(connection_info=DatabaseConfig.OUTPUT_ENGINE_INFO)
     try:
-        rule_id = conn.rule_update(task_id=task_id, rule_id=rule_id, **body.__dict__)
+        rule = conn.rule_update(task_id=task_id, rule_id=rule_id, **body.__dict__)
         JSONResponse(status_code=status.HTTP_200_OK,
-                     content=f'OK, rule {rule_id} is updated')
+                     content=f'OK, rule {rule.id} is updated')
     except Exception as e:
         err_msg = f'failed to update a rule since {type(e).__name__}:{e}'
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -201,16 +206,33 @@ def dataset_upload(task_id: str, overwrite: bool, file: UploadFile = File(...)):
                             content=jsonable_encoder(err_msg))
 
 
-@router.get('/{task_id}/download', description='download dataset')
+@router.post('/{task_id}/download', description='post download dataset')
 def dataset_download(task_id: str):
     try:
         export_document_file.apply_async(
             args=(
                 task_id,
             ),
+            task_id=task_id,
             queue='queue3'
         )
-        return JSONResponse(status_code=status.HTTP_200_OK, content='OK')
+        return JSONResponse(status_code=status.HTTP_200_OK, content=f'{task_id}')
+    except Exception as e:
+        err_msg = f'failed to download file since {type(e).__name__}:{e}'
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            content=jsonable_encoder(err_msg))
+
+
+@router.get('/{task_id}/download', description='get download dataset')
+def dataset_download(task_id: str):
+    try:
+        filename = f"{task_id}.csv"
+        file_path = os.path.join(SAVE_DOCUMENT_FOLDER, filename)
+        task = AsyncResult(task_id)
+        ready = task.ready()
+        if ready:
+            return FileResponse(status_code=status.HTTP_200_OK, path=file_path, filename=filename)
+        return JSONResponse(status_code=status.HTTP_200_OK, content=f'{task_id} not ready')
     except Exception as e:
         err_msg = f'failed to download file since {type(e).__name__}:{e}'
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

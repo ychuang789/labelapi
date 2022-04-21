@@ -286,6 +286,7 @@ class FilterRules(Base):
 class DocumentTask(Base):
     __tablename__ = TableName.document_task
     task_id = Column(String(32), primary_key=True)
+    name = Column(String(100), nullable=False)
     description = Column(LONGTEXT, nullable=True)
     task_type = Column(ChoiceType(DocumentTaskType, impl=String(100)), nullable=False)
     is_multi_label = Column(Boolean, unique=False, default=False, nullable=False)
@@ -295,18 +296,16 @@ class DocumentTask(Base):
         "DocumentDataset",
         backref="document_task",
         cascade="all, delete",
-        passive_deletes=True
     )
     document_rules = relationship(
         "DocumentRules",
         backref="document_task",
         cascade="all, delete",
-        passive_deletes=True
     )
     document_upload = relationship(
         "DocumentUpload",
+        backref="document_task",
         cascade="all, delete",
-        passive_deletes=True
     )
 
     def __init__(self, task_id, description, is_multi_label, create_time, update_time):
@@ -332,7 +331,7 @@ class DocumentDataset(Base):
     dataset_type = Column(ChoiceType(DocumentDatasetType, impl=String(100)))
     label = Column(String(100), nullable=False)
     post_time = Column(DateTime, nullable=True)
-    task_id = Column(String(32), ForeignKey('document_task.task_id', ondelete="CASCADE"))
+    task_id = Column(String(32), ForeignKey('document_task.task_id', ondelete="CASCADE"), nullable=False)
 
     def __init__(self, title, author, s_id, s_area_id, content, dataset_type, label, post_time, task_id):
         self.title = title
@@ -357,7 +356,7 @@ class DocumentRules(Base):
     label = Column(String(100), nullable=False)
     rule_type = Column(ChoiceType(RuleType, impl=String(100)))
     match_type = Column(ChoiceType(MatchType, impl=String(100)))
-    task_id = Column(String(32), ForeignKey('document_task.task_id', ondelete="CASCADE"))
+    task_id = Column(String(32), ForeignKey('document_task.task_id', ondelete="CASCADE"), nullable=False)
 
     def __init__(self, content, label, rule_type, match_type, task_id):
         self.content = content
@@ -379,7 +378,7 @@ class DocumentUpload(Base):
     create_time = Column(DateTime, default=datetime.now(), nullable=False)
     finish_time = Column(DateTime, nullable=True)
     error_message = Column(LONGTEXT, nullable=True)
-    task_id = Column(String(32), ForeignKey("document_task.task_id", ondelete="CASCADE"))
+    task_id = Column(String(32), ForeignKey("document_task.task_id", ondelete="CASCADE"), nullable=False)
 
     def __init__(self, filepath, status, create_time, finish_time, error_message, task_id):
         self.filepath = filepath

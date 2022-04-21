@@ -13,9 +13,9 @@ def list_dict_to_csv(dataset: List[dict], filename: str):
     return filepath
 
 
-def pre_check(filename: str, parent_dir=SAVE_DETAIL_FOLDER):
+def pre_check(filename: str, parent_dir=SAVE_DETAIL_FOLDER, extension_set=SAVE_DETAIL_EXTENSION):
     filename = filename if \
-        check_extension(filename, parent_dir=parent_dir) \
+        check_extension(filename, extension_set=extension_set) \
         else filename + '.csv'
     filepath = os.path.join(parent_dir, filename)
 
@@ -35,9 +35,9 @@ def term_weight_pre_check(filename: str):
     return filepath
 
 
-def check_extension(filename: str, parent_dir=SAVE_DETAIL_EXTENSION):
+def check_extension(filename: str, extension_set=SAVE_DETAIL_EXTENSION):
     temp_filename = filename.rsplit(sep='.', maxsplit=1)
-    if temp_filename[-1] not in parent_dir:
+    if temp_filename[-1] not in extension_set:
         return False
     else:
         return True

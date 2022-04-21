@@ -2,12 +2,10 @@ from typing import List
 
 from celery import Celery
 from dump.groups.dump_core import DumpWorker
-from settings import DatabaseConfig
 
 from utils.general_helper import get_logger, get_config
 from workers.modeling.model_core import ModelingWorker
 from workers.orm_core.document_operation import DocumentCRUD
-from workers.orm_core.preprocess_operation import PreprocessCRUD
 from workers.predicting.predict_core import PredictWorker
 
 configuration = get_config()

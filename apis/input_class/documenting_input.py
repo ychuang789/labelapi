@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 from utils.enum_config import DocumentDatasetType, DocumentTaskType, DocumentRulesType, DocumentMatchType
 
@@ -10,7 +10,7 @@ class DocumentRequest(BaseModel):
     NAME: Optional[str] = None
     DESCRIPTION: Optional[str] = None
     TASK_TYPE: Optional[DocumentTaskType] = DocumentTaskType.RULE
-    IS_MULTI_LABEL: DocumentTaskType[bool] = False
+    IS_MULTI_LABEL: bool = False
 
 
 class DatasetRequest(BaseModel):
@@ -29,4 +29,3 @@ class RulesRequest(BaseModel):
     LABEL: str = "assign the label here"
     RULE_TYPE: DocumentRulesType = DocumentRulesType.REGEX
     MATCH_TYPE: DocumentMatchType = DocumentMatchType.PARTIALLY
-

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 from definition import SAVE_DOCUMENT_FOLDER
-from settings import DatabaseConfig, TableName
+from settings import DatabaseConfig, TableName, SAVE_DOCUMENT_EXTENSION
 from utils.data.data_download import pre_check
 from utils.enum_config import DocumentTaskType, DocumentUploadStatus
 from utils.exception_manager import SessionError
@@ -25,6 +25,7 @@ class DocumentCRUD(BaseOperation):
     def task_create(self, task_id: str, **kwargs):
         temp_task = self.dt(
             task_id=task_id,
+            name=kwargs.get('NAME', None),
             description=kwargs.get('DESCRIPTION', None),
             task_type=kwargs.get('TASK_TYPE', None),
             is_multi_label=kwargs.get('IS_MULTI_LABEL', False),
@@ -34,7 +35,7 @@ class DocumentCRUD(BaseOperation):
         try:
             self.session.add(temp_task)
             self.session.commit()
-            return temp_task.task_id
+            return temp_task
         except Exception as e:
             error_message = f"failed to add data since {e}"
             self.session.rollback()
@@ -42,12 +43,14 @@ class DocumentCRUD(BaseOperation):
 
     def task_update(self, task_id: str, **patch_data):
         temp_task = self.session.query(self.dt).get(task_id)
+        temp_task.update_time = datetime.now()
         try:
             for key, value in patch_data.items():
                 if hasattr(temp_task, key.lower()):
                     setattr(temp_task, key.lower(), value)
+
             self.session.commit()
-            return temp_task.task_id
+            return temp_task
         except Exception as e:
             error_message = f"failed to update task {task_id} since {e}"
             self.session.rollback()
@@ -84,7 +87,7 @@ class DocumentCRUD(BaseOperation):
         try:
             self.session.add(temp_dataset)
             self.session.commit()
-            return temp_dataset.id
+            return temp_dataset
         except Exception as e:
             error_message = f"task {task_id} failed to add dataset since {e}"
             self.session.rollback()
@@ -101,7 +104,7 @@ class DocumentCRUD(BaseOperation):
                 if hasattr(temp_row, key.lower()):
                     setattr(temp_row, key.lower(), value)
             self.session.commit()
-            return temp_row.dataset_id
+            return temp_row
         except Exception as e:
             error_message = f"task {task_id} failed to update row {dataset_id} since {e}"
             self.session.rollback()
@@ -149,7 +152,7 @@ class DocumentCRUD(BaseOperation):
         try:
             self.session.add(temp_rule)
             self.session.commit()
-            return temp_rule.id
+            return temp_rule
         except Exception as e:
             error_message = f"task {task_id} failed to add rule since {e}"
             self.session.rollback()
@@ -166,7 +169,7 @@ class DocumentCRUD(BaseOperation):
                 if hasattr(temp_row, key.lower()):
                     setattr(temp_row, key.lower(), value)
             self.session.commit()
-            return temp_row.rule_id
+            return temp_row
         except Exception as e:
             error_message = f"task {task_id} failed to update row {rule_id} since {e}"
             self.session.rollback()
@@ -210,7 +213,7 @@ class DocumentCRUD(BaseOperation):
             for item in bulk_list:
                 output_list.append(
                     self.dr(
-                        content=item.get('data', None),
+                        content=item.get('content', None),
                         label=item.get('label', None),
                         rule_type=item.get('rule_type', None),
                         match_type=item.get('match_type', None),
@@ -226,7 +229,7 @@ class DocumentCRUD(BaseOperation):
                         author=item.get('author', ''),
                         s_id=item.get('s_id', ''),
                         s_area_id=item.get('s_area_id', ''),
-                        content=item.get('data', None),
+                        content=item.get('content', None),
                         dataset_type=item.get('dataset_type', None),
                         label=item.get('label', None),
                         post_time=item.get('post_time', None),
@@ -260,8 +263,8 @@ class DocumentCRUD(BaseOperation):
 
     def write_csv(self, task_id: str):
         task = self.session.query(self.dt).get(task_id)
-        filename = f'{task.name}.csv'
-        filepath = pre_check(filename, parent_dir=SAVE_DOCUMENT_FOLDER)
+        filename = f'{task.task_id}.csv'
+        filepath = pre_check(filename, parent_dir=SAVE_DOCUMENT_FOLDER, extension_set=SAVE_DOCUMENT_EXTENSION)
         try:
             if task.task_type.lower() == DocumentTaskType.MACHINE_LEARNING.value:
                 bulk_list = task.document_dataset_collection

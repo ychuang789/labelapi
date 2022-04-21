@@ -31,6 +31,10 @@ run_predicting_3:
 run_modeling_1:
 	@eval "celery -A celery_worker worker -n worker4@%n -Q queue2 -l INFO -P gevent --concurrency=$(CONCURRENCY_M) --without-gossip --logfile=logs/modeling_1.log"
 
+
+run_documenting_1:
+	@eval "celery -A celery_worker worker -n worker5@%n -Q queue3 -l INFO -P gevent --concurrency=$(CONCURRENCY_M) --without-gossip --logfile=logs/documenting_1.log"
+
 run_api:
 	@eval "python audience_api.py"
 

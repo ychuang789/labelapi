@@ -4,7 +4,7 @@ from settings import DatabaseConfig, TableName, MATCH_TYPE_DICT
 from utils.exception_manager import DataMissingError
 from workers.orm_core.base_operation import BaseOperation
 from workers.orm_core.table_creator import FilterRules
-from workers.preprocessing.preprocess_core import PreprocessWorker
+from workers.preprocessing import preprocess_core
 
 
 class PreprocessCRUD(BaseOperation):
@@ -27,7 +27,7 @@ class PreprocessCRUD(BaseOperation):
             self.session.rollback()
             raise e
 
-        self.bulk_add_filter_rules(task_pk=new_task.task_id, bulk_rules=PreprocessWorker.read_csv_file(filepath))
+        self.bulk_add_filter_rules(task_pk=new_task.task_id, bulk_rules=preprocess_core.PreprocessWorker.read_csv_file(filepath))
 
     def get_task(self, task_pk: int):
         return self.session.query(self.filter_rule_task).get(task_pk)
