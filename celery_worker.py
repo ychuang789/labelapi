@@ -110,14 +110,14 @@ def export_document_file(task_id: str):
 
 
 @celery_app.task(name=f'{configuration.CELERY_NAME}.import_document_file', ignore_result=True)
-def import_document_file(task_id: str, overwrite: bool, file):
+def import_document_file(task_id: str, overwrite: str, filepath: str):
     _logger = get_logger('documenting')
     _logger.info(f'start uploading docs of {task_id}')
     doc_worker = DocumentCRUD()
-    doc_worker.upload_file(
+    doc_worker.import_file(
         task_id=task_id,
         overwrite=overwrite,
-        file=file)
+        filepath=filepath)
     _logger.info(f'finish uploading docs of {task_id}')
 
 # @celery_app.task(name=f'{configuration.CELERY_NAME}.preprocess_task', ignore_result=True)

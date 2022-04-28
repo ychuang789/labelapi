@@ -872,6 +872,7 @@ class TableName:
     document_dataset = 'document_dataset'
     document_rules = 'document_rules'
     document_upload = 'document_upload'
+    document_download = 'document_download'
 
 
 class DatabaseConfig:

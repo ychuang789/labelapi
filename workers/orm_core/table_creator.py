@@ -4,9 +4,10 @@ from sqlalchemy import Boolean, DateTime, Column, String, Integer, ForeignKey, F
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import ChoiceType
+from tornado.process import task_id
 
 from settings import TableName
-from utils.enum_config import DocumentDatasetType, RuleType, MatchType, DocumentTaskType, DocumentUploadStatus
+from utils.enum_config import DocumentDatasetType, RuleType, MatchType, DocumentTaskType, DocumentUploadDownloadStatus
 
 Base: declarative_base = declarative_base()
 
@@ -307,6 +308,12 @@ class DocumentTask(Base):
         backref="document_task",
         cascade="all, delete",
     )
+    document_download = relationship(
+        "DocumentDownload",
+        backref="document_task",
+        cascade="all, delete",
+        uselist=False
+    )
 
     def __init__(self, task_id, description, is_multi_label, create_time, update_time):
         self.task_id = task_id
@@ -373,8 +380,8 @@ class DocumentRules(Base):
 class DocumentUpload(Base):
     __tablename__ = TableName.document_upload
     id = Column(Integer, primary_key=True, autoincrement=True)
-    filepath = Column(String(100), nullable=False)
-    status = Column(ChoiceType(DocumentUploadStatus, impl=String(100)), nullable=False)
+    filepath = Column(String(500), nullable=False)
+    status = Column(ChoiceType(DocumentUploadDownloadStatus, impl=String(100)), nullable=False)
     create_time = Column(DateTime, default=datetime.now(), nullable=False)
     finish_time = Column(DateTime, nullable=True)
     error_message = Column(LONGTEXT, nullable=True)
@@ -393,5 +400,21 @@ class DocumentUpload(Base):
                f"{self.finish_time}, {self.error_message}, {self.task_id})"
 
 
+class DocumentDownload(Base):
+    __tablename__ = TableName.document_download
+    task_id = Column(String(32), ForeignKey("document_task.task_id", ondelete="CASCADE"), primary_key=True)
+    filepath = Column(String(500), nullable=False)
+    status = Column(ChoiceType(DocumentUploadDownloadStatus, impl=String(100)), nullable=False)
+    create_time = Column(DateTime, default=datetime.now(), nullable=False)
+    error_message = Column(LONGTEXT, nullable=True)
 
+    def __init__(self, filepath, status, create_time, error_message):
+        self.filepath = filepath
+        self.status = status
+        self.create_time = create_time
+        self.error_message = error_message
+        self.task_id = task_id
 
+    def __repr__(self):
+        return f"DocumentDownload({self.filepath}, {self.status}, {self.create_time}, {self.error_message}, " \
+               f"{self.task_id})"

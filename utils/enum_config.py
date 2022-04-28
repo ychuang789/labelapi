@@ -32,7 +32,7 @@ class DocumentMatchType(Enum):
     PARTIALLY = 'partially'
 
 
-class DocumentUploadStatus(Enum):
+class DocumentUploadDownloadStatus(Enum):
     PENDING = 'pending'
     DONE = 'done'
     FAILURE = 'failure'

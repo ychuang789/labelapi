@@ -36,7 +36,8 @@ class BaseOperation():
         show_table = inspector.get_table_names()
         return show_table
 
-    def orm_cls_to_dict(self, record) -> Dict[str, Any]:
+    @staticmethod
+    def orm_cls_to_dict(record) -> Dict[str, Any]:
         result_dict = {}
         for c in record.__table__.columns:
             if isinstance(getattr(record, c.name), datetime):

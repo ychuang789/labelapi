@@ -16,6 +16,9 @@ Path(MODEL_IMPORT_FOLDER).mkdir(exist_ok=True)
 SAVE_DOCUMENT_FOLDER = Path(ROOT_DIR / "save_document_folder")
 Path(SAVE_DOCUMENT_FOLDER).mkdir(exist_ok=True)
 
+DOWNLOAD_DOCUMENT_FOLDER = Path(ROOT_DIR / "download_document_folder")
+Path(DOWNLOAD_DOCUMENT_FOLDER).mkdir(exist_ok=True)
+
 SAVE_DETAIL_FOLDER = Path(ROOT_DIR / "save_detail_folder")
 Path(SAVE_DETAIL_FOLDER).mkdir(exist_ok=True)
 

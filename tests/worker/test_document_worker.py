@@ -10,7 +10,7 @@ fake_task_id_1 = '83b02587c13511ec8e3e04ea56825bad'
 create_time = datetime.now()
 fake_task_data_1 = {
     "NAME": "testing_document_task",
-    "TASK_TYPE": "rule_task",
+    "TASK_TYPE": "machine_learning_task",
     "IS_MULTI_LABEL": True,
     "CREATE_TIME": create_time,
 }
