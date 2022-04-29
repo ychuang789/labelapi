@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Iterable, Dict, List
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -6,7 +7,9 @@ from models.audience_model_interfaces import RuleBaseModel
 from utils.data.input_example import InputExample
 
 from utils.enum_config import ModelType, PredictTarget, Errors
+from utils.general_helper import get_logger
 
+logger = get_logger('debug')
 
 class RegexModel(RuleBaseModel):
     def __init__(self, model_dir_name=None,
@@ -47,6 +50,7 @@ class RegexModel(RuleBaseModel):
                 _matched_count = 0
                 _match_pattern = []
                 for pattern in patterns:
+                    # logger.info(pattern)
                     if result := re.search(pattern=pattern, string=_predict_str.lower()):
                         _matched_count += 1
                         _match_pattern.append(result.group(0))

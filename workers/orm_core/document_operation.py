@@ -10,7 +10,7 @@ from utils.enum_config import DocumentTaskType, DocumentUploadDownloadStatus
 from utils.exception_manager import SessionError
 from workers.orm_core.base_operation import BaseOperation
 from workers.orm_core.table_creator import DocumentDataset, DocumentRules
-from workers.preprocessing.preprocess_core import PreprocessWorker
+from workers.preprocessing import preprocess_core
 
 
 class DocumentCRUD(BaseOperation):
@@ -307,7 +307,7 @@ class DocumentCRUD(BaseOperation):
                 prev_set.delete()
                 self.session.commit()
 
-            csv_rows = PreprocessWorker.read_csv_file(filepath)
+            csv_rows = preprocess_core.PreprocessWorker.read_csv_file(filepath)
 
             if task.task_type.lower() == DocumentTaskType.MACHINE_LEARNING.value:
                 self.session.bulk_save_objects(

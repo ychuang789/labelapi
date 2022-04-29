@@ -239,6 +239,7 @@ class ModelingWorker:
             raise ModelTypeNotFoundError(f'{self.model_name} is not a available model')
 
     def create_model_obj(self, is_train: bool):
+        #todo: refactor line 277 get rule func
         try:
             model_class, class_name = self.get_model_class()
         except ModelTypeNotFoundError:
@@ -306,6 +307,7 @@ class ModelingWorker:
             self.orm_cls.dispose()
             raise e
 
+    #todo: refactor run_processing
     def data_preprocess(self, is_train: bool = True):
         if is_train:
             dataset: Dict = self.preprocess.run_processing()

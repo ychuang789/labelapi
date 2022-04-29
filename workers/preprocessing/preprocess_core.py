@@ -26,6 +26,7 @@ class PreprocessWorker:
         return f"the class for data preprocessing"
 
     def run_processing(self, sample_count=1000, is_train=True):
+        # todo: refactor
         if is_train:
             data_dict = {}
             for i in [t.value for t in DatasetType]:
@@ -47,6 +48,21 @@ class PreprocessWorker:
         return data
 
     def get_rules(self, task_id: str) -> List[Rules]:
+        # todo: refactor get_source_rules
+        # rules = self.get_source_rules(local_test=LOCAL_TEST)
+        # if not rules:
+        #     raise ValueError('rules are not found')
+        # rule_bulk_list = []
+        # for rule in rules:
+        #     rule_bulk_list.append(
+        #         Rules(content=rule['content'],
+        #               rule_type=rule['rule_type'],
+        #               score=rule['score'],
+        #               label=rule['name'],
+        #               match_type=rule['match_type'],
+        #               task_id=task_id)
+        #     )
+        # rules = doc_worker.orm_cls_to_dict(doc_worker.rule_render())
         rules = self.get_source_rules(local_test=LOCAL_TEST)
         if not rules:
             raise ValueError('rules are not found')
@@ -60,6 +76,8 @@ class PreprocessWorker:
                       match_type=rule['match_type'],
                       task_id=task_id)
             )
+
+
         return rule_bulk_list
 
     def load_rules(self, rules: List[Rules]):
