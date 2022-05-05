@@ -24,7 +24,7 @@ class DatasetRequest(BaseModel):
     CONTENT: Optional[str] = "add some text data here"
     POST_TIME: Optional[datetime] = None
     # LABEL: Optional[str] = "assign the label here"
-    DOCUMENT_TYPE: Optional[DocumentDatasetType] = DocumentDatasetType.TRAIN
+    DATASET_TYPE: Optional[DocumentDatasetType] = DocumentDatasetType.TRAIN
 
     class Config:
         use_enum_values = True

@@ -11,6 +11,7 @@ from apis.input_class.documenting_input import DocumentRequest, DatasetRequest, 
 from celery_worker import export_document_file, import_document_file
 from definition import SAVE_DOCUMENT_FOLDER
 from settings import DatabaseConfig
+from utils.general_helper import get_logger
 from workers.orm_core.document_operation import DocumentCRUD
 
 router = APIRouter(prefix='/documents',
@@ -18,6 +19,8 @@ router = APIRouter(prefix='/documents',
                    # dependencies=[Depends(get_token_header)],
                    responses={404: {"description": "Not found"}},
                    )
+
+logger = get_logger('debug')
 
 
 @router.get('/', description='render all document tasks')
@@ -44,6 +47,7 @@ def document_add(task_id: str, body: DocumentRequest):
                             content=f'OK, task {task.task_id} created')
     except Exception as e:
         err_msg = f'failed to add task since {type(e).__name__}:{e}'
+        logger.info(err_msg)
         return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                             content=jsonable_encoder(err_msg))
     finally:

@@ -9,7 +9,8 @@ class ModelingTrainingConfig(BaseModel):
     # TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
     QUEUE: str = "queue2"
     DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
+    # DATASET_NO: int = 1
+    DATASET_NO: str = None
     TASK_ID: str = None
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
@@ -21,7 +22,8 @@ class ModelingTrainingConfig(BaseModel):
 class ModelingTestingConfig(BaseModel):
     QUEUE: str = "queue2"
     DATASET_DB: str = 'audience-toolkit-django'
-    DATASET_NO: int = 1
+    # DATASET_NO: int = 1
+    DATASET_NO: str = None
     TASK_ID: str = None
     PREDICT_TYPE: str = PredictTarget.CONTENT.name
     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
