@@ -4,7 +4,6 @@ from sqlalchemy import Boolean, DateTime, Column, String, Integer, ForeignKey, F
 from sqlalchemy.dialects.mysql import LONGTEXT, DOUBLE
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import ChoiceType
-from tornado.process import task_id
 
 from settings import TableName
 from utils.enum_config import DocumentDatasetType, RuleType, MatchType, DocumentTaskType, DocumentUploadDownloadStatus
