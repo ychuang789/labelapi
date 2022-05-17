@@ -35,8 +35,6 @@ class PreprocessWorker:
             for k,v in groupby(sorted_dataset, key_func):
                 if k == DatasetType.EXT_TEST.value:
                     continue
-                if not list(v):
-                    raise DataNotFoundError('There are missing data from database')
 
                 data = self.load_examples(data=list(v), sample_count=sample_count)
                 data_dict.update({k: data})
@@ -101,8 +99,8 @@ class PreprocessWorker:
         if isinstance(data, list):
             df = pd.DataFrame(data)
             for index, row in df.iterrows():
-                if not labels or row['name'] in labels:
-                    examples[row['name']].append(
+                if not labels or row['label'] in labels:
+                    examples[row['label']].append(
                         InputExample(
                             id_=row['id'],
                             s_area_id=row['s_area_id'],
@@ -110,7 +108,7 @@ class PreprocessWorker:
                             title=row['title'],
                             content=row["content"],
                             post_time=row['post_time'],
-                            label=row["name"])
+                            label=row["label"])
                     )
         elif isinstance(data, str):
             df = pd.read_csv(data, sep='\t', header=0, names=["content", "label"])
@@ -124,7 +122,7 @@ class PreprocessWorker:
                             title="",
                             content=row["content"],
                             post_time=None,
-                            label=row["name"])
+                            label=row["label"])
                     )
         else:
             raise TypeError(f"Expect input data type as str or list, "
