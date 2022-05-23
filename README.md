@@ -2,8 +2,6 @@
 
 ###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-02-23
 
-中文專案簡報連結 : [Chinese Slides Link](AudienceAPI_v2.1.pptx)
-
 #### Table of content
 
 + [Description](#description)
@@ -24,53 +22,36 @@
 
 ## Description
 
-These WEB APIs is built for the usage of data labeling tasks supporting users selecting models and rules to labeling the target range of data, and result sampling. There are four APIs in this project:
+Audience API is built for the usage of data labeling ETL pipeline supporting users selecting models and rules to label the target range of data, and result sampling. There are several APIs in this project:
 
-+ Task
++ **documenting**
+  + Users can access [**doccano**](https://rd2demo.eland.com.tw/), a models' data annotation platform which supporting data annotation.
+  + Allow users to upload the annotated models' data, for example, machine learning and rule datasets.
+  + Users can perform the CRUD of data management.
++ **modeling**
+  + Apply the dataset which is managed by documenting API to train, validate and test the model.
+  + Support the table of classification report and the download link of validation details.
 
-1. create_task : According to the user defined condition, set up a task flow (labeling and generate production) and execute the flow
-2. task_list : return the recent executed tasks with tasks' information
-3. check_status : Input a task id to check the status (label task status and generate product task status)
-4. sample_result : Input a task id, return a sampling dataset back.
-5. abort_task : According to the user defined task_id, abort the task
++ **predicting**
+  + Users can choose several models and source databases, choose the time range, to start the predicting ETL pipeline.
+  + While running the task, users can determine if the task shall keep running or stop the task by viewing the sampling result.
+  + Users can check the task status to gain the task information, such as the progression, statistics data and error message, etc.
 
-+ Model
-
-1. model_preparing : train and validate a model with saving it to model directory, if the model cannot be trained, save the record to model_status.      
-2. model_testing : test a model with a external test data.         
-3. model_status : get the model status information with a target task_id.       
-4. model_report : get the model report information with a target task_id.   
-5. model_abort : break a task with a target task_id.   
-6. model_delete : delete a record in model_status, it will also wipe out the report in model_report with same task_id.  
-7. model_import : input term weight file to a task.
-8. get_import_model_status : track the schedule of model_import.
-9. get_eval_details :  return a limit query set of detail row data from a specific report of a task.
-10. get_eval_false_prediction : return a limit query set of detail false prediction row data from a specific report of a task.
-11. get_eval_true_prediction : return a limit query set of detail true prediction row data from a specific report of a task.
-12. download_details : download details prediction row data as a csv file of a specific dataset type.
-13. term_weight_add : add a single row of term weight to a task.
-14. get term weight : retrieve all term weight data from a task.
-15. term_weight_update : update a specific term weight data from a task.
-16. term_weight_delete : delete a specific term weight data from a task.
-17. term_weight_download: download whole term weight data as csv from a task. 
-
-The total flow in brief of `create_task` is that the API will query the database via conditions and information which place by users, label those data, and output the data to a target database storing by `source_id` . The progress and validation information will be stored in the table, name `state`, inside the user define output schema which will be automatically created at the first time that user call `create_task` API.
-
-
++ **preprocessing**
+  + Define sets of regular expression data that can be excluded before the model training or predicting ETL.
+  + Noted this API is not available for the users yet. 
 
 ## Work Flow
 
-#### Task
+#### Modeling API
 
-<img src="graph/workflow_chain_v3.png">
+![](C:\Users\ychuang\PycharmProjects\Audience_api\graph\Audience-modeling_pipline.drawio (2).png)
 
-#### Model
+#### Predicting API
 
-<img src="graph/model_api.png">
+![](C:\Users\ychuang\PycharmProjects\Audience_api\graph\Audience-Predicting_flow.drawio (1).png)
 
-<img src="graph/model_worker.png">
 
-<img src="graph/erd.png">
 
 ## Built With
 
@@ -189,7 +170,7 @@ $ make run_predicting_1
 + Model
 
 ```bash
-$ make run_modeling
+$ make run_modeling_1
 ```
 
 We use `gevent` to run a worker, see `Makefile` for more information.
@@ -248,47 +229,6 @@ If you have done the quick start and you want to test the API functions or expec
 + View the result
 
 <img src="graph/s3_d.png">
-
-Otherwise modify  curl to calling API. Follow below parts :  
-
-#### Example
-
-Input the task information for example model type, predict type, date info, etc., and return task_id with task configuration.
-
-+ **request example :**
-
-```shell
-curl -X 'POST' \
-  'http://<api address>:<api port>/tasks/' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "MODEL_TYPE": "keyword_model",
-  "PREDICT_TYPE": "author_name",
-  "START_TIME": "2020-01-01",
-  "END_TIME": "2021-01-01",
-  "PATTERN": {},
-  "INPUT_SCHEMA": "wh_tiktok",
-  "INPUT_TABLE": "ts_page_content",
-  "OUTPUT_SCHEMA": "audience_result",
-  "COUNTDOWN": 5,
-  "QUEUE": "queue1",
-  "SITE_CONFIG": {"host": <source.host>,
-  				 "port": <source.port>,
-                 "user": <source.username>,
-                 "password": <source.password>,
-                 "db": <source.schema>,
-                 "charset": "utf8mb4"}
-}'
-```
-
-Replace your own API address with port and the site_config with target database connection information.
-
-Since in the demonstration of this document we only run single queue, noted that If you have multiple queues, you may add `"queue": "<your queue name>"` at the end of the request body to execute multiple tasks in the same time.
-
-Noted that the default values of database are generated from the environment variables from `.env`
-
-Save the `task_id` if you want to directly query the task status or result after.
 
 
 
