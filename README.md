@@ -1,6 +1,6 @@
-# Audience API v 2.2
+# Audience API v 2.4
 
-###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-02-23
+###### v2.0 created by Weber Huang at 2021-10-07; v2.2 last updated by Weber Huang at 2022-05-23
 
 #### Table of content
 
