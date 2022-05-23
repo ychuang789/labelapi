@@ -45,11 +45,11 @@ Audience API is built for the usage of data labeling ETL pipeline supporting use
 
 #### Modeling API
 
-![](graph/Audience-modeling_pipline.drawio (2).png)
+![](graph/Audience-modeling_pipline.drawio%20(2).png)
 
 #### Predicting API
 
-![](graph/Audience-Predicting_flow.drawio (1).png)
+![](graph/Audience-Predicting_flow.drawio%20(1).png)
 
 
 
