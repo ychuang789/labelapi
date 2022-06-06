@@ -1,11 +1,13 @@
 import os
 from dotenv import load_dotenv
 from datetime import date
-from pydantic import BaseModel, BaseSettings
-from typing import Dict, Optional, List, Any, Union
+from pydantic import BaseModel, BaseSettings, Field
+from typing import Dict, Optional, List, Union
 
-from utils.input_example import InputExample
-from utils.selections import ModelType, KeywordMatchType
+from definition import SAVE_DETAIL_FOLDER
+from utils.enum_config import ModelType, PredictTarget
+
+load_dotenv()
 
 SOURCE: Dict = {
     "Comment": [
@@ -746,6 +748,10 @@ SOURCE: Dict = {
     ]
 }
 
+# ==============================
+#             Dump
+# ==============================
+
 TABLE_PREFIX = 'wh_panel_mapping_'
 
 TABLE_GROUPS_FOR_INDEX = {
@@ -759,35 +765,88 @@ TABLE_GROUPS_FOR_INDEX = {
     'Blog': ['blog']
 }
 
-# don't delete or edit items in conflict_group, only add item
 CONFLICT_GROUPS = {
-    'GENDER': ('/male', '/female'),
-    'MARRIAGE': ('/unmarried', '/married'),
+    'GENDER': ['/male', '/female'],
+    'MARRIAGE': ['/unmarried', '/married'],
 }
+
+LABEL = {'男性': 'male',
+         '女性': 'female',
+         '未婚': 'unmarried',
+         '已婚': 'married',
+         '孩子': 'child',
+         '有子女': 'parenting',
+         '青年': 'young',
+         '上班族': 'employee',
+         '學生': 'student'}
+
+DUMP_COLUMNS = ('source_author', 'panel', 'create_time')
+
+SITE_SCHEMA = 'audience-toolkit-django'
+
+# ==============================
+#            Model
+# ==============================
+
+MODEL_PATH_FIELD_DIRECTORY = 'model_files'
+
+MODEL_INFORMATION = {
+    "KEYWORD_MODEL": "models.rule_based_models.keyword_model.KeywordModel",
+    "REGEX_MODEL": "models.rule_based_models.regex_model.RegexModel",
+    "RANDOM_FOREST_MODEL": "models.trainable_models.rf_model.RandomForestModel",
+    "TERM_WEIGHT_MODEL": "models.trainable_models.tw_model.TermWeightModel",
+}
+
+TERM_WEIGHT_FIELDS_MAPPING = {
+    'content': '字詞',
+    'label': '標籤',
+    'score': '分數',
+}
+
+SAVE_DETAIL_EXTENSION = {'csv'}
+
+
+# ==============================
+#          Application
+# ==============================
 
 class DevelopConfig(BaseSettings):
     API_HOST: str = '127.0.0.1'
-    API_TITLE: str  = 'Audience API'
+    API_TITLE: str = 'Audience API'
     API_VERSION: float = 2.1
-    CELERY_NAME: str  = 'celery_worker'
-    CELERY_SQL_URI: str  = 'sqlite:///save.db'
-    CELERY_BACKEND: str  = 'db+sqlite:///save.db'
-    CELERY_BROKER: str  = 'redis://localhost'
-    CELERY_TIMEZONE: str  = 'Asia/Taipei'
+    CELERY_NAME: str = 'celery_worker'
+    CELERY_SQL_URI: str = 'sqlite:///save.db'
+    CELERY_BACKEND: str = 'db+sqlite:///save.db'
+    CELERY_BROKER: str = 'redis://localhost'
+    CELERY_TIMEZONE: str = 'Asia/Taipei'
     CELERY_ENABLE_UTC: bool = False
     CELERY_RESULT_EXPIRES: int = 7
     CELERY_RESULT_EXTENDED: bool = True
     CELERY_TASK_TRACK_STARTED: bool = True
     CELERY_ACKS_LATE: bool = True
-    CELERY_SERIALIZER: str = 'pickle'
     DUMP_ZIP: bool = False
+
 
 class ProductionConfig(DevelopConfig):
     API_HOST: str = '0.0.0.0'
     CELERY_BROKER: str = 'redis://0.0.0.0'
 
+
+# ==============================
+#          Connection
+# ==============================
+class TableName:
+    state = 'state'
+    model_status = 'model_status'
+    model_report = 'model_report'
+    term_weights = 'term_weights'
+    rules = 'rules'
+    upload_model = 'upload_model'
+    eval_details = 'eval_details'
+    filter_rules = 'filter_rules'
+
+
 class DatabaseConfig:
-    load_dotenv()
     INPUT_HOST: str = os.getenv('INPUT_HOST')
     INPUT_PORT: int = int(os.getenv('INPUT_PORT'))
     INPUT_USER: str = os.getenv('INPUT_USER')
@@ -803,119 +862,90 @@ class DatabaseConfig:
                               f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
                               f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
     DUMP_FROM_SCHEMA: str = os.getenv('DUMP_FROM_SCHEMA')
-
-class TaskConfig(BaseModel):
-    load_dotenv()
-    MODEL_TYPE: str = 'keyword_model'
-    PREDICT_TYPE: str = 'author_name'
-    START_TIME: date = "2020-01-01"
-    END_TIME: date = "2021-01-01"
-    PATTERN: Optional[Dict] = None
-    INPUT_SCHEMA: str = os.getenv('INPUT_SCHEMA')
-    INPUT_TABLE: str = os.getenv('INPUT_TABLE')
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
-    COUNTDOWN: int = 5
-    QUEUE: str = "queue1"
-    SITE_CONFIG: Optional[Dict] = None
-
-class AbortionConfig(BaseModel):
-    TASK_ID: str = 'string'
-
-class DumpConfig(BaseModel):
-    GROUP: str = "GENDER"
-    TASK_IDS: List[str] = None
-    PREVIOUS_YEAR: int = 2019
-    INPUT_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
-    OUTPUT_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
-
-class TrainingConfig(BaseModel):
-    load_dotenv()
-    #TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
-    TRAINING_SET: List[InputExample] = None
-    TRAINING_Y: List[List[str]] = None
-    MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
-    MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
-                                               "keyword_patterns": None,
-                                               "regex_patterns": None,}
+    DUMP_TO_SCHEMA: str = os.getenv('DUMP_TO_SCHEMA')
 
 
-class TaskList:
-    load_dotenv()
-    OUTPUT_HOST: str = os.getenv('OUTPUT_HOST')
-    OUTPUT_PORT: int = int(os.getenv('OUTPUT_PORT'))
-    OUTPUT_USER: str = os.getenv('OUTPUT_USER')
-    OUTPUT_PASSWORD: str = os.getenv('OUTPUT_PASSWORD')
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
-    ORDER_COLUMN: str = 'create_time'
-    NUMBER: int = 5
-    OFFSET: int = 1000
-    OUTPUT_ENGINE_INFO = f'mysql+pymysql://{os.getenv("OUTPUT_USER")}:' \
-                         f'{os.getenv("OUTPUT_PASSWORD")}@{os.getenv("OUTPUT_HOST")}:' \
-                         f'{os.getenv("OUTPUT_PORT")}/{os.getenv("OUTPUT_SCHEMA")}?charset=utf8mb4'
-    TABLE: str = 'state'
-
-class TaskSampleResult:
-    load_dotenv()
-    OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
-    ORDER_COLUMN: str = 'create_time'
-    NUMBER: int = 50
-    OFFSET: int = 1000
-
-LABEL = {'男性': 'male',
-         '女性': 'female',
-         '未婚': 'unmarried',
-         '已婚': 'married',
-         '孩子': 'child',
-         '有子女': 'parenting',
-         '青年': 'young',
-         '上班族': 'employee',
-         '學生': 'student'}
-
-MODEL_PATH_FIELD_DIRECTORY = 'model_files'
+class TestDatabaseConfig:
+    HOST: str = os.getenv('190_HOST')
+    PORT: int = int(os.getenv('190_PORT'))
+    USER: str = os.getenv('190_USER')
+    PASSWORD: str = os.getenv('190_PASSWORD')
 
 
+LOCAL_TEST = os.getenv('LOCAL_TEST', None)
 
-# class DatabaseInfo:
-#     load_dotenv()
-#     host = os.getenv('INPUT_HOST')
-#     port = int(os.getenv('INPUT_PORT'))
-#     user = os.getenv('INPUT_USER')
-#     password = os.getenv('INPUT_PASSWORD')
-#     output_host = os.getenv('OUTPUT_HOST')
-#     output_port = int(os.getenv('OUTPUT_PORT'))
-#     output_user = os.getenv('OUTPUT_USER')
-#     output_password = os.getenv('OUTPUT_PASSWORD')
-#     input_schema = os.getenv('INPUT_SCHEMA')
-#     output_schema = os.getenv('OUTPUT_SCHEMA')
-#     rule_schemas = os.getenv('RULE_SHEMAS')
-#     output_engine_info = f'mysql+pymysql://{output_user}:{output_password}@{output_host}:{output_port}/{output_schema}?charset=utf8mb4'
 
-# class CreateTaskRequestBody(BaseModel):
-#     model_type: str = 'keyword_model'
-#     predict_type: str = 'author_name'
-#     start_time: datetime = "2020-01-01 00:00:00"
-#     end_time: datetime = "2021-01-01 00:00:00"
-#     target_schema: str = os.getenv('INPUT_SCHEMA')
-#     target_table: str = "ts_page_content"
-#     output_schema: str = os.getenv('OUTPUT_SCHEMA')
-#     countdown: int = 5
-#     queue: str = "queue1"
+# ==============================
+#          API request
+# ==============================
 
-# class TaskListRequestBody:
-#     load_dotenv()
-#     host = os.getenv('OUTPUT_HOST')
-#     port = int(os.getenv('OUTPUT_PORT'))
-#     user = os.getenv('OUTPUT_USER')
-#     password = os.getenv('OUTPUT_PASSWORD')
-#     output_schema = os.getenv('OUTPUT_SCHEMA')
-#     order_column: str = 'create_time'
-#     number: int = 5
-#     offset: int = 1000
-#     engine_info: str = f'mysql+pymysql://{user}:{password}@{host}:{port}/{output_schema}?charset=utf8mb4'
-#     table: str = 'state'
+# class TaskConfig(BaseModel):
+#     START_TIME: date = "2020-01-01"
+#     END_TIME: date = "2021-01-01"
+#     INPUT_SCHEMA: str = os.getenv("INPUT_SCHEMA")
+#     INPUT_TABLE: str = os.getenv("INPUT_TABLE")
+#     COUNTDOWN: int = 5
+#     QUEUE: str = "queue1"
+#     MODEL_ID_LIST: List[str] = None
+#     SITE_CONFIG: Optional[Dict] = None
+#
+#
+# class AbortConfig(BaseModel):
+#     TASK_ID: str = 'string'
+#
+#
+# class DeleteConfig(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class DumpConfig(BaseModel):
+#     ID_LIST: List[int] = "place task_id list or predicting_job_id list here"
+#     OLD_TABLE_DATABASE: str = DatabaseConfig.DUMP_FROM_SCHEMA
+#     NEW_TABLE_DATABASE: str = DatabaseConfig.OUTPUT_SCHEMA
+#     DUMP_DATABASE: str = DatabaseConfig.DUMP_TO_SCHEMA
+#     QUEUE: str = "queue1"
+#
+#
+# class TaskSampleResult:
+#     OUTPUT_SCHEMA: str = os.getenv('OUTPUT_SCHEMA')
+#     ORDER_COLUMN: str = 'create_time'
+#     NUMBER: int = 50
+#     OFFSET: int = 1000
+#
+#
+# class ModelingTrainingConfig(BaseModel):
+#     # TRAINING_SCHEMA: str = os.getenv('TRAINING_SCHEMA')
+#     QUEUE: str = "queue2"
+#     DATASET_DB: str = 'audience-toolkit-django'
+#     DATASET_NO: int = 1
+#     TASK_ID: str = None
+#     PREDICT_TYPE: str = PredictTarget.CONTENT.name
+#     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+#     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path",
+#                                                "feature_model": "SGD"
+#                                                }
+#
+#
+# class ModelingTestingConfig(BaseModel):
+#     QUEUE: str = "queue2"
+#     DATASET_DB: str = 'audience-toolkit-django'
+#     DATASET_NO: int = 1
+#     TASK_ID: str = None
+#     PREDICT_TYPE: str = PredictTarget.CONTENT.name
+#     MODEL_TYPE: str = ModelType.RANDOM_FOREST_MODEL.name
+#     MODEL_INFO: Dict[str, Union[str, Dict]] = {"model_path": "model_path"}
+#
+#
+# class ModelingAbort(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class ModelingDelete(BaseModel):
+#     TASK_ID: str = None
+#
+#
+# class ModelingUpload(BaseModel):
+#     QUEUE: str = "queue2"
+#     TASK_ID: str = None
+#     UPLOAD_JOB_ID: int = None
 
-# class SampleResultRequestBody:
-#     order_column: str = "create_time"
-#     number: int = 50
-#     offset: int = 1000
-#     schema_name: str = 'audience_result'
